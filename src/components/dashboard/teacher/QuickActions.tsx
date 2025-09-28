@@ -22,8 +22,8 @@ const QuickActions = () => {
           </Link>
         </Button>
         <Button asChild size="lg" className="h-20 text-lg">
-          <Link to="/dashboard/cursos/inscribir">
-            <UserPlus className="mr-2" /> Inscribir Estudiantes
+          <Link to="/dashboard/cursos">
+            <UserPlus className="mr-2" /> Gestionar Cursos
           </Link>
         </Button>
       </CardContent>

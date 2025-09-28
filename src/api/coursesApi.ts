@@ -116,7 +116,7 @@ export const fetchDetallesCursoAsignatura = async (cursoAsignaturaId: string) =>
 export const fetchEstudiantesPorCurso = async (cursoId: string): Promise<Estudiante[]> => {
     const { data, error } = await supabase
         .from('curso_estudiantes')
-        .select('perfiles!inner(id, nombre_completo, rut)')
+        .select('perfiles!inner(id, nombre_completo, rut, email)')
         .eq('curso_id', cursoId);
 
     if (error) throw new Error(error.message);
@@ -128,7 +128,7 @@ export const fetchEstudiantesPorCurso = async (cursoId: string): Promise<Estudia
             id: ce.perfiles.id,
             nombre_completo: ce.perfiles.nombre_completo || 'Nombre no disponible',
             rut: ce.perfiles.rut || 'RUT no disponible',
-            email: 'Email no disponible' // Se usará un placeholder por ahora para garantizar estabilidad.
+            email: ce.perfiles.email || 'Email no disponible'
         }));
 };
 
