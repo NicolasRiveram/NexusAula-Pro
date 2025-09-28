@@ -68,20 +68,27 @@ export const fetchCursosAsignaturasDocente = async (docenteId: string): Promise<
     .eq('docente_id', docenteId);
   
   if (error) throw new Error(error.message);
-  
-  // Filtro de seguridad para evitar que la página se rompa si faltan datos relacionados.
-  return data
-    .filter(ca => ca.asignaturas && ca.cursos && ca.cursos.niveles)
-    .map(ca => ({
-      id: ca.id,
-      asignatura: { nombre: ca.asignaturas.nombre },
-      curso: { 
-        id: ca.cursos.id,
-        nombre: ca.cursos.nombre,
-        anio: ca.cursos.anio,
-        nivel: { nombre: ca.cursos.niveles.nombre } 
+  if (!data) return [];
+
+  // Mapeo seguro con valores por defecto para datos incompletos.
+  // Esto previene que la aplicación se rompa si falta alguna relación (ej: un curso sin nivel).
+  return data.map(ca => {
+    const asignatura = ca.asignaturas ? { nombre: ca.asignaturas.nombre } : { nombre: 'Asignatura no asignada' };
+    const curso = {
+      id: ca.cursos?.id || 'ID-invalido',
+      nombre: ca.cursos?.nombre || 'Curso sin nombre',
+      anio: ca.cursos?.anio || new Date().getFullYear(),
+      nivel: {
+        nombre: ca.cursos?.niveles?.nombre || 'Nivel no asignado'
       }
-  })) as CursoAsignatura[];
+    };
+
+    return {
+      id: ca.id,
+      asignatura,
+      curso
+    };
+  }) as CursoAsignatura[];
 };
 
 export const fetchDetallesCursoAsignatura = async (cursoAsignaturaId: string) => {

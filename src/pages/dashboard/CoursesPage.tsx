@@ -5,6 +5,7 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, BookUp } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import CreateCourseDialog from '@/components/courses/CreateCourseDialog';
 import AssignSubjectDialog from '@/components/courses/AssignSubjectDialog';
@@ -24,9 +25,8 @@ const CoursesPage = () => {
       try {
         const data = await fetchCursosAsignaturasDocente(user.id);
         
-        // Agrupar cursos por nombre de nivel para una mejor organización
         const groups = data.reduce((acc, curso) => {
-          const nivelNombre = curso.curso?.nivel?.nombre || 'Sin Nivel Asignado';
+          const nivelNombre = curso.curso.nivel.nombre;
           if (!acc[nivelNombre]) {
             acc[nivelNombre] = [];
           }
@@ -71,28 +71,46 @@ const CoursesPage = () => {
             <div key={nivelNombre}>
               <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{nivelNombre}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {cursosEnNivel.map((cursoAsignatura) => (
-                  <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} key={cursoAsignatura.id}>
-                    <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
-                      <CardHeader>
-                        <CardTitle>{cursoAsignatura.curso?.nombre}</CardTitle>
-                        <CardDescription>{cursoAsignatura.asignatura?.nombre} - {cursoAsignatura.curso?.anio}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <p className="text-sm text-muted-foreground">Ver detalles del curso y estudiantes.</p>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
+                {cursosEnNivel.map((cursoAsignatura) => {
+                  const isDataIncomplete = 
+                    cursoAsignatura.asignatura.nombre === 'Asignatura no asignada' ||
+                    cursoAsignatura.curso.nivel.nombre === 'Nivel no asignado' ||
+                    cursoAsignatura.curso.nombre === 'Curso sin nombre';
+
+                  return (
+                    <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} key={cursoAsignatura.id}>
+                      <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle>{cursoAsignatura.curso.nombre}</CardTitle>
+                              <CardDescription>{cursoAsignatura.asignatura.nombre} - {cursoAsignatura.curso.anio}</CardDescription>
+                            </div>
+                            {isDataIncomplete && (
+                              <Badge variant="destructive">Incompleto</Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                          <p className="text-sm text-muted-foreground">
+                            {isDataIncomplete 
+                              ? 'Falta información. Haz clic para revisar.' 
+                              : 'Ver detalles del curso y estudiantes.'}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <h3 className="text-xl font-semibold">No tienes cursos asignados</h3>
+          <h3 className="text-xl font-semibold">¡Bienvenido/a a Mis Cursos!</h3>
           <p className="text-muted-foreground mt-2">
-            Crea un nuevo curso o solicita que te asignen una asignatura a un curso existente.
+            Aún no tienes cursos asignados. Comienza por crear uno nuevo o asignarte a uno ya existente.
           </p>
         </div>
       )}
