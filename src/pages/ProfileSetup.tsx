@@ -4,7 +4,7 @@
     import { useNavigate } from 'react-router-dom';
     import { useForm, Controller } from 'react-hook-form';
     import { zodResolver } from '@hookform/resolvers/zod';
-    import * as z from 'zod';
+    import *s z from 'zod';
     import { supabase } from '@/integrations/supabase/client';
     import { showSuccess, showError } from '@/utils/toast';
     import { Button } from '@/components/ui/button';
@@ -430,7 +430,7 @@
                         <DialogDescription>
                           Ingresa los detalles de tu nuevo establecimiento. Serás asignado como coordinador.
                         </DialogDescription>
-                      </DialogDescription>
+                      </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                           <Label htmlFor="new_establecimiento_nombre" className="text-right">Nombre</Label>
