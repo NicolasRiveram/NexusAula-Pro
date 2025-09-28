@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Calendar, FileText, Briefcase, Settings } from 'lucide-react';
+import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/dashboard', icon: Home, label: 'Inicio' },
   { to: '/dashboard/cursos', icon: Book, label: 'Mis Cursos' },
+  { to: '/dashboard/horario', icon: Clock, label: 'Horario' },
   { to: '/dashboard/planificacion', icon: Calendar, label: 'Planificación' },
   { to: '/dashboard/evaluacion', icon: FileText, label: 'Evaluación' },
   { to: '/dashboard/proyectos', icon: Briefcase, label: 'Proyectos' },

@@ -3,12 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, updateStudentProfile, CursoAsignatura, Estudiante } from '@/api/coursesApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Pencil } from 'lucide-react';
 import { showError } from '@/utils/toast';
 import EditStudentDialog from '@/components/courses/EditStudentDialog';
+import CourseScheduleManager from '@/components/courses/CourseScheduleManager';
 
 const CourseDetailPage = () => {
   const { cursoAsignaturaId } = useParams<{ cursoAsignaturaId: string }>();
@@ -78,6 +78,11 @@ const CourseDetailPage = () => {
         <h1 className="text-3xl font-bold">{cursoInfo.curso.nivel.nombre} {cursoInfo.curso.nombre}</h1>
         <p className="text-xl text-muted-foreground">{cursoInfo.asignatura.nombre} - {cursoInfo.curso.anio}</p>
       </div>
+
+      <CourseScheduleManager 
+        cursoAsignaturaId={cursoInfo.id} 
+        cursoNombre={`${cursoInfo.curso.nivel.nombre} ${cursoInfo.curso.nombre}`} 
+      />
 
       <Card>
         <CardHeader>
