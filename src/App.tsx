@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
     import { Toaster as Sonner } from "@/components/ui/sonner";
     import { TooltipProvider } from "@/components/ui/tooltip";
     import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-    import { BrowserRouter, Routes, Route, useNavigate, Outlet } from "react-router-dom";
+    import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
     import { useState, useEffect } from "react";
     import { Session } from "@supabase/supabase-js";
     import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,8 @@ import { Toaster } from "@/components/ui/toaster";
     import EvaluationPage from "./pages/dashboard/EvaluationPage";
     import ProjectsPage from "./pages/dashboard/ProjectsPage";
     import SettingsPage from "./pages/dashboard/SettingsPage";
+    import CourseDetailPage from "./pages/dashboard/CourseDetailPage";
+    import StudentDetailPage from "./pages/dashboard/StudentDetailPage";
     import ProfileSetup from "./pages/ProfileSetup";
     import NotFound from "./pages/NotFound";
     import { EstablishmentProvider } from "./contexts/EstablishmentContext";
@@ -50,7 +52,6 @@ import { Toaster } from "@/components/ui/toaster";
               if (!profileData.perfil_completo) {
                 navigate('/configurar-perfil');
               } else {
-                // Perfil completo, redirigir al dashboard principal
                 if (window.location.pathname === '/login' || window.location.pathname === '/') {
                   navigate('/dashboard');
                 }
@@ -103,6 +104,8 @@ import { Toaster } from "@/components/ui/toaster";
               <Route path="/dashboard" element={<Dashboard />}>
                 <Route index element={<TeacherDashboard />} />
                 <Route path="cursos" element={<CoursesPage />} />
+                <Route path="cursos/:cursoAsignaturaId" element={<CourseDetailPage />} />
+                <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
                 <Route path="planificacion" element={<PlanningPage />} />
                 <Route path="evaluacion" element={<EvaluationPage />} />
                 <Route path="proyectos" element={<ProjectsPage />} />
