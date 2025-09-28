@@ -318,7 +318,6 @@
             <p className="text-xl text-gray-600">Cargando datos de configuración...</p>
           </div>
         );
-      );
       }
 
       return (
@@ -431,7 +430,7 @@
                         <DialogDescription>
                           Ingresa los detalles de tu nuevo establecimiento. Serás asignado como coordinador.
                         </DialogDescription>
-                      </DialogHeader>
+                      </DialogDescription>
                       <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                           <Label htmlFor="new_establecimiento_nombre" className="text-right">Nombre</Label>
