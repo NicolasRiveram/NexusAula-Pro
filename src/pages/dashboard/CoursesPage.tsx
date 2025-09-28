@@ -4,18 +4,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, BookUp } from 'lucide-react';
+import { PlusCircle, BookUp, MoreVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import CreateCourseDialog from '@/components/courses/CreateCourseDialog';
 import AssignSubjectDialog from '@/components/courses/AssignSubjectDialog';
-import { showError } from '@/utils/toast';
+import EnrollStudentsDialog from '@/components/courses/EnrollStudentsDialog';
+import { showSuccess, showError } from '@/utils/toast';
 
 const CoursesPage = () => {
   const [groupedCursos, setGroupedCursos] = useState<Record<string, CursoAsignatura[]>>({});
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [isEnrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; nombre: string } | null>(null);
   const { activeEstablishment } = useEstablishment();
 
   const loadCourses = async () => {
@@ -51,6 +60,15 @@ const CoursesPage = () => {
   useEffect(() => {
     loadCourses();
   }, [activeEstablishment]);
+
+  const handleEnrollClick = (curso: CursoAsignatura) => {
+    setSelectedCourse({ id: curso.curso.id, nombre: `${curso.curso.nivel.nombre} ${curso.curso.nombre}` });
+    setEnrollDialogOpen(true);
+  };
+
+  const handleDownloadClick = () => {
+    showSuccess("La funcionalidad para descargar datos estará disponible próximamente.");
+  };
 
   return (
     <div className="container mx-auto space-y-6">
@@ -91,28 +109,52 @@ const CoursesPage = () => {
                     cursoAsignatura.curso.nombre === 'Curso sin nombre';
 
                   return (
-                    <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} key={cursoAsignatura.id}>
-                      <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle>{cursoAsignatura.curso.nombre}</CardTitle>
-                              <CardDescription>{cursoAsignatura.asignatura.nombre} - {cursoAsignatura.curso.anio}</CardDescription>
+                    <div className="relative group" key={cursoAsignatura.id}>
+                      <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} className="block h-full">
+                        <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle>{cursoAsignatura.curso.nombre}</CardTitle>
+                                <CardDescription>{cursoAsignatura.asignatura.nombre} - {cursoAsignatura.curso.anio}</CardDescription>
+                              </div>
+                              {isDataIncomplete && (
+                                <Badge variant="destructive">Incompleto</Badge>
+                              )}
                             </div>
-                            {isDataIncomplete && (
-                              <Badge variant="destructive">Incompleto</Badge>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="flex-grow">
-                          <p className="text-sm text-muted-foreground">
-                            {isDataIncomplete 
-                              ? 'Falta información. Haz clic para revisar.' 
-                              : 'Ver detalles del curso y estudiantes.'}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                          </CardHeader>
+                          <CardContent className="flex-grow">
+                            <p className="text-sm text-muted-foreground">
+                              {isDataIncomplete 
+                                ? 'Falta información. Haz clic para revisar.' 
+                                : 'Ver detalles del curso y estudiantes.'}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                      <div className="absolute top-2 right-2 z-10">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Opciones del curso</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleEnrollClick(cursoAsignatura); }}>
+                              Inscribir Estudiantes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDownloadClick(); }}>
+                              Descargar Datos
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -137,6 +179,16 @@ const CoursesPage = () => {
         isOpen={isAssignDialogOpen}
         onClose={() => setAssignDialogOpen(false)}
         onSubjectAssigned={loadCourses}
+      />
+      <EnrollStudentsDialog
+        isOpen={isEnrollDialogOpen}
+        onClose={() => setEnrollDialogOpen(false)}
+        cursoId={selectedCourse?.id || ''}
+        cursoNombre={selectedCourse?.nombre || ''}
+        onStudentsEnrolled={() => {
+          setEnrollDialogOpen(false);
+          // Opcional: podrías recargar los datos del curso específico si fuera necesario
+        }}
       />
     </div>
   );
