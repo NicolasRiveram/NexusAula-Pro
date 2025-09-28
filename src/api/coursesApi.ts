@@ -53,7 +53,8 @@ export const fetchCursosPorEstablecimiento = async (establecimientoId: string): 
       .order('anio', { ascending: false })
       .order('nombre');
     if (error) throw new Error(error.message);
-    return data.map(c => ({ ...c, nivel: c.niveles })) as CursoBase[];
+    // Filtro de seguridad para evitar errores si un curso no tiene nivel.
+    return data.filter(c => c.niveles).map(c => ({ ...c, nivel: c.niveles })) as CursoBase[];
 };
 
 export const fetchCursosAsignaturasDocente = async (docenteId: string): Promise<CursoAsignatura[]> => {
@@ -67,10 +68,19 @@ export const fetchCursosAsignaturasDocente = async (docenteId: string): Promise<
     .eq('docente_id', docenteId);
   
   if (error) throw new Error(error.message);
-  return data.map(ca => ({
+  
+  // Filtro de seguridad para evitar que la página se rompa si faltan datos relacionados.
+  return data
+    .filter(ca => ca.asignaturas && ca.cursos && ca.cursos.niveles)
+    .map(ca => ({
       id: ca.id,
       asignatura: { nombre: ca.asignaturas.nombre },
-      curso: { ...ca.cursos, nivel: { nombre: ca.cursos.niveles.nombre } }
+      curso: { 
+        id: ca.cursos.id,
+        nombre: ca.cursos.nombre,
+        anio: ca.cursos.anio,
+        nivel: { nombre: ca.cursos.niveles.nombre } 
+      }
   })) as CursoAsignatura[];
 };
 
@@ -85,28 +95,41 @@ export const fetchDetallesCursoAsignatura = async (cursoAsignaturaId: string) =>
         .eq('id', cursoAsignaturaId)
         .single();
     if (error) throw new Error(error.message);
+
+    // Verificación de seguridad para asegurar que todos los datos necesarios existen.
+    if (!data || !data.asignaturas || !data.cursos || !data.cursos.niveles) {
+        throw new Error("Datos del curso incompletos o no encontrados.");
+    }
+
     return {
         id: data.id,
         asignatura: { nombre: data.asignaturas.nombre },
-        curso: { ...data.cursos, nivel: { nombre: data.cursos.niveles.nombre } }
+        curso: { 
+            id: data.cursos.id,
+            nombre: data.cursos.nombre,
+            anio: data.cursos.anio,
+            nivel: { nombre: data.cursos.niveles.nombre } 
+        }
     } as CursoAsignatura;
 };
 
 export const fetchEstudiantesPorCurso = async (cursoId: string): Promise<Estudiante[]> => {
     const { data, error } = await supabase
         .from('curso_estudiantes')
-        .select('perfiles (id, nombre_completo, rut, email:auth.users(email))')
+        .select('perfiles!inner(id, nombre_completo, rut)')
         .eq('curso_id', cursoId);
 
     if (error) throw new Error(error.message);
     
-    // La estructura de datos es un poco compleja, la aplanamos aquí
-    return data.map((ce: any) => ({
-        id: ce.perfiles.id,
-        nombre_completo: ce.perfiles.nombre_completo,
-        rut: ce.perfiles.rut,
-        email: ce.perfiles.email?.email || 'No disponible'
-    }));
+    // Mapeo seguro de datos de estudiantes.
+    return data
+        .filter((ce: any) => ce.perfiles)
+        .map((ce: any) => ({
+            id: ce.perfiles.id,
+            nombre_completo: ce.perfiles.nombre_completo || 'Nombre no disponible',
+            rut: ce.perfiles.rut || 'RUT no disponible',
+            email: 'Email no disponible' // Se usará un placeholder por ahora para garantizar estabilidad.
+        }));
 };
 
 
