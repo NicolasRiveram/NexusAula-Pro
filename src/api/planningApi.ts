@@ -39,6 +39,30 @@ export interface UnitPlan {
   unidad_maestra_curso_asignatura_link: LinkedCourse[];
 }
 
+export interface ScheduledClass {
+  id: string;
+  fecha: string;
+  titulo: string;
+  objetivos_clase: string;
+  objetivo_estudiante: string;
+  aporte_proyecto: string;
+  actividades_inicio: string;
+  actividades_desarrollo: string;
+  actividades_cierre: string;
+  recursos: string;
+  curso_info: {
+    nombre: string;
+    nivel: string;
+    asignatura: string;
+  };
+}
+
+export interface UnitPlanDetail extends UnitPlan {
+  sugerencias_ia: AISuggestions | null;
+  clases: ScheduledClass[];
+}
+
+
 // --- Funciones de API ---
 
 export const fetchUnitPlans = async (docenteId: string): Promise<UnitPlan[]> => {
@@ -66,6 +90,66 @@ export const fetchUnitPlans = async (docenteId: string): Promise<UnitPlan[]> => 
     ...plan,
     unidad_maestra_curso_asignatura_link: plan.unidad_maestra_curso_asignatura_link.filter((link: any) => link.curso_asignaturas && link.curso_asignaturas.cursos)
   })) as UnitPlan[];
+};
+
+export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDetail> => {
+  const { data: unitData, error: unitError } = await supabase
+    .from('unidades_maestras')
+    .select(`
+      id,
+      titulo,
+      fecha_inicio,
+      fecha_fin,
+      descripcion_contenidos,
+      sugerencias_ia,
+      unidad_maestra_curso_asignatura_link (
+        curso_asignaturas (
+          cursos!inner ( establecimiento_id, nombre, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
+      )
+    `)
+    .eq('id', planId)
+    .single();
+
+  if (unitError) throw new Error(`Error fetching unit plan details: ${unitError.message}`);
+  if (!unitData) throw new Error('Unit plan not found.');
+
+  const { data: classData, error: classError } = await supabase
+    .from('planificaciones_clase')
+    .select(`
+      id, fecha, titulo, objetivos_clase, objetivo_estudiante, aporte_proyecto,
+      actividades_inicio, actividades_desarrollo, actividades_cierre, recursos,
+      unidades ( curso_asignaturas ( cursos ( nombre, niveles ( nombre ) ), asignaturas ( nombre ) ) )
+    `)
+    .eq('unidad_maestra_id', planId)
+    .order('fecha');
+
+  if (classError) throw new Error(`Error fetching scheduled classes: ${classError.message}`);
+
+  const scheduledClasses: ScheduledClass[] = (classData || []).map((c: any) => ({
+    id: c.id,
+    fecha: c.fecha,
+    titulo: c.titulo,
+    objetivos_clase: c.objetivos_clase,
+    objetivo_estudiante: c.objetivo_estudiante,
+    aporte_proyecto: c.aporte_proyecto,
+    actividades_inicio: c.actividades_inicio,
+    actividades_desarrollo: c.actividades_desarrollo,
+    actividades_cierre: c.actividades_cierre,
+    recursos: c.recursos,
+    curso_info: {
+      nombre: c.unidades?.curso_asignaturas?.cursos?.nombre || 'N/A',
+      nivel: c.unidades?.curso_asignaturas?.cursos?.niveles?.nombre || 'N/A',
+      asignatura: c.unidades?.curso_asignaturas?.asignaturas?.nombre || 'N/A',
+    }
+  }));
+
+  return {
+    ...unitData,
+    unidad_maestra_curso_asignatura_link: unitData.unidad_maestra_curso_asignatura_link.filter((link: any) => link.curso_asignaturas && link.curso_asignaturas.cursos),
+    clases: scheduledClasses,
+  } as UnitPlanDetail;
 };
 
 export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: string) => {
