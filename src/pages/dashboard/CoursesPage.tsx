@@ -19,11 +19,17 @@ const CoursesPage = () => {
   const { activeEstablishment } = useEstablishment();
 
   const loadCourses = async () => {
+    if (!activeEstablishment) {
+      setGroupedCursos({});
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       try {
-        const data = await fetchCursosAsignaturasDocente(user.id);
+        const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
         
         const groups = data.reduce((acc, curso) => {
           const nivelNombre = curso.curso.nivel.nombre;
@@ -44,14 +50,14 @@ const CoursesPage = () => {
 
   useEffect(() => {
     loadCourses();
-  }, []);
+  }, [activeEstablishment]);
 
   return (
     <div className="container mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Mis Cursos</h1>
-          <p className="text-muted-foreground">Gestiona tus cursos, asignaturas y estudiantes.</p>
+          <p className="text-muted-foreground">Gestiona tus cursos, asignaturas y estudiantes del establecimiento activo.</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setCreateDialogOpen(true)} disabled={!activeEstablishment}>
@@ -65,6 +71,13 @@ const CoursesPage = () => {
 
       {loading ? (
         <p>Cargando cursos...</p>
+      ) : !activeEstablishment ? (
+        <div className="text-center py-12 border-2 border-dashed rounded-lg">
+          <h3 className="text-xl font-semibold">Selecciona un establecimiento</h3>
+          <p className="text-muted-foreground mt-2">
+            Por favor, elige un establecimiento en la cabecera para ver tus cursos.
+          </p>
+        </div>
       ) : Object.keys(groupedCursos).length > 0 ? (
         <div className="space-y-8">
           {Object.entries(groupedCursos).map(([nivelNombre, cursosEnNivel]) => (
@@ -108,9 +121,9 @@ const CoursesPage = () => {
         </div>
       ) : (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <h3 className="text-xl font-semibold">¡Bienvenido/a a Mis Cursos!</h3>
+          <h3 className="text-xl font-semibold">No hay cursos para mostrar</h3>
           <p className="text-muted-foreground mt-2">
-            Aún no tienes cursos asignados. Comienza por crear uno nuevo o asignarte a uno ya existente.
+            No tienes asignaturas asignadas a cursos en este establecimiento.
           </p>
         </div>
       )}

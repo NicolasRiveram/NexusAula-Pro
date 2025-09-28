@@ -67,15 +67,19 @@ export const fetchCursosPorEstablecimiento = async (establecimientoId: string): 
     return data.filter(c => c.niveles).map(c => ({ id: c.id, nombre: c.nombre, anio: c.anio, nivel: c.niveles as any }));
 };
 
-export const fetchCursosAsignaturasDocente = async (docenteId: string): Promise<CursoAsignatura[]> => {
+export const fetchCursosAsignaturasDocente = async (docenteId: string, establecimientoId: string): Promise<CursoAsignatura[]> => {
+  // Si no hay un establecimiento seleccionado, no se devuelve nada.
+  if (!establecimientoId) return [];
+
   const { data, error } = await supabase
     .from('curso_asignaturas')
     .select(`
       id,
       asignaturas (nombre),
-      cursos (id, nombre, anio, niveles (nombre))
+      cursos!inner (id, nombre, anio, niveles (nombre))
     `)
-    .eq('docente_id', docenteId);
+    .eq('docente_id', docenteId)
+    .eq('cursos.establecimiento_id', establecimientoId);
   
   if (error) throw new Error(error.message);
   if (!data) return [];
