@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { AISuggestions } from '@/pages/dashboard/planning/Step2_ReviewSuggestions';
 
 export interface UnitPlanFormData {
   cursoAsignaturaIds: string[];
@@ -47,4 +48,13 @@ export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: stri
   }
 
   return unidadMaestraId;
+};
+
+export const updateUnitPlanSuggestions = async (unitMasterId: string, suggestions: AISuggestions) => {
+  const { error } = await supabase
+    .from('unidades_maestras')
+    .update({ sugerencias_ia: suggestions })
+    .eq('id', unitMasterId);
+
+  if (error) throw new Error(`Error guardando las sugerencias de la IA: ${error.message}`);
 };
