@@ -10,7 +10,7 @@ import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan 
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
-// --- DATOS SIMULADOS ---
+// --- DATOS SIMULADOS MEJORADOS ---
 const simulatedAISuggestions: AISuggestions = {
   objetivos: ["OA-6: Explicar el movimiento de placas tectónicas.", "OA-7: Comunicar efectos de la actividad humana en océanos.", "OA-8: Analizar características de ecosistemas."],
   proposito: "Que los estudiantes comprendan la dinámica de la Tierra y el impacto humano en los ecosistemas, desarrollando conciencia crítica.",
@@ -22,8 +22,8 @@ const simulatedAISuggestions: AISuggestions = {
 };
 
 const simulatedClassSequence: ClassPlan[] = [
-  { id: 'temp_1', fecha: '', titulo: 'Clase 1: Introducción a los Ecosistemas', objetivos_clase: 'Identificar componentes bióticos y abióticos de un ecosistema local.', objetivo_estudiante: '¡Hoy nos convertiremos en exploradores y descubriremos los seres vivos y no vivos que componen nuestro entorno!', aporte_proyecto: 'Comprender qué es un ecosistema para poder identificar problemas medioambientales en él.', actividades_inicio: 'Lluvia de ideas sobre "¿Qué es un ecosistema?".', actividades_desarrollo: 'Definición formal. Salida al patio para identificar componentes y clasificarlos.', actividades_cierre: 'Puesta en común. Ticket de salida: "Dibuja un ser vivo y uno no vivo que encontraste hoy".', recursos: 'Imágenes, pizarra, lupas, patio escolar.' },
-  { id: 'temp_2', fecha: '', titulo: 'Clase 2: Cadenas y Redes Tróficas', objetivos_clase: 'Construir modelos de redes tróficas para representar relaciones alimentarias.', objetivo_estudiante: '¡Hoy descubriremos quién se come a quién en la naturaleza y construiremos una gran telaraña de la vida!', aporte_proyecto: 'Entender las relaciones entre especies para analizar cómo un problema afecta a todo el ecosistema.', actividades_inicio: 'Pregunta: "¿De dónde obtienen energía los seres vivos?".', actividades_desarrollo: 'Explicación de roles (productor, consumidor, descomponedor). Juego de roles con hilos para formar una red.', actividades_cierre: 'Dibujar la red formada en el cuaderno. Reflexionar: ¿Qué pasaría si desaparece un eslabón?', recursos: 'Pizarra, ovillos de lana, tarjetas con nombres de animales/plantas.' },
+  { id: 'temp_1', fecha: '2024-08-05', titulo: 'Introducción a los Ecosistemas', objetivos_clase: 'Identificar componentes bióticos y abióticos de un ecosistema local.', objetivo_estudiante: '¡Hoy nos convertiremos en exploradores y descubriremos los seres vivos y no vivos que componen nuestro entorno!', aporte_proyecto: 'Comprender qué es un ecosistema para poder identificar problemas medioambientales en él.', actividades_inicio: 'Lluvia de ideas sobre "¿Qué es un ecosistema?".', actividades_desarrollo: 'Definición formal. Salida al patio para identificar componentes y clasificarlos.', actividades_cierre: 'Puesta en común. Ticket de salida: "Dibuja un ser vivo y uno no vivo que encontraste hoy".', recursos: 'Imágenes, pizarra, lupas, patio escolar.', objetivo_aprendizaje_texto: 'OA 8: Analizar y describir las características de los ecosistemas.', habilidades: 'Observar, clasificar, comunicar.', vinculo_interdisciplinario: 'Artes Visuales: Dibujar el ecosistema observado.', aspectos_valoricos_actitudinales: 'Fomentar la curiosidad y el respeto por el entorno natural.' },
+  { id: 'temp_2', fecha: '2024-08-06', titulo: 'Cadenas y Redes Tróficas', objetivos_clase: 'Construir modelos de redes tróficas para representar relaciones alimentarias.', objetivo_estudiante: '¡Hoy descubriremos quién se come a quién en la naturaleza y construiremos una gran telaraña de la vida!', aporte_proyecto: 'Entender las relaciones entre especies para analizar cómo un problema afecta a todo el ecosistema.', actividades_inicio: 'Pregunta: "¿De dónde obtienen energía los seres vivos?".', actividades_desarrollo: 'Explicación de roles (productor, consumidor, descomponedor). Juego de roles con hilos para formar una red.', actividades_cierre: 'Dibujar la red formada en el cuaderno. Reflexionar: ¿Qué pasaría si desaparece un eslabón?', recursos: 'Pizarra, ovillos de lana, tarjetas con nombres de animales/plantas.', objetivo_aprendizaje_texto: 'OA 8: Analizar y describir las características de los ecosistemas, incluyendo las interacciones alimentarias.', habilidades: 'Modelar, analizar, predecir.', vinculo_interdisciplinario: 'Educación Física: Juego de roles activo.', aspectos_valoricos_actitudinales: 'Promover el trabajo colaborativo y la comprensión de la interdependencia.' },
 ];
 // --- FIN DATOS SIMULADOS ---
 
@@ -69,7 +69,15 @@ const NewUnitPlan = () => {
 
       await new Promise(resolve => setTimeout(resolve, 2000)); // Simular generación de clases
       
-      setClassSequence(simulatedClassSequence);
+      // Simular que las fechas se asignan aquí
+      const startDate = new Date();
+      const datedClassSequence = simulatedClassSequence.map((cls, index) => {
+        const newDate = new Date(startDate);
+        newDate.setDate(startDate.getDate() + index);
+        return { ...cls, fecha: newDate.toISOString().split('T')[0] };
+      });
+
+      setClassSequence(datedClassSequence);
       showSuccess("Secuencia de clases generada.");
       setStep(3);
     } catch (error: any) {

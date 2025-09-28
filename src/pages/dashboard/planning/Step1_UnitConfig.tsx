@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, Sparkles } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -60,7 +60,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
 
       const { data, error } = await supabase
         .from('curso_asignaturas')
-        .select('id, cursos!inner(nombre, niveles(id, nombre))')
+        .select('id, asignaturas(nombre), cursos!inner(nombre, niveles(id, nombre))')
         .eq('docente_id', user.id)
         .eq('cursos.establecimiento_id', activeEstablishment.id);
 
@@ -71,11 +71,11 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
 
       const nivelesUnicos: Record<string, string> = {};
       const cursosParaSeleccion = data.map((ca: any) => {
-        if (ca.cursos && ca.cursos.niveles) {
+        if (ca.cursos && ca.cursos.niveles && ca.asignaturas) {
           nivelesUnicos[ca.cursos.niveles.id] = ca.cursos.niveles.nombre;
           return {
             id: ca.id,
-            nombre: `${ca.cursos.niveles.nombre} - ${ca.cursos.nombre}`,
+            nombre: `${ca.cursos.niveles.nombre} - ${ca.cursos.nombre} - ${ca.asignaturas.nombre}`,
             nivelId: ca.cursos.niveles.id,
           };
         }
@@ -91,6 +91,12 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
   const handleNivelChange = (nivelId: string) => {
     setSelectedNivel(nivelId);
     setValue('cursoAsignaturaIds', []); // Resetear cursos al cambiar de nivel
+  };
+
+  const handleSuggestContent = () => {
+    // Simulación de llamada a IA
+    const suggestedContent = "- Ecosistemas: componentes bióticos y abióticos.\n- Cadenas y redes tróficas: productores, consumidores y descomponedores.\n- Flujo de energía y materia en el ecosistema.\n- Impacto humano en los ecosistemas: contaminación y conservación.\n- Adaptaciones de los seres vivos a su entorno.";
+    setValue('descripcionContenidos', suggestedContent, { shouldValidate: true });
   };
 
   const cursosFiltrados = selectedNivel ? cursos.filter(c => c.nivelId === selectedNivel) : [];
@@ -187,14 +193,20 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
       </div>
 
       <div>
-        <Label htmlFor="descripcionContenidos">5. Contenidos y Temas a Abordar</Label>
+        <div className="flex justify-between items-center mb-1">
+          <Label htmlFor="descripcionContenidos">5. Contenidos y Temas a Abordar</Label>
+          <Button type="button" variant="outline" size="sm" onClick={handleSuggestContent} disabled={isLoading}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Sugerir
+          </Button>
+        </div>
         <Controller
           name="descripcionContenidos"
           control={control}
           render={({ field }) => (
             <Textarea
               id="descripcionContenidos"
-              placeholder="Describe los temas, conceptos clave y habilidades que quieres desarrollar en esta unidad."
+              placeholder="Describe los temas, conceptos clave y habilidades que quieres desarrollar en esta unidad, o haz clic en 'Sugerir'."
               rows={5}
               {...field}
             />
