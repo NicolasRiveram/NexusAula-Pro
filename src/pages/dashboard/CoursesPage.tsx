@@ -11,7 +11,7 @@ import AssignSubjectDialog from '@/components/courses/AssignSubjectDialog';
 import { showError } from '@/utils/toast';
 
 const CoursesPage = () => {
-  const [cursos, setCursos] = useState<CursoAsignatura[]>([]);
+  const [groupedCursos, setGroupedCursos] = useState<Record<string, CursoAsignatura[]>>({});
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -23,7 +23,18 @@ const CoursesPage = () => {
     if (user) {
       try {
         const data = await fetchCursosAsignaturasDocente(user.id);
-        setCursos(data);
+        
+        // Agrupar cursos por nombre de nivel para una mejor organización
+        const groups = data.reduce((acc, curso) => {
+          const nivelNombre = curso.curso?.nivel?.nombre || 'Sin Nivel Asignado';
+          if (!acc[nivelNombre]) {
+            acc[nivelNombre] = [];
+          }
+          acc[nivelNombre].push(curso);
+          return acc;
+        }, {} as Record<string, CursoAsignatura[]>);
+
+        setGroupedCursos(groups);
       } catch (error: any) {
         showError(`Error al cargar cursos: ${error.message}`);
       }
@@ -54,21 +65,27 @@ const CoursesPage = () => {
 
       {loading ? (
         <p>Cargando cursos...</p>
-      ) : cursos.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cursos.map((cursoAsignatura) => (
-            <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} key={cursoAsignatura.id}>
-              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle>{cursoAsignatura.curso.nivel.nombre} {cursoAsignatura.curso.nombre}</CardTitle>
-                  <CardDescription>{cursoAsignatura.asignatura.nombre} - {cursoAsignatura.curso.anio}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* Aquí se pueden agregar más detalles como el número de estudiantes */}
-                  <p className="text-sm text-muted-foreground">Ver detalles del curso y estudiantes.</p>
-                </CardContent>
-              </Card>
-            </Link>
+      ) : Object.keys(groupedCursos).length > 0 ? (
+        <div className="space-y-8">
+          {Object.entries(groupedCursos).map(([nivelNombre, cursosEnNivel]) => (
+            <div key={nivelNombre}>
+              <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{nivelNombre}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {cursosEnNivel.map((cursoAsignatura) => (
+                  <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} key={cursoAsignatura.id}>
+                    <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+                      <CardHeader>
+                        <CardTitle>{cursoAsignatura.curso?.nombre}</CardTitle>
+                        <CardDescription>{cursoAsignatura.asignatura?.nombre} - {cursoAsignatura.curso?.anio}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        <p className="text-sm text-muted-foreground">Ver detalles del curso y estudiantes.</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       ) : (
