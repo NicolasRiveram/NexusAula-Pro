@@ -12,6 +12,8 @@ export interface ClassPlan {
   fecha: string;
   titulo: string;
   objetivos_clase: string;
+  objetivo_estudiante: string;
+  aporte_proyecto: string;
   actividades_inicio: string;
   actividades_desarrollo: string;
   actividades_cierre: string;
@@ -53,8 +55,16 @@ const Step3ClassSequence: React.FC<Step3ClassSequenceProps> = ({ classSequence, 
                   <Controller name={`classes.${index}.titulo`} control={control} render={({ field }) => <Input {...field} />} />
                 </div>
                 <div>
-                  <Label>Objetivo de la Clase</Label>
+                  <Label>Objetivo de la Clase (para el docente)</Label>
                   <Controller name={`classes.${index}.objetivos_clase`} control={control} render={({ field }) => <Textarea {...field} rows={2} />} />
+                </div>
+                 <div>
+                  <Label>Objetivo para el Estudiante</Label>
+                  <Controller name={`classes.${index}.objetivo_estudiante`} control={control} render={({ field }) => <Input {...field} placeholder="¡Hoy descubriremos cómo...!" />} />
+                </div>
+                <div>
+                  <Label>Aporte al Proyecto</Label>
+                  <Controller name={`classes.${index}.aporte_proyecto`} control={control} render={({ field }) => <Input {...field} placeholder="Esta clase nos ayuda a..." />} />
                 </div>
                 <div>
                   <Label>Actividades de Inicio</Label>

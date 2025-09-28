@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import Step1UnitConfig, { UnitPlanFormData } from './Step1_UnitConfig';
 import Step2ReviewSuggestions, { AISuggestions } from './Step2_ReviewSuggestions';
 import Step3ClassSequence, { ClassPlan } from './Step3_ClassSequence';
-import { createUnitPlan, updateUnitPlanSuggestions } from '@/api/planningApi';
+import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan } from '@/api/planningApi';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -22,8 +22,8 @@ const simulatedAISuggestions: AISuggestions = {
 };
 
 const simulatedClassSequence: ClassPlan[] = [
-  { id: 'temp_1', fecha: '2024-08-05', titulo: 'Clase 1: Introducción a los Ecosistemas', objetivos_clase: 'Identificar componentes bióticos y abióticos.', actividades_inicio: 'Lluvia de ideas sobre "¿Qué es un ecosistema?".', actividades_desarrollo: 'Definición formal. Salida al patio para identificar componentes.', actividades_cierre: 'Puesta en común. Ticket de salida.', recursos: 'Imágenes, pizarra, patio escolar.' },
-  { id: 'temp_2', fecha: '2024-08-07', titulo: 'Clase 2: Cadenas y Redes Tróficas', objetivos_clase: 'Construir modelos de redes tróficas.', actividades_inicio: 'Pregunta: "¿De dónde obtienen energía los seres vivos?".', actividades_desarrollo: 'Explicación de roles. Juego de roles con hilos para formar una red.', actividades_cierre: 'Dibujar la red formada. Reflexionar sobre eslabones perdidos.', recursos: 'Pizarra, ovillos de lana, tarjetas.' },
+  { id: 'temp_1', fecha: '', titulo: 'Clase 1: Introducción a los Ecosistemas', objetivos_clase: 'Identificar componentes bióticos y abióticos de un ecosistema local.', objetivo_estudiante: '¡Hoy nos convertiremos en exploradores y descubriremos los seres vivos y no vivos que componen nuestro entorno!', aporte_proyecto: 'Comprender qué es un ecosistema para poder identificar problemas medioambientales en él.', actividades_inicio: 'Lluvia de ideas sobre "¿Qué es un ecosistema?".', actividades_desarrollo: 'Definición formal. Salida al patio para identificar componentes y clasificarlos.', actividades_cierre: 'Puesta en común. Ticket de salida: "Dibuja un ser vivo y uno no vivo que encontraste hoy".', recursos: 'Imágenes, pizarra, lupas, patio escolar.' },
+  { id: 'temp_2', fecha: '', titulo: 'Clase 2: Cadenas y Redes Tróficas', objetivos_clase: 'Construir modelos de redes tróficas para representar relaciones alimentarias.', objetivo_estudiante: '¡Hoy descubriremos quién se come a quién en la naturaleza y construiremos una gran telaraña de la vida!', aporte_proyecto: 'Entender las relaciones entre especies para analizar cómo un problema afecta a todo el ecosistema.', actividades_inicio: 'Pregunta: "¿De dónde obtienen energía los seres vivos?".', actividades_desarrollo: 'Explicación de roles (productor, consumidor, descomponedor). Juego de roles con hilos para formar una red.', actividades_cierre: 'Dibujar la red formada en el cuaderno. Reflexionar: ¿Qué pasaría si desaparece un eslabón?', recursos: 'Pizarra, ovillos de lana, tarjetas con nombres de animales/plantas.' },
 ];
 // --- FIN DATOS SIMULADOS ---
 
@@ -79,12 +79,23 @@ const NewUnitPlan = () => {
     }
   };
 
-  const handleStep3Save = (data: { classes: ClassPlan[] }) => {
-    console.log("Datos finales para guardar:", { unitMasterId, suggestions: aiSuggestions, classes: data.classes });
-    // La lógica para guardar las clases en la tabla 'planificaciones_clase' se implementará aquí.
-    // Esto incluirá el cálculo de fechas para cada curso vinculado.
-    showSuccess("Planificación guardada exitosamente. Redirigiendo...");
-    setTimeout(() => navigate('/dashboard/planificacion'), 1500);
+  const handleStep3Save = async (data: { classes: ClassPlan[] }) => {
+    if (!unitMasterId) {
+      showError("Error: No se encontró el ID de la unidad para guardar.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const classesToSave = data.classes.map(({ id, ...rest }) => rest);
+      await scheduleClassesFromUnitPlan(unitMasterId, classesToSave);
+      
+      showSuccess("¡Planificación guardada y clases programadas exitosamente!");
+      setTimeout(() => navigate('/dashboard/planificacion'), 2000);
+    } catch (error: any) {
+      showError(`Error al guardar la planificación: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getStepDescription = () => {
@@ -106,7 +117,7 @@ const NewUnitPlan = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Asistente de Planificación de Unidad</CardTitle>
-          <CardDescription>Paso {step}: {getStepDescription()}</CardDescription>
+          <CardDescription>Paso {step}/3: {getStepDescription()}</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading && (

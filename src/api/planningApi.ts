@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { AISuggestions } from '@/pages/dashboard/planning/Step2_ReviewSuggestions';
+import { ClassPlan } from '@/pages/dashboard/planning/Step3_ClassSequence';
 
 export interface UnitPlanFormData {
   cursoAsignaturaIds: string[];
@@ -14,7 +15,6 @@ export interface UnitPlanFormData {
 }
 
 export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: string) => {
-  // 1. Crear la unidad maestra
   const { data: unitMasterData, error: unitMasterError } = await supabase
     .from('unidades_maestras')
     .insert({
@@ -31,7 +31,6 @@ export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: stri
   if (unitMasterError) throw new Error(`Error creando la unidad maestra: ${unitMasterError.message}`);
   const unidadMaestraId = unitMasterData.id;
 
-  // 2. Vincular la unidad a los cursos seleccionados
   const links = formData.cursoAsignaturaIds.map(cursoAsignaturaId => ({
     unidad_maestra_id: unidadMaestraId,
     curso_asignatura_id: cursoAsignaturaId,
@@ -42,7 +41,6 @@ export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: stri
     .insert(links);
 
   if (linkError) {
-    // Intenta limpiar la unidad maestra creada si la vinculación falla
     await supabase.from('unidades_maestras').delete().eq('id', unidadMaestraId);
     throw new Error(`Error vinculando la unidad a los cursos: ${linkError.message}`);
   }
@@ -57,4 +55,13 @@ export const updateUnitPlanSuggestions = async (unitMasterId: string, suggestion
     .eq('id', unitMasterId);
 
   if (error) throw new Error(`Error guardando las sugerencias de la IA: ${error.message}`);
+};
+
+export const scheduleClassesFromUnitPlan = async (unitMasterId: string, classes: Omit<ClassPlan, 'id'>[]) => {
+  const { error } = await supabase.rpc('programar_clases_desde_maestra', {
+    p_unidad_maestra_id: unitMasterId,
+    p_clases_data: classes,
+  });
+
+  if (error) throw new Error(`Error al programar las clases: ${error.message}`);
 };
