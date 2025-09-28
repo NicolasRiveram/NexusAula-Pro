@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/toaster";
     import CoursesPage from "./pages/dashboard/CoursesPage";
     import DidacticPlannerPage from "./pages/dashboard/DidacticPlannerPage";
     import NewUnitPlan from "./pages/dashboard/planning/NewUnitPlan";
+    import UnitPlanDetailPage from "./pages/dashboard/planning/UnitPlanDetailPage";
     import EvaluationPage from "./pages/dashboard/EvaluationPage";
     import ProjectsPage from "./pages/dashboard/ProjectsPage";
     import SettingsPage from "./pages/dashboard/SettingsPage";
@@ -109,6 +110,7 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
                 <Route path="planificacion" element={<DidacticPlannerPage />} />
                 <Route path="planificacion/nueva" element={<NewUnitPlan />} />
+                <Route path="planificacion/:planId" element={<UnitPlanDetailPage />} />
                 <Route path="evaluacion" element={<EvaluationPage />} />
                 <Route path="proyectos" element={<ProjectsPage />} />
                 <Route path="configuracion" element={<SettingsPage />} />

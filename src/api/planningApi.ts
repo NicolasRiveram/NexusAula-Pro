@@ -14,6 +14,60 @@ export interface UnitPlanFormData {
   instruccionesAdicionales?: string;
 }
 
+// --- Tipos para leer datos ---
+export interface LinkedCourse {
+  curso_asignaturas: {
+    cursos: {
+      establecimiento_id: string;
+      nombre: string;
+      niveles: {
+        nombre: string;
+      };
+    };
+    asignaturas: {
+      nombre:string;
+    };
+  };
+}
+
+export interface UnitPlan {
+  id: string;
+  titulo: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  descripcion_contenidos: string;
+  unidad_maestra_curso_asignatura_link: LinkedCourse[];
+}
+
+// --- Funciones de API ---
+
+export const fetchUnitPlans = async (docenteId: string): Promise<UnitPlan[]> => {
+  const { data, error } = await supabase
+    .from('unidades_maestras')
+    .select(`
+      id,
+      titulo,
+      fecha_inicio,
+      fecha_fin,
+      descripcion_contenidos,
+      unidad_maestra_curso_asignatura_link (
+        curso_asignaturas (
+          cursos!inner ( establecimiento_id, nombre, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
+      )
+    `)
+    .eq('docente_id', docenteId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`Error al cargar los planes de unidad: ${error.message}`);
+  
+  return (data || []).map(plan => ({
+    ...plan,
+    unidad_maestra_curso_asignatura_link: plan.unidad_maestra_curso_asignatura_link.filter((link: any) => link.curso_asignaturas && link.curso_asignaturas.cursos)
+  })) as UnitPlan[];
+};
+
 export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: string) => {
   const { data: unitMasterData, error: unitMasterError } = await supabase
     .from('unidades_maestras')
