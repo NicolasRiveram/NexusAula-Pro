@@ -90,6 +90,7 @@
       const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
       const [niveles, setNiveles] = useState<Nivel[]>([]);
       const [loadingData, setLoadingData] = useState(true);
+      const [isActionLoading, setIsActionLoading] = useState(false); // Nuevo estado de carga para acciones
 
       const {
         control,
@@ -231,7 +232,7 @@
           return;
         }
 
-        setIsSubmitting(true); // Usar el estado de isSubmitting del formulario
+        setIsActionLoading(true); // Usar el nuevo estado de carga
         try {
           const { data, error } = await supabase.rpc('crear_establecimiento_y_promover_a_coordinador', {
             p_nombre: new_establecimiento_nombre,
@@ -257,7 +258,7 @@
           console.error("Error inesperado al crear establecimiento:", error);
           showError("Error inesperado: " + error.message);
         } finally {
-          setIsSubmitting(false);
+          setIsActionLoading(false); // Restablecer el estado de carga
         }
       };
 
@@ -267,7 +268,7 @@
           return;
         }
 
-        setIsSubmitting(true);
+        setIsActionLoading(true); // Usar el nuevo estado de carga
         try {
           const { error } = await supabase.rpc('solicitar_union_a_establecimiento', {
             p_establecimiento_id: selectedEstablishmentId,
@@ -284,7 +285,7 @@
           console.error("Error inesperado al solicitar unión:", error);
           showError("Error inesperado: " + error.message);
         } finally {
-          setIsSubmitting(false);
+          setIsActionLoading(false); // Restablecer el estado de carga
         }
       };
 
@@ -317,6 +318,7 @@
             <p className="text-xl text-gray-600">Cargando datos de configuración...</p>
           </div>
         );
+      );
       }
 
       return (
@@ -409,8 +411,8 @@
                     {errors.establecimiento_id && <p className="text-red-500 text-sm mt-1">{errors.establecimiento_id.message}</p>}
                   </div>
 
-                  <Button onClick={handleSolicitarUnion} disabled={!selectedEstablishmentId || isSubmitting} className="w-full">
-                    Solicitar Unirme
+                  <Button onClick={handleSolicitarUnion} disabled={!selectedEstablishmentId || isActionLoading} className="w-full">
+                    {isActionLoading ? 'Solicitando...' : 'Solicitar Unirme'}
                   </Button>
 
                   <div className="relative flex justify-center text-xs uppercase">
@@ -498,8 +500,8 @@
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button type="button" onClick={handleCreateEstablishment} disabled={isSubmitting}>
-                          {isSubmitting ? 'Creando...' : 'Crear Establecimiento'}
+                        <Button type="button" onClick={handleCreateEstablishment} disabled={isActionLoading}>
+                          {isActionLoading ? 'Creando...' : 'Crear Establecimiento'}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -596,17 +598,17 @@
             </CardContent>
             <CardFooter className="flex justify-between">
               {currentStep > 1 && (
-                <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>
+                <Button variant="outline" onClick={handleBack} disabled={isActionLoading || isSubmitting}>
                   <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
                 </Button>
               )}
               {currentStep < 5 && (
-                <Button onClick={handleNext} disabled={isSubmitting} className={currentStep === 1 ? 'ml-auto' : ''}>
+                <Button onClick={handleNext} disabled={isActionLoading || isSubmitting} className={currentStep === 1 ? 'ml-auto' : ''}>
                   Siguiente <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               )}
               {currentStep === 5 && (
-                <Button onClick={handleCompleteSetup} disabled={isSubmitting} className="ml-auto">
+                <Button onClick={handleCompleteSetup} disabled={isActionLoading || isSubmitting} className="ml-auto">
                   {isSubmitting ? 'Completando...' : 'Completar Configuración'}
                 </Button>
               )}
