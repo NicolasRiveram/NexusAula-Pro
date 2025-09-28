@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, CursoAsignatura, Estudiante } from '@/api/coursesApi';
+import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, updateStudentProfile, CursoAsignatura, Estudiante } from '@/api/coursesApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Pencil } from 'lucide-react';
 import { showError } from '@/utils/toast';
 import EditStudentDialog from '@/components/courses/EditStudentDialog';
@@ -42,6 +43,27 @@ const CourseDetailPage = () => {
     setEditDialogOpen(true);
   };
 
+  const handlePieToggle = async (studentId: string, newStatus: boolean) => {
+    // Actualización optimista de la UI
+    setEstudiantes(currentEstudiantes =>
+      currentEstudiantes.map(s =>
+        s.id === studentId ? { ...s, apoyo_pie: newStatus } : s
+      )
+    );
+
+    try {
+      await updateStudentProfile(studentId, { apoyo_pie: newStatus });
+    } catch (error: any) {
+      showError(`Error al actualizar el estado PIE: ${error.message}`);
+      // Revertir el cambio en la UI si hay un error
+      setEstudiantes(currentEstudiantes =>
+        currentEstudiantes.map(s =>
+          s.id === studentId ? { ...s, apoyo_pie: !newStatus } : s
+        )
+      );
+    }
+  };
+
   if (loading) {
     return <div className="container mx-auto"><p>Cargando detalles del curso...</p></div>;
   }
@@ -70,8 +92,7 @@ const CourseDetailPage = () => {
               <TableRow>
                 <TableHead>Nombre Completo</TableHead>
                 <TableHead>RUT</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-center">Rendimiento</TableHead>
+                <TableHead className="text-center">Apoyo PIE</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -85,9 +106,12 @@ const CourseDetailPage = () => {
                       </Link>
                     </TableCell>
                     <TableCell>{estudiante.rut || 'No disponible'}</TableCell>
-                    <TableCell>{estudiante.email || 'No disponible'}</TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="outline">Próximamente</Badge>
+                      <Switch
+                        checked={estudiante.apoyo_pie}
+                        onCheckedChange={(newStatus) => handlePieToggle(estudiante.id, newStatus)}
+                        aria-label={`Marcar apoyo PIE para ${estudiante.nombre_completo}`}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleEditClick(estudiante)}>
@@ -98,7 +122,7 @@ const CourseDetailPage = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">No hay estudiantes inscritos en este curso.</TableCell>
+                  <TableCell colSpan={4} className="text-center">No hay estudiantes inscritos en este curso.</TableCell>
                 </TableRow>
               )}
             </TableBody>
