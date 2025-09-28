@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FormData, step1Schema, step2Schema, step3Schema, step4Schema } from './schemas';
+import { FormData, step1Schema, step2Schema, step3ValidationSchema, step4Schema } from './schemas';
 import { showError } from '@/utils/toast';
 
 export const useProfileSetupForm = () => {
@@ -21,7 +21,7 @@ export const useProfileSetupForm = () => {
     resolver: zodResolver(
       currentStep === 1 ? step1Schema :
       currentStep === 2 ? step2Schema :
-      currentStep === 3 ? step3Schema :
+      currentStep === 3 ? step3ValidationSchema :
       step4Schema
     ),
     defaultValues: {

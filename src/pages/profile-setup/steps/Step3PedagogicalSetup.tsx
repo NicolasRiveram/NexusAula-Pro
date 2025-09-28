@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FormData } from '../schemas';
 import { Asignatura, Nivel } from '../api';
-import { MultiSelect } from '@/components/MultiSelect'; // Importar el nuevo componente MultiSelect
+import { MultiSelect } from '@/components/MultiSelect';
+import { Check } from 'lucide-react';
 
 interface Step3PedagogicalSetupProps {
   control: Control<FormData>;
@@ -28,8 +29,8 @@ const Step3PedagogicalSetup: React.FC<Step3PedagogicalSetupProps> = ({
   niveles,
 }) => {
   const selectedRol = watch('rol_seleccionado');
-  const selectedAsignaturaIds = watch('asignatura_ids');
-  const selectedNivelIds = watch('nivel_ids');
+  const selectedAsignaturaIds = watch('asignatura_ids') || [];
+  const selectedNivelIds = watch('nivel_ids') || [];
 
   const [asignaturaSearchTerm, setAsignaturaSearchTerm] = useState('');
   const [filteredAsignaturas, setFilteredAsignaturas] = useState<Asignatura[]>(asignaturas);
@@ -55,7 +56,7 @@ const Step3PedagogicalSetup: React.FC<Step3PedagogicalSetupProps> = ({
     setValue('nivel_ids', newSelectedNivelIds);
   };
 
-  const handleCoordinadorAccessChange = (checked: boolean) => {
+  const handleCoordinadorAccessChange = (checked: boolean | 'indeterminate') => {
     if (checked) {
       setValue('asignatura_ids', ['coordinador_access']);
       setValue('nivel_ids', ['coordinador_access']);

@@ -37,38 +37,36 @@ export const step2Schema = z.object({
   }
 });
 
-export const step3Schema = z.object({
-  asignatura_ids: z.array(z.string().uuid()).or(z.array(z.literal('coordinador_access'))),
-  nivel_ids: z.array(z.string().uuid()).or(z.array(z.literal('coordinador_access'))),
-}).superRefine((data, ctx) => {
-  // Acceder al rol seleccionado desde el contexto del formulario
-  const rol_seleccionado = ctx.parent.rol_seleccionado;
+const baseStep3Schema = z.object({
+  asignatura_ids: z.array(z.string()).min(0),
+  nivel_ids: z.array(z.string()).min(0),
+});
 
-  if (rol_seleccionado === 'docente') {
-    if (data.asignatura_ids.length === 0) {
+export const step3ValidationSchema = step1Schema.merge(baseStep3Schema).superRefine((data, ctx) => {
+  if (data.rol_seleccionado === 'docente') {
+    if (!data.asignatura_ids || data.asignatura_ids.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Debes seleccionar al menos una asignatura.",
         path: ['asignatura_ids'],
       });
     }
-    if (data.nivel_ids.length === 0) {
+    if (!data.nivel_ids || data.nivel_ids.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Debes seleccionar al menos un nivel.",
         path: ['nivel_ids'],
       });
     }
-  } else if (rol_seleccionado === 'coordinador') {
-    // Para coordinadores, se espera el valor especial 'coordinador_access'
-    if (!data.asignatura_ids.includes('coordinador_access')) {
+  } else if (data.rol_seleccionado === 'coordinador') {
+    if (!data.asignatura_ids || !data.asignatura_ids.includes('coordinador_access')) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Debes seleccionar la opción de coordinador para asignaturas.",
         path: ['asignatura_ids'],
       });
     }
-    if (!data.nivel_ids.includes('coordinador_access')) {
+    if (!data.nivel_ids || !data.nivel_ids.includes('coordinador_access')) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Debes seleccionar la opción de coordinador para niveles.",
@@ -77,6 +75,8 @@ export const step3Schema = z.object({
     }
   }
 });
+
+export const step3Schema = baseStep3Schema;
 
 export const step4Schema = z.object({}); // No hay campos de formulario para este paso
 
