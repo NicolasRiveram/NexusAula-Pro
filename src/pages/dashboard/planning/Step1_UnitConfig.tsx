@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -29,7 +29,7 @@ const schema = z.object({
   instruccionesAdicionales: z.string().optional(),
 });
 
-type FormData = z.infer<typeof schema>;
+export type UnitPlanFormData = z.infer<typeof schema>;
 
 interface CursoParaSeleccion {
   id: string;
@@ -37,17 +37,20 @@ interface CursoParaSeleccion {
   nivelId: string;
 }
 
-const Step1UnitConfig = () => {
+interface Step1UnitConfigProps {
+  onFormSubmit: (data: UnitPlanFormData) => void;
+  isLoading: boolean;
+}
+
+const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoading }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursos, setCursos] = useState<CursoParaSeleccion[]>([]);
   const [niveles, setNiveles] = useState<Record<string, string>>({});
   const [selectedNivel, setSelectedNivel] = useState<string | null>(null);
 
-  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<UnitPlanFormData>({
     resolver: zodResolver(schema),
   });
-
-  const selectedCursos = watch('cursoAsignaturaIds') || [];
 
   useEffect(() => {
     const fetchCursos = async () => {
@@ -68,13 +71,16 @@ const Step1UnitConfig = () => {
 
       const nivelesUnicos: Record<string, string> = {};
       const cursosParaSeleccion = data.map((ca: any) => {
-        nivelesUnicos[ca.cursos.niveles.id] = ca.cursos.niveles.nombre;
-        return {
-          id: ca.id,
-          nombre: `${ca.cursos.niveles.nombre} - ${ca.cursos.nombre}`,
-          nivelId: ca.cursos.niveles.id,
-        };
-      });
+        if (ca.cursos && ca.cursos.niveles) {
+          nivelesUnicos[ca.cursos.niveles.id] = ca.cursos.niveles.nombre;
+          return {
+            id: ca.id,
+            nombre: `${ca.cursos.niveles.nombre} - ${ca.cursos.nombre}`,
+            nivelId: ca.cursos.niveles.id,
+          };
+        }
+        return null;
+      }).filter(Boolean) as CursoParaSeleccion[];
       
       setCursos(cursosParaSeleccion);
       setNiveles(nivelesUnicos);
@@ -87,15 +93,10 @@ const Step1UnitConfig = () => {
     setValue('cursoAsignaturaIds', []); // Resetear cursos al cambiar de nivel
   };
 
-  const onSubmit = (data: FormData) => {
-    console.log("Datos de la unidad:", data);
-    // Aquí se llamaría a la función de IA y se pasaría al siguiente paso
-  };
-
-  const cursosFiltrados = cursos.filter(c => c.nivelId === selectedNivel);
+  const cursosFiltrados = selectedNivel ? cursos.filter(c => c.nivelId === selectedNivel) : [];
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
       <div>
         <Label>1. Selecciona el Nivel</Label>
         <select
@@ -219,8 +220,9 @@ const Step1UnitConfig = () => {
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit">
-          Generar Sugerencias con IA
+        <Button type="submit" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isLoading ? 'Generando...' : 'Generar Sugerencias con IA'}
         </Button>
       </div>
     </form>
