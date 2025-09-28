@@ -11,7 +11,8 @@ import { Toaster } from "@/components/ui/toaster";
     import Dashboard from "./pages/Dashboard"; 
     import TeacherDashboard from "./pages/dashboard/TeacherDashboard";
     import CoursesPage from "./pages/dashboard/CoursesPage";
-    import PlanningPage from "./pages/dashboard/PlanningPage";
+    import DidacticPlannerPage from "./pages/dashboard/DidacticPlannerPage";
+    import NewUnitPlan from "./pages/dashboard/planning/NewUnitPlan";
     import EvaluationPage from "./pages/dashboard/EvaluationPage";
     import ProjectsPage from "./pages/dashboard/ProjectsPage";
     import SettingsPage from "./pages/dashboard/SettingsPage";
@@ -106,7 +107,8 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="cursos" element={<CoursesPage />} />
                 <Route path="cursos/:cursoAsignaturaId" element={<CourseDetailPage />} />
                 <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
-                <Route path="planificacion" element={<PlanningPage />} />
+                <Route path="planificacion" element={<DidacticPlannerPage />} />
+                <Route path="planificacion/nueva" element={<NewUnitPlan />} />
                 <Route path="evaluacion" element={<EvaluationPage />} />
                 <Route path="proyectos" element={<ProjectsPage />} />
                 <Route path="configuracion" element={<SettingsPage />} />
