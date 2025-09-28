@@ -20,15 +20,24 @@ export const requestJoinEstablishment = async (p_establecimiento_id: string) => 
   if (error) throw error;
 };
 
-interface CompleteProfileParams {
+interface CompleteDocenteProfileParams {
   p_nombre_completo: string;
-  p_rol_seleccionado: 'docente' | 'coordinador';
+  p_rol_seleccionado: 'docente'; // Especificar que es para docente
   p_asignatura_ids: string[];
   p_nivel_ids: string[];
 }
 
-export const completeDocenteProfile = async (params: CompleteProfileParams) => {
+export const completeDocenteProfile = async (params: CompleteDocenteProfileParams) => {
   const { error } = await supabase.rpc('completar_perfil_docente', params);
+  if (error) throw error;
+};
+
+interface CompleteCoordinatorProfileParams {
+  p_nombre_completo: string;
+}
+
+export const completeCoordinatorProfile = async (params: CompleteCoordinatorProfileParams) => {
+  const { error } = await supabase.rpc('completar_perfil_coordinador', params);
   if (error) throw error;
 };
 

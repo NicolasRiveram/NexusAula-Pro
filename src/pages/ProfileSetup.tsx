@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { completeDocenteProfile } from './profile-setup/api';
+import { completeDocenteProfile, completeCoordinatorProfile } from './profile-setup/api'; // Importar ambas funciones
 import { useProfileSetupForm } from './profile-setup/use-profile-setup-form';
 import { useProfileData } from './profile-setup/use-profile-data';
 
@@ -33,7 +33,8 @@ const ProfileSetup = () => {
     handleNext,
     handleBack,
     getValues,
-  } = useProfileSetupForm();
+  }
+  = useProfileSetupForm();
 
   const { asignaturas, niveles, loadingData, profileComplete } = useProfileData(setValue);
 
@@ -47,19 +48,30 @@ const ProfileSetup = () => {
   const handleCompleteSetup = handleSubmit(async (data) => {
     const { nombre_completo, rol_seleccionado, asignatura_ids, nivel_ids } = data;
 
-    if (!nombre_completo || !rol_seleccionado || asignatura_ids.length === 0 || nivel_ids.length === 0) {
+    if (!nombre_completo || !rol_seleccionado) {
       showError("Por favor, completa todos los pasos antes de finalizar.");
       return;
     }
 
     setIsActionLoading(true);
     try {
-      await completeDocenteProfile({
-        p_nombre_completo: nombre_completo,
-        p_rol_seleccionado: rol_seleccionado,
-        p_asignatura_ids: asignatura_ids,
-        p_nivel_ids: nivel_ids,
-      });
+      if (rol_seleccionado === 'docente') {
+        if (asignatura_ids.length === 0 || nivel_ids.length === 0) {
+          showError("Por favor, selecciona al menos una asignatura y un nivel.");
+          return;
+        }
+        await completeDocenteProfile({
+          p_nombre_completo: nombre_completo,
+          p_rol_seleccionado: rol_seleccionado,
+          p_asignatura_ids: asignatura_ids as string[], // Aseguramos el tipo
+          p_nivel_ids: nivel_ids as string[], // Aseguramos el tipo
+        });
+      } else if (rol_seleccionado === 'coordinador') {
+        // Para coordinadores, solo necesitamos el nombre completo
+        await completeCoordinatorProfile({
+          p_nombre_completo: nombre_completo,
+        });
+      }
       showSuccess("¡Configuración de perfil completada exitosamente!");
       navigate('/dashboard');
     } catch (error: any) {

@@ -38,8 +38,44 @@ export const step2Schema = z.object({
 });
 
 export const step3Schema = z.object({
-  asignatura_ids: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos una asignatura."),
-  nivel_ids: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos un nivel."),
+  asignatura_ids: z.array(z.string().uuid()).or(z.array(z.literal('coordinador_access'))),
+  nivel_ids: z.array(z.string().uuid()).or(z.array(z.literal('coordinador_access'))),
+}).superRefine((data, ctx) => {
+  // Acceder al rol seleccionado desde el contexto del formulario
+  const rol_seleccionado = ctx.parent.rol_seleccionado;
+
+  if (rol_seleccionado === 'docente') {
+    if (data.asignatura_ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debes seleccionar al menos una asignatura.",
+        path: ['asignatura_ids'],
+      });
+    }
+    if (data.nivel_ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debes seleccionar al menos un nivel.",
+        path: ['nivel_ids'],
+      });
+    }
+  } else if (rol_seleccionado === 'coordinador') {
+    // Para coordinadores, se espera el valor especial 'coordinador_access'
+    if (!data.asignatura_ids.includes('coordinador_access')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debes seleccionar la opción de coordinador para asignaturas.",
+        path: ['asignatura_ids'],
+      });
+    }
+    if (!data.nivel_ids.includes('coordinador_access')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debes seleccionar la opción de coordinador para niveles.",
+        path: ['nivel_ids'],
+      });
+    }
+  }
 });
 
 export const step4Schema = z.object({}); // No hay campos de formulario para este paso
