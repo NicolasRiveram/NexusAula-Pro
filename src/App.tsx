@@ -2,21 +2,22 @@ import { Toaster } from "@/components/ui/toaster";
     import { Toaster as Sonner } from "@/components/ui/sonner";
     import { TooltipProvider } from "@/components/ui/tooltip";
     import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-    import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+    import { BrowserRouter, Routes, Route, useNavigate, Outlet } from "react-router-dom";
     import { useState, useEffect } from "react";
     import { Session } from "@supabase/supabase-js";
     import { supabase } from "@/integrations/supabase/client";
     import Index from "./pages/Index";
     import Login from "./pages/Login";
-    import Dashboard from "./pages/Dashboard";
-    import ProfileSetup from "./pages/ProfileSetup"; // Importar la nueva página de configuración
+    import Dashboard from "./pages/Dashboard"; 
+    import TeacherDashboard from "./pages/dashboard/TeacherDashboard";
+    import ProfileSetup from "./pages/ProfileSetup";
     import NotFound from "./pages/NotFound";
     import { EstablishmentProvider } from "./contexts/EstablishmentContext";
 
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: {
-          refetchOnWindowFocus: false, // Desactivar refetch en foco
+          refetchOnWindowFocus: false,
         },
       },
     });
@@ -36,23 +37,25 @@ import { Toaster } from "@/components/ui/toaster";
               .eq('id', currentSession.user.id)
               .single();
 
-            if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found (profile not yet created by trigger)
+            if (profileError && profileError.code !== 'PGRST116') {
               console.error("Error fetching profile for redirection:", profileError);
-              setProfileComplete(false); // Asumir incompleto si hay error
+              setProfileComplete(false);
             } else if (profileData) {
               setProfileComplete(profileData.perfil_completo);
               if (!profileData.perfil_completo) {
                 navigate('/configurar-perfil');
               } else {
-                navigate('/dashboard');
+                // Perfil completo, redirigir al dashboard principal
+                if (window.location.pathname === '/login' || window.location.pathname === '/') {
+                  navigate('/dashboard');
+                }
               }
             } else {
-              // Profile not found, likely new user, redirect to setup
               setProfileComplete(false);
               navigate('/configurar-perfil');
             }
           } else {
-            setProfileComplete(null); // No session, no profile status
+            setProfileComplete(null);
             navigate('/login');
           }
           setLoading(false);
@@ -60,7 +63,7 @@ import { Toaster } from "@/components/ui/toaster";
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
           setSession(currentSession);
-          if (_event === 'SIGNED_IN' || _event === 'USER_UPDATED') {
+          if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
             checkUserAndProfile(currentSession);
           } else if (_event === 'SIGNED_OUT') {
             setProfileComplete(null);
@@ -69,7 +72,6 @@ import { Toaster } from "@/components/ui/toaster";
           }
         });
 
-        // Obtener la sesión inicial y verificar el perfil
         supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
           setSession(initialSession);
           checkUserAndProfile(initialSession);
@@ -92,22 +94,17 @@ import { Toaster } from "@/components/ui/toaster";
             <Route path="/login" element={<Login />} />
             <Route path="/configurar-perfil" element={<ProfileSetup />} />
 
-            {session && profileComplete !== null ? (
-              profileComplete ? (
-                <>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  {/* ADD ALL CUSTOM PROTECTED ROUTES HERE */}
-                  <Route path="*" element={<NotFound />} />
-                </>
-              ) : (
-                // Si el perfil no está completo, cualquier ruta protegida redirige a configurar-perfil
-                <Route path="*" element={<ProfileSetup />} />
-              )
+            {session && profileComplete ? (
+              <Route path="/dashboard" element={<Dashboard />}>
+                <Route index element={<TeacherDashboard />} />
+                {/* Aquí se agregarán más rutas del dashboard, ej: /dashboard/cursos */}
+              </Route>
             ) : (
-              // Si no hay sesión o el estado del perfil aún no se ha determinado, redirigir a login
               <Route path="*" element={<Login />} />
             )}
+            
+            <Route path="/" element={<Index />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </EstablishmentProvider>
       );
