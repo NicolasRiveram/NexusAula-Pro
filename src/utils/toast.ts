@@ -1,11 +1,15 @@
 import { toast } from "sonner";
 
-export const showSuccess = (message: string) => {
-  toast.success(message);
+interface ToastOptions {
+  duration?: number;
+}
+
+export const showSuccess = (message: string, options?: ToastOptions) => {
+  toast.success(message, options);
 };
 
-export const showError = (message: string) => {
-  toast.error(message);
+export const showError = (message: string, options?: ToastOptions) => {
+  toast.error(message, options);
 };
 
 export const showLoading = (message: string) => {

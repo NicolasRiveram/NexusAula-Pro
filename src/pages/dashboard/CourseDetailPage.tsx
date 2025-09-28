@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, CursoAsignatura, Estudiante } from '@/api/coursesApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,26 +12,25 @@ const CourseDetailPage = () => {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!cursoAsignaturaId) return;
-
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const info = await fetchDetallesCursoAsignatura(cursoAsignaturaId);
-        setCursoInfo(info);
-        if (info) {
-          const studentsData = await fetchEstudiantesPorCurso(info.curso.id);
-          setEstudiantes(studentsData);
-        }
-      } catch (error: any) {
-        showError(`Error al cargar los detalles del curso: ${error.message}`);
+    setLoading(true);
+    try {
+      const info = await fetchDetallesCursoAsignatura(cursoAsignaturaId);
+      setCursoInfo(info);
+      if (info) {
+        const studentsData = await fetchEstudiantesPorCurso(info.curso.id);
+        setEstudiantes(studentsData);
       }
-      setLoading(false);
-    };
-
-    loadData();
+    } catch (error: any) {
+      showError(`Error al cargar los detalles del curso: ${error.message}`);
+    }
+    setLoading(false);
   }, [cursoAsignaturaId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   if (loading) {
     return <div className="container mx-auto"><p>Cargando detalles del curso...</p></div>;
@@ -74,8 +73,8 @@ const CourseDetailPage = () => {
                         {estudiante.nombre_completo}
                       </Link>
                     </TableCell>
-                    <TableCell>{estudiante.rut}</TableCell>
-                    <TableCell>{estudiante.email}</TableCell>
+                    <TableCell>{estudiante.rut || 'No disponible'}</TableCell>
+                    <TableCell>{estudiante.email || 'No disponible'}</TableCell>
                     <TableCell className="text-center">
                       <Badge variant="outline">Próximamente</Badge>
                     </TableCell>

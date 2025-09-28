@@ -43,7 +43,7 @@ const EnrollStudentsDialog: React.FC<EnrollStudentsDialogProps> = ({ isOpen, onC
     }
 
     setIsSubmitting(true);
-    const toastId = showLoading("Inscribiendo estudiantes...");
+    const toastId = showLoading("Procesando lista de estudiantes...");
 
     try {
       const estudiantes = data.estudiantesTexto.trim().split('\n').map(line => {
@@ -57,8 +57,28 @@ const EnrollStudentsDialog: React.FC<EnrollStudentsDialogProps> = ({ isOpen, onC
       if (estudiantes.length > 0) {
         const result = await inscribirYCrearEstudiantes(cursoId, estudiantes);
         dismissToast(toastId);
-        showSuccess(`Proceso de inscripción para "${cursoNombre}" completado.`);
-        console.log("Resultado de inscripción:", result);
+
+        const resultados = result.resultados || [];
+        const creados = resultados.filter((r: any) => r.status === 'creado_e_inscrito').length;
+        const inscritos = resultados.filter((r: any) => r.status === 'inscrito_existente').length;
+        const yaInscritos = resultados.filter((r: any) => r.status === 'ya_inscrito').length;
+        const errores = resultados.filter((r: any) => r.status === 'error');
+
+        let successMessage = `Proceso completado para "${cursoNombre}".`;
+        successMessage += `\n- ${creados} nuevos estudiantes creados e inscritos.`;
+        successMessage += `\n- ${inscritos} estudiantes existentes inscritos.`;
+        if (yaInscritos > 0) successMessage += `\n- ${yaInscritos} ya estaban en el curso.`;
+        
+        showSuccess(successMessage);
+
+        if (errores.length > 0) {
+          let errorMessage = `Se encontraron ${errores.length} errores:`;
+          errores.forEach((e: any) => {
+            errorMessage += `\n- ${e.nombre_completo}: ${e.mensaje}`;
+          });
+          showError(errorMessage, { duration: 10000 });
+        }
+
         onStudentsEnrolled();
         onClose();
       } else {
