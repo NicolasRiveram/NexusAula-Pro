@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { fetchCursosPorEstablecimiento, fetchAsignaturas, asignarAsignatura, CursoBase, Asignatura } from '@/api/coursesApi';
+import { fetchCursosPorEstablecimiento, fetchDocenteAsignaturas, asignarAsignatura, CursoBase, Asignatura } from '@/api/coursesApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const schema = z.object({
@@ -38,9 +38,15 @@ const AssignSubjectDialog: React.FC<AssignSubjectDialogProps> = ({ isOpen, onClo
     if (isOpen && activeEstablishment) {
       const loadData = async () => {
         try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            showError("No se pudo identificar al usuario.");
+            return;
+          }
+
           const [cursosData, asignaturasData] = await Promise.all([
             fetchCursosPorEstablecimiento(activeEstablishment.id),
-            fetchAsignaturas(),
+            fetchDocenteAsignaturas(user.id),
           ]);
           setCursos(cursosData);
           setAsignaturas(asignaturasData);
@@ -84,7 +90,7 @@ const AssignSubjectDialog: React.FC<AssignSubjectDialogProps> = ({ isOpen, onClo
         <DialogHeader>
           <DialogTitle>Asignar Asignatura a Curso</DialogTitle>
           <DialogDescription>
-            Selecciona un curso existente en tu establecimiento y una asignatura para vincularla a tu perfil.
+            Selecciona un curso existente en tu establecimiento y una de tus asignaturas para vincularla.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4">
@@ -109,15 +115,19 @@ const AssignSubjectDialog: React.FC<AssignSubjectDialogProps> = ({ isOpen, onClo
             {errors.cursoId && <p className="text-red-500 text-sm">{errors.cursoId.message}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="asignaturaId">Asignatura</Label>
+            <Label htmlFor="asignaturaId">Tu Asignatura</Label>
             <Controller
               name="asignaturaId"
               control={control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecciona una de tus asignaturas" /></SelectTrigger>
                   <SelectContent>
-                    {asignaturas.map(asig => <SelectItem key={asig.id} value={asig.id}>{asig.nombre}</SelectItem>)}
+                    {asignaturas.length > 0 ? (
+                      asignaturas.map(asig => <SelectItem key={asig.id} value={asig.id}>{asig.nombre}</SelectItem>)
+                    ) : (
+                      <SelectItem value="no-asignaturas" disabled>No tienes asignaturas en tu perfil</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               )}

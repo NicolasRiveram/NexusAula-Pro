@@ -59,16 +59,19 @@ const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose
     try {
       const nuevoCursoId = await crearCurso(data.nombre, data.nivelId, data.anio, activeEstablishment.id);
       dismissToast(toastId);
-      showSuccess(`Curso creado con ID: ${nuevoCursoId}.`);
+      showSuccess(`Curso "${data.nombre}" creado exitosamente.`);
 
       if (data.estudiantesTexto && data.estudiantesTexto.trim().length > 0) {
         const estudiantes = data.estudiantesTexto.trim().split('\n').map(line => {
-          const [nombre_completo, rut, email] = line.split(',').map(s => s.trim());
+          const parts = line.split(',').map(s => s.trim());
+          const nombre_completo = parts[0] || null;
+          const rut = parts[1] || null;
+          const email = parts[2] || null;
           return { nombre_completo, rut, email };
-        }).filter(e => e.nombre_completo && e.rut && e.email);
+        }).filter(e => e.nombre_completo); // Solo procesar si al menos hay un nombre
 
         if (estudiantes.length > 0) {
-          const studentToastId = showLoading("Inscribiendo estudiantes...");
+          const studentToastId = showLoading(`Inscribiendo ${estudiantes.length} estudiantes...`);
           const result = await inscribirYCrearEstudiantes(nuevoCursoId, estudiantes);
           dismissToast(studentToastId);
           showSuccess("Proceso de inscripción de estudiantes completado.");
@@ -138,7 +141,7 @@ const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose
               className="mt-1"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Cada estudiante en una nueva línea. Separa nombre, RUT y correo con comas.
+              Cada estudiante en una nueva línea. Separa nombre, RUT y correo con comas. El RUT y el correo son opcionales.
             </p>
           </div>
           <DialogFooter>

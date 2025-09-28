@@ -45,6 +45,16 @@ export const fetchAsignaturas = async (): Promise<Asignatura[]> => {
   return data;
 };
 
+export const fetchDocenteAsignaturas = async (docenteId: string): Promise<Asignatura[]> => {
+    const { data, error } = await supabase
+        .from('docente_asignaturas')
+        .select('asignaturas(id, nombre)')
+        .eq('docente_id', docenteId);
+    
+    if (error) throw new Error(error.message);
+    return data.map((item: any) => item.asignaturas).filter(Boolean);
+};
+
 export const fetchCursosPorEstablecimiento = async (establecimientoId: string): Promise<CursoBase[]> => {
     const { data, error } = await supabase
       .from('cursos')
