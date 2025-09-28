@@ -155,6 +155,16 @@ export const fetchEstudiantesPorCurso = async (cursoId: string): Promise<Estudia
         }));
 };
 
+export const fetchStudentProfile = async (studentId: string): Promise<Estudiante> => {
+    const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, nombre_completo, rut, email')
+        .eq('id', studentId)
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+};
+
 
 // --- Funciones de Escritura ---
 
@@ -201,4 +211,12 @@ export const asignarAsignatura = async (cursoId: string, asignaturaId: string, d
         }
         throw new Error(error.message);
     }
+};
+
+export const updateStudentProfile = async (studentId: string, profileData: Partial<Estudiante>) => {
+    const { error } = await supabase
+        .from('perfiles')
+        .update(profileData)
+        .eq('id', studentId);
+    if (error) throw new Error(error.message);
 };

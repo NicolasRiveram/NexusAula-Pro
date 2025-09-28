@@ -4,13 +4,18 @@ import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, CursoAsignatura
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Pencil } from 'lucide-react';
 import { showError } from '@/utils/toast';
+import EditStudentDialog from '@/components/courses/EditStudentDialog';
 
 const CourseDetailPage = () => {
   const { cursoAsignaturaId } = useParams<{ cursoAsignaturaId: string }>();
   const [cursoInfo, setCursoInfo] = useState<CursoAsignatura | null>(null);
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Estudiante | null>(null);
 
   const loadData = useCallback(async () => {
     if (!cursoAsignaturaId) return;
@@ -31,6 +36,11 @@ const CourseDetailPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleEditClick = (estudiante: Estudiante) => {
+    setSelectedStudent(estudiante);
+    setEditDialogOpen(true);
+  };
 
   if (loading) {
     return <div className="container mx-auto"><p>Cargando detalles del curso...</p></div>;
@@ -61,7 +71,8 @@ const CourseDetailPage = () => {
                 <TableHead>Nombre Completo</TableHead>
                 <TableHead>RUT</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead className="text-center">Rendimiento General</TableHead>
+                <TableHead className="text-center">Rendimiento</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -78,17 +89,28 @@ const CourseDetailPage = () => {
                     <TableCell className="text-center">
                       <Badge variant="outline">Próximamente</Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditClick(estudiante)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">No hay estudiantes inscritos en este curso.</TableCell>
+                  <TableCell colSpan={5} className="text-center">No hay estudiantes inscritos en este curso.</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      <EditStudentDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onStudentUpdated={loadData}
+        student={selectedStudent}
+      />
     </div>
   );
 };
