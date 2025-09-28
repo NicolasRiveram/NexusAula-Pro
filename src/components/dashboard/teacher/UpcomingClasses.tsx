@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface Clase {
   id: string;
   fecha: string;
   titulo: string;
-  unidad: {
-    curso_asignatura: {
+  unidades: {
+    curso_asignaturas: {
       cursos: { nombre: string };
       asignaturas: { nombre: string };
     }
-  }
+  } | null;
 }
 
 const UpcomingClasses = () => {

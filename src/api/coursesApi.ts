@@ -54,7 +54,7 @@ export const fetchCursosPorEstablecimiento = async (establecimientoId: string): 
       .order('nombre');
     if (error) throw new Error(error.message);
     // Filtro de seguridad para evitar errores si un curso no tiene nivel.
-    return data.filter(c => c.niveles).map(c => ({ ...c, nivel: c.niveles })) as CursoBase[];
+    return data.filter(c => c.niveles).map(c => ({ id: c.id, nombre: c.nombre, anio: c.anio, nivel: c.niveles as { nombre: string } }));
 };
 
 export const fetchCursosAsignaturasDocente = async (docenteId: string): Promise<CursoAsignatura[]> => {
@@ -70,16 +70,17 @@ export const fetchCursosAsignaturasDocente = async (docenteId: string): Promise<
   if (error) throw new Error(error.message);
   if (!data) return [];
 
-  // Mapeo seguro con valores por defecto para datos incompletos.
-  // Esto previene que la aplicación se rompa si falta alguna relación (ej: un curso sin nivel).
   return data.map(ca => {
-    const asignatura = ca.asignaturas ? { nombre: ca.asignaturas.nombre } : { nombre: 'Asignatura no asignada' };
+    const asignaturaData = ca.asignaturas as any;
+    const cursoData = ca.cursos as any;
+
+    const asignatura = asignaturaData ? { nombre: asignaturaData.nombre } : { nombre: 'Asignatura no asignada' };
     const curso = {
-      id: ca.cursos?.id || 'ID-invalido',
-      nombre: ca.cursos?.nombre || 'Curso sin nombre',
-      anio: ca.cursos?.anio || new Date().getFullYear(),
+      id: cursoData?.id || 'ID-invalido',
+      nombre: cursoData?.nombre || 'Curso sin nombre',
+      anio: cursoData?.anio || new Date().getFullYear(),
       nivel: {
-        nombre: ca.cursos?.niveles?.nombre || 'Nivel no asignado'
+        nombre: (cursoData?.niveles as any)?.nombre || 'Nivel no asignado'
       }
     };
 
@@ -103,19 +104,21 @@ export const fetchDetallesCursoAsignatura = async (cursoAsignaturaId: string) =>
         .single();
     if (error) throw new Error(error.message);
 
-    // Verificación de seguridad para asegurar que todos los datos necesarios existen.
-    if (!data || !data.asignaturas || !data.cursos || !data.cursos.niveles) {
+    const asignaturaData = data.asignaturas as any;
+    const cursoData = data.cursos as any;
+
+    if (!data || !asignaturaData || !cursoData || !cursoData.niveles) {
         throw new Error("Datos del curso incompletos o no encontrados.");
     }
 
     return {
         id: data.id,
-        asignatura: { nombre: data.asignaturas.nombre },
+        asignatura: { nombre: asignaturaData.nombre },
         curso: { 
-            id: data.cursos.id,
-            nombre: data.cursos.nombre,
-            anio: data.cursos.anio,
-            nivel: { nombre: data.cursos.niveles.nombre } 
+            id: cursoData.id,
+            nombre: cursoData.nombre,
+            anio: cursoData.anio,
+            nivel: { nombre: (cursoData.niveles as any).nombre } 
         }
     } as CursoAsignatura;
 };
@@ -128,7 +131,6 @@ export const fetchEstudiantesPorCurso = async (cursoId: string): Promise<Estudia
 
     if (error) throw new Error(error.message);
     
-    // Mapeo seguro de datos de estudiantes.
     return data
         .filter((ce: any) => ce.perfiles)
         .map((ce: any) => ({

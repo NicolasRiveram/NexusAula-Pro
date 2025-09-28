@@ -30,7 +30,7 @@ function Login() {
                 email_input_placeholder: 'Tu correo electrónico',
                 password_input_placeholder: 'Tu contraseña',
                 button_label: 'Iniciar sesión',
-                social_auth_typography: 'O inicia sesión con',
+                social_provider_text: 'O inicia sesión con',
                 link_text: '¿Ya tienes una cuenta? Inicia sesión',
               },
               sign_up: {
@@ -39,12 +39,12 @@ function Login() {
                 email_input_placeholder: 'Tu correo electrónico',
                 password_input_placeholder: 'Tu contraseña',
                 button_label: 'Registrarse',
-                social_auth_typography: 'O regístrate con',
+                social_provider_text: 'O regístrate con',
                 link_text: '¿No tienes una cuenta? Regístrate',
               },
               forgotten_password: {
                 email_label: 'Correo electrónico',
-                password_reset_button_label: 'Enviar instrucciones de restablecimiento',
+                button_label: 'Enviar instrucciones de restablecimiento',
                 link_text: '¿Olvidaste tu contraseña?',
                 email_input_placeholder: 'Tu correo electrónico',
               },
