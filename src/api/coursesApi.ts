@@ -54,7 +54,7 @@ export const fetchCursosPorEstablecimiento = async (establecimientoId: string): 
       .order('nombre');
     if (error) throw new Error(error.message);
     // Filtro de seguridad para evitar errores si un curso no tiene nivel.
-    return data.filter(c => c.niveles).map(c => ({ id: c.id, nombre: c.nombre, anio: c.anio, nivel: c.niveles as { nombre: string } }));
+    return data.filter(c => c.niveles).map(c => ({ id: c.id, nombre: c.nombre, anio: c.anio, nivel: c.niveles as any }));
 };
 
 export const fetchCursosAsignaturasDocente = async (docenteId: string): Promise<CursoAsignatura[]> => {
