@@ -13,7 +13,13 @@ import { Toaster } from "@/components/ui/toaster";
     import NotFound from "./pages/NotFound";
     import { EstablishmentProvider } from "./contexts/EstablishmentContext";
 
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          refetchOnWindowFocus: false, // Desactivar refetch en foco
+        },
+      },
+    });
 
     const AppContent = () => {
       const [session, setSession] = useState<Session | null>(null);
