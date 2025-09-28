@@ -10,6 +10,11 @@ import { Toaster } from "@/components/ui/toaster";
     import Login from "./pages/Login";
     import Dashboard from "./pages/Dashboard"; 
     import TeacherDashboard from "./pages/dashboard/TeacherDashboard";
+    import CoursesPage from "./pages/dashboard/CoursesPage";
+    import PlanningPage from "./pages/dashboard/PlanningPage";
+    import EvaluationPage from "./pages/dashboard/EvaluationPage";
+    import ProjectsPage from "./pages/dashboard/ProjectsPage";
+    import SettingsPage from "./pages/dashboard/SettingsPage";
     import ProfileSetup from "./pages/ProfileSetup";
     import NotFound from "./pages/NotFound";
     import { EstablishmentProvider } from "./contexts/EstablishmentContext";
@@ -97,7 +102,11 @@ import { Toaster } from "@/components/ui/toaster";
             {session && profileComplete ? (
               <Route path="/dashboard" element={<Dashboard />}>
                 <Route index element={<TeacherDashboard />} />
-                {/* Aquí se agregarán más rutas del dashboard, ej: /dashboard/cursos */}
+                <Route path="cursos" element={<CoursesPage />} />
+                <Route path="planificacion" element={<PlanningPage />} />
+                <Route path="evaluacion" element={<EvaluationPage />} />
+                <Route path="proyectos" element={<ProjectsPage />} />
+                <Route path="configuracion" element={<SettingsPage />} />
               </Route>
             ) : (
               <Route path="*" element={<Login />} />
