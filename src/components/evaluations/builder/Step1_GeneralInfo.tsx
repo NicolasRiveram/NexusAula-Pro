@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MultiSelect } from '@/components/MultiSelect';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import { showError } from '@/utils/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,7 +23,7 @@ const schema = z.object({
   tipo: z.string().min(1, "El tipo de evaluación es requerido."),
   descripcion: z.string().optional(),
   fecha_aplicacion: z.date({ required_error: "La fecha de aplicación es requerida." }),
-  cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes asignar la evaluación al menos a un curso."),
+  cursoAsignaturaId: z.string().uuid("Debes seleccionar un curso."),
 });
 
 export type EvaluationStep1Data = z.infer<typeof schema>;
@@ -102,20 +101,24 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => 
           {errors.fecha_aplicacion && <p className="text-red-500 text-sm">{errors.fecha_aplicacion.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="cursoAsignaturaIds">Asignar a Cursos</Label>
+          <Label htmlFor="cursoAsignaturaId">Asignar a Curso</Label>
           <Controller
-            name="cursoAsignaturaIds"
+            name="cursoAsignaturaId"
             control={control}
             render={({ field }) => (
-              <MultiSelect
-                options={cursosAsignaturas.map(ca => ({ value: ca.id, label: `${ca.curso.nivel.nombre} ${ca.curso.nombre} - ${ca.asignatura.nombre}` }))}
-                selected={field.value || []}
-                onValueChange={field.onChange}
-                placeholder="Selecciona uno o más cursos"
-              />
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger><SelectValue placeholder="Selecciona un curso" /></SelectTrigger>
+                <SelectContent>
+                  {cursosAsignaturas.map(ca => (
+                    <SelectItem key={ca.id} value={ca.id}>
+                      {`${ca.curso.nivel.nombre} ${ca.curso.nombre} - ${ca.asignatura.nombre}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           />
-          {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm">{errors.cursoAsignaturaIds.message}</p>}
+          {errors.cursoAsignaturaId && <p className="text-red-500 text-sm">{errors.cursoAsignaturaId.message}</p>}
         </div>
       </div>
       <div className="flex justify-end">

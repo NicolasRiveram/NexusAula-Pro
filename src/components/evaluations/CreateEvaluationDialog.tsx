@@ -13,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -72,7 +71,7 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
         tipo: data.tipo,
         descripcion: data.descripcion || '',
         fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
-        cursoAsignaturaIds: [data.cursoAsignaturaId],
+        cursoAsignaturaId: data.cursoAsignaturaId,
       });
       dismissToast(toastId);
       showSuccess("Evaluación creada. Ahora puedes añadirle preguntas.");
