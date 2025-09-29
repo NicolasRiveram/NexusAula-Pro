@@ -54,9 +54,18 @@ export interface EvaluationItem {
 
 export interface EvaluationDetail extends Evaluation {
   descripcion: string;
+  puntaje_maximo: number | null;
   evaluation_content_blocks: (EvaluationContentBlock & {
     evaluacion_items: EvaluationItem[];
   })[];
+}
+
+export interface EvaluationResultSummary {
+  student_id: string;
+  student_name: string;
+  response_id: string | null;
+  score: number | null;
+  status: 'Completado' | 'Pendiente';
 }
 
 
@@ -197,6 +206,7 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       tipo,
       descripcion,
       fecha_aplicacion,
+      puntaje_maximo,
       evaluacion_curso_asignaturas (
         curso_asignatura_id,
         curso_asignaturas (
@@ -234,6 +244,17 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
   };
 
   return formattedData as EvaluationDetail;
+};
+
+export const fetchEvaluationResultsSummary = async (evaluationId: string): Promise<EvaluationResultSummary[]> => {
+  const { data, error } = await supabase.rpc('get_evaluation_results_summary', {
+    p_evaluation_id: evaluationId,
+  });
+
+  if (error) {
+    throw new Error(`Error fetching evaluation results: ${error.message}`);
+  }
+  return data;
 };
 
 export const fetchContentBlocks = async (evaluationId: string): Promise<EvaluationContentBlock[]> => {
