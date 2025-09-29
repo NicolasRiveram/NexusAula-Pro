@@ -68,6 +68,14 @@ export interface EvaluationResultSummary {
   status: 'Completado' | 'Pendiente';
 }
 
+export interface EvaluationStatistics {
+  total_students: number;
+  completed_students: number;
+  completion_rate: number;
+  average_score: number;
+  puntaje_maximo: number;
+  score_distribution: { range: string; count: number }[];
+}
 
 export const fetchEvaluations = async (docenteId: string, establecimientoId: string): Promise<Evaluation[]> => {
   if (!establecimientoId) return [];
@@ -253,6 +261,17 @@ export const fetchEvaluationResultsSummary = async (evaluationId: string): Promi
 
   if (error) {
     throw new Error(`Error fetching evaluation results: ${error.message}`);
+  }
+  return data;
+};
+
+export const fetchEvaluationStatistics = async (evaluationId: string): Promise<EvaluationStatistics> => {
+  const { data, error } = await supabase.rpc('get_evaluation_statistics', {
+    p_evaluation_id: evaluationId,
+  });
+
+  if (error) {
+    throw new Error(`Error fetching evaluation statistics: ${error.message}`);
   }
   return data;
 };

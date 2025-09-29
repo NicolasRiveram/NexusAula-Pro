@@ -3,11 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { fetchEvaluationDetails, fetchEvaluationResultsSummary, EvaluationDetail, EvaluationResultSummary } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, fetchEvaluationResultsSummary, EvaluationDetail, EvaluationResultSummary, fetchEvaluationStatistics, EvaluationStatistics } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import EvaluationStatsCard from '@/components/evaluations/results/EvaluationStatsCard';
 
 const calcularNota = (puntajeObtenido: number | null, puntajeMaximo: number): number => {
   if (puntajeObtenido === null || puntajeMaximo <= 0) return 1.0;
@@ -25,6 +26,7 @@ const EvaluationResultsPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [results, setResults] = useState<EvaluationResultSummary[]>([]);
+  const [stats, setStats] = useState<EvaluationStatistics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,10 +34,12 @@ const EvaluationResultsPage = () => {
       setLoading(true);
       Promise.all([
         fetchEvaluationDetails(evaluationId),
-        fetchEvaluationResultsSummary(evaluationId)
-      ]).then(([evalData, resultsData]) => {
+        fetchEvaluationResultsSummary(evaluationId),
+        fetchEvaluationStatistics(evaluationId)
+      ]).then(([evalData, resultsData, statsData]) => {
         setEvaluation(evalData);
         setResults(resultsData);
+        setStats(statsData);
       }).catch(err => {
         showError(`Error al cargar los resultados: ${err.message}`);
       }).finally(() => {
@@ -73,6 +77,9 @@ const EvaluationResultsPage = () => {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Volver a la Evaluación
       </Link>
+
+      {stats && <EvaluationStatsCard stats={stats} />}
+
       <Card>
         <CardHeader>
           <CardTitle>Resultados de: {evaluation.titulo}</CardTitle>
