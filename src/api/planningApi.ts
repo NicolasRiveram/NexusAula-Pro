@@ -2,17 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { AISuggestions } from '@/pages/dashboard/planning/Step2_ReviewSuggestions';
 import { ClassPlan } from '@/pages/dashboard/planning/Step3_ClassSequence';
-
-export interface UnitPlanFormData {
-  cursoAsignaturaIds: string[];
-  titulo: string;
-  fechas: {
-    from: Date;
-    to: Date;
-  };
-  descripcionContenidos: string;
-  instruccionesAdicionales?: string;
-}
+import { UnitPlanFormData } from '@/pages/dashboard/planning/Step1_UnitConfig';
 
 // --- Tipos para leer datos ---
 export interface LinkedCourse {
