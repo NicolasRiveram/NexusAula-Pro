@@ -61,19 +61,21 @@ const RubricsPage = () => {
       ) : rubrics.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {rubrics.map(rubric => (
-            <Card key={rubric.id}>
-              <CardHeader>
-                <CardTitle>{rubric.nombre}</CardTitle>
-                <CardDescription>
-                  Actividad: {rubric.actividad_a_evaluar}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Creada el {format(parseISO(rubric.created_at), "d 'de' LLLL, yyyy", { locale: es })}
-                </p>
-              </CardContent>
-            </Card>
+            <Link to={`/dashboard/rubricas/${rubric.id}`} key={rubric.id}>
+              <Card className="h-full hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle>{rubric.nombre}</CardTitle>
+                  <CardDescription>
+                    Actividad: {rubric.actividad_a_evaluar}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Creada el {format(parseISO(rubric.created_at), "d 'de' LLLL, yyyy", { locale: es })}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       ) : (

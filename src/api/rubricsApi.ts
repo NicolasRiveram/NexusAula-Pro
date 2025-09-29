@@ -12,6 +12,7 @@ export interface Rubric {
 export interface RubricContent {
   criterios: {
     nombre: string;
+    habilidad: string;
     descripcion: string;
     niveles: {
       puntaje: number;
@@ -19,6 +20,17 @@ export interface RubricContent {
       descripcion: string;
     }[];
   }[];
+}
+
+export interface RubricEvaluationResult {
+    rubrica_id: string;
+    estudiante_perfil_id: string;
+    curso_asignatura_id: string;
+    puntaje_obtenido: number;
+    puntaje_maximo: number;
+    calificacion_final: number;
+    comentarios?: string;
+    resultados_json: any;
 }
 
 export const fetchRubrics = async (docenteId: string, establecimientoId: string): Promise<Rubric[]> => {
@@ -33,6 +45,16 @@ export const fetchRubrics = async (docenteId: string, establecimientoId: string)
 
   if (error) throw new Error(`Error al cargar las rúbricas: ${error.message}`);
   return data;
+};
+
+export const fetchRubricById = async (rubricId: string): Promise<Rubric> => {
+    const { data, error } = await supabase
+        .from('rubricas')
+        .select('*')
+        .eq('id', rubricId)
+        .single();
+    if (error) throw new Error(`Error al obtener la rúbrica: ${error.message}`);
+    return data;
 };
 
 export const createRubric = async (
@@ -73,4 +95,11 @@ export const saveGeneratedRubricContent = async (rubricId: string, content: Rubr
     .eq('id', rubricId);
 
   if (error) throw new Error(`Error al guardar el contenido de la rúbrica: ${error.message}`);
+};
+
+export const saveRubricEvaluation = async (evaluationData: RubricEvaluationResult) => {
+    const { error } = await supabase
+        .from('rubrica_evaluaciones_estudiantes')
+        .insert(evaluationData);
+    if (error) throw new Error(`Error al guardar la evaluación de la rúbrica: ${error.message}`);
 };

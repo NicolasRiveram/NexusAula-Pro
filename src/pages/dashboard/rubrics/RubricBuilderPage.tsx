@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { createRubric, generateRubricWithAI, saveGeneratedRubricContent, RubricContent } from '@/api/rubricsApi';
 import { showError, showSuccess } from '@/utils/toast';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 
 const step1Schema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
@@ -28,9 +28,8 @@ const RubricBuilderPage = () => {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [rubricId, setRubricId] = useState<string | null>(null);
-  const [generatedRubric, setGeneratedRubric] = useState<RubricContent | null>(null);
 
-  const { control: step1Control, handleSubmit: handleStep1Submit } = useForm<Step1FormData>({
+  const { control: step1Control, handleSubmit: handleStep1Submit, formState: { errors: step1Errors } } = useForm<Step1FormData>({
     resolver: zodResolver(step1Schema),
   });
 
@@ -48,7 +47,6 @@ const RubricBuilderPage = () => {
       setRubricId(newRubricId);
 
       const aiContent = await generateRubricWithAI(data.actividad_a_evaluar, data.descripcion);
-      setGeneratedRubric(aiContent);
       resetStep2({ criterios: aiContent.criterios });
       
       showSuccess("Rúbrica generada por IA. Ahora puedes revisarla y guardarla.");
@@ -94,14 +92,17 @@ const RubricBuilderPage = () => {
               <div>
                 <Label htmlFor="nombre">Nombre de la Evaluación</Label>
                 <Controller name="nombre" control={step1Control} render={({ field }) => <Input id="nombre" {...field} />} />
+                {step1Errors.nombre && <p className="text-red-500 text-sm mt-1">{step1Errors.nombre.message}</p>}
               </div>
               <div>
                 <Label htmlFor="actividad_a_evaluar">Actividad a Evaluar</Label>
                 <Controller name="actividad_a_evaluar" control={step1Control} render={({ field }) => <Input id="actividad_a_evaluar" {...field} />} />
+                {step1Errors.actividad_a_evaluar && <p className="text-red-500 text-sm mt-1">{step1Errors.actividad_a_evaluar.message}</p>}
               </div>
               <div>
                 <Label htmlFor="descripcion">Descripción de la Actividad y Contenidos</Label>
                 <Controller name="descripcion" control={step1Control} render={({ field }) => <Textarea id="descripcion" rows={5} {...field} />} />
+                {step1Errors.descripcion && <p className="text-red-500 text-sm mt-1">{step1Errors.descripcion.message}</p>}
               </div>
               <div className="flex justify-end">
                 <Button type="submit" disabled={isLoading}>
@@ -112,40 +113,38 @@ const RubricBuilderPage = () => {
             </form>
           )}
           {step === 2 && (
-            <form onSubmit={handleStep2Submit(onStep2Submit)} className="space-y-4">
-              <Accordion type="multiple" defaultValue={fields.map(f => f.id)} className="w-full">
-                {fields.map((field, criterionIndex) => (
-                  <AccordionItem key={field.id} value={field.id}>
-                    <AccordionTrigger>
-                      <Controller name={`criterios.${criterionIndex}.nombre`} control={step2Control} render={({ field }) => <Input className="text-lg font-semibold" {...field} />} />
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-4">
-                      <Controller name={`criterios.${criterionIndex}.descripcion`} control={step2Control} render={({ field }) => <Textarea {...field} />} />
-                      <table className="w-full mt-4">
-                        <thead>
-                          <tr className="text-left">
-                            {field.niveles.map((level, levelIndex) => (
-                              <th key={levelIndex} className="p-2 border">
-                                <Controller name={`criterios.${criterionIndex}.niveles.${levelIndex}.nombre`} control={step2Control} render={({ field }) => <Input {...field} />} />
-                                <Controller name={`criterios.${criterionIndex}.niveles.${levelIndex}.puntaje`} control={step2Control} render={({ field }) => <Input type="number" className="mt-1" {...field} />} />
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            {field.niveles.map((level, levelIndex) => (
-                              <td key={levelIndex} className="p-2 border align-top">
-                                <Controller name={`criterios.${criterionIndex}.niveles.${levelIndex}.descripcion`} control={step2Control} render={({ field }) => <Textarea rows={6} {...field} />} />
-                              </td>
-                            ))}
-                          </tr>
-                        </tbody>
-                      </table>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
+            <form onSubmit={handleStep2Submit(onStep2Submit)} className="space-y-6">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="border p-2 w-1/4 align-top text-left">Criterio de Evaluación</th>
+                      {fields[0]?.niveles.map((level, levelIndex) => (
+                        <th key={levelIndex} className="border p-2 align-top text-left">
+                          <Controller name={`criterios.0.niveles.${levelIndex}.nombre`} control={step2Control} render={({ field }) => <Input className="font-bold" {...field} />} />
+                          <Controller name={`criterios.0.niveles.${levelIndex}.puntaje`} control={step2Control} render={({ field }) => <Input type="number" className="mt-1" {...field} />} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fields.map((field, criterionIndex) => (
+                      <tr key={field.id}>
+                        <td className="border p-2 align-top">
+                          <Controller name={`criterios.${criterionIndex}.nombre`} control={step2Control} render={({ field }) => <Input className="font-semibold" {...field} />} />
+                          <Controller name={`criterios.${criterionIndex}.habilidad`} control={step2Control} render={({ field }) => <Badge variant="secondary" className="mt-2"><Input className="border-none bg-transparent h-auto p-0" {...field} /></Badge>} />
+                          <Controller name={`criterios.${criterionIndex}.descripcion`} control={step2Control} render={({ field }) => <Textarea className="mt-2" {...field} />} />
+                        </td>
+                        {field.niveles.map((level, levelIndex) => (
+                          <td key={levelIndex} className="border p-2 align-top">
+                            <Controller name={`criterios.${criterionIndex}.niveles.${levelIndex}.descripcion`} control={step2Control} render={({ field }) => <Textarea rows={8} {...field} />} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <div className="flex justify-end">
                 <Button type="submit" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
