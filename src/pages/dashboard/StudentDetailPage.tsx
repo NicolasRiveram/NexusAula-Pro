@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Mail, User, Hash } from 'lucide-react';
-import { fetchStudentProfile, Estudiante } from '@/api/coursesApi';
+import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment } from '@/api/coursesApi';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -10,11 +10,13 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const StudentDetailPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<Estudiante | null>(null);
   const [evaluations, setEvaluations] = useState<StudentRubricEvaluation[]>([]);
+  const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,10 +24,12 @@ const StudentDetailPage = () => {
       setLoading(true);
       Promise.all([
         fetchStudentProfile(studentId),
-        fetchEvaluationsForStudent(studentId)
-      ]).then(([studentData, evaluationsData]) => {
+        fetchEvaluationsForStudent(studentId),
+        fetchStudentEnrollments(studentId)
+      ]).then(([studentData, evaluationsData, enrollmentsData]) => {
         setStudent(studentData);
         setEvaluations(evaluationsData);
+        setEnrollments(enrollmentsData);
       }).catch(err => {
         showError(`Error al cargar datos del estudiante: ${err.message}`);
       }).finally(() => {
@@ -71,6 +75,39 @@ const StudentDetailPage = () => {
               <span className="ml-2">{student.email || 'No especificado'}</span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Inscripción en Cursos</CardTitle>
+          <CardDescription>Lista de cursos y asignaturas en los que el estudiante está inscrito.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Año</TableHead>
+                <TableHead>Curso</TableHead>
+                <TableHead>Asignatura</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {enrollments.length > 0 ? (
+                enrollments.map((enrollment) => (
+                  <TableRow key={enrollment.curso_asignatura_id}>
+                    <TableCell>{enrollment.anio}</TableCell>
+                    <TableCell>{enrollment.nivel_nombre} {enrollment.curso_nombre}</TableCell>
+                    <TableCell>{enrollment.asignatura_nombre}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center">No hay inscripciones en cursos.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
