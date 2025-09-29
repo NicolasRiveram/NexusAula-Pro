@@ -50,8 +50,13 @@ export interface ScheduledClass {
   actividades_desarrollo: string;
   actividades_cierre: string;
   recursos: string;
+  objetivo_aprendizaje_texto: string;
+  habilidades: string;
+  vinculo_interdisciplinario: string;
+  aspectos_valoricos_actitudinales: string;
   bitacora_contenido_cubierto?: string;
   bitacora_observaciones?: string;
+  estado: 'programada' | 'realizada' | 'cancelada';
   curso_info: {
     nombre: string;
     nivel: string;
@@ -75,6 +80,21 @@ export interface ClassLogEntry {
     nivel: string;
     asignatura: string;
   };
+}
+
+export interface UpdateClassPayload {
+  titulo?: string;
+  objetivos_clase?: string;
+  objetivo_estudiante?: string;
+  aporte_proyecto?: string;
+  actividades_inicio?: string;
+  actividades_desarrollo?: string;
+  actividades_cierre?: string;
+  recursos?: string;
+  objetivo_aprendizaje_texto?: string;
+  habilidades?: string;
+  vinculo_interdisciplinario?: string;
+  aspectos_valoricos_actitudinales?: string;
 }
 
 
@@ -207,7 +227,8 @@ export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDeta
     .select(`
       id, fecha, titulo, objetivos_clase, objetivo_estudiante, aporte_proyecto,
       actividades_inicio, actividades_desarrollo, actividades_cierre, recursos,
-      bitacora_contenido_cubierto, bitacora_observaciones,
+      bitacora_contenido_cubierto, bitacora_observaciones, estado,
+      objetivo_aprendizaje_texto, habilidades, vinculo_interdisciplinario, aspectos_valoricos_actitudinales,
       unidades ( curso_asignaturas ( cursos ( nombre, niveles ( nombre ) ), asignaturas ( nombre ) ) )
     `)
     .eq('unidad_maestra_id', planId)
@@ -226,8 +247,13 @@ export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDeta
     actividades_desarrollo: c.actividades_desarrollo,
     actividades_cierre: c.actividades_cierre,
     recursos: c.recursos,
+    objetivo_aprendizaje_texto: c.objetivo_aprendizaje_texto,
+    habilidades: c.habilidades,
+    vinculo_interdisciplinario: c.vinculo_interdisciplinario,
+    aspectos_valoricos_actitudinales: c.aspectos_valoricos_actitudinales,
     bitacora_contenido_cubierto: c.bitacora_contenido_cubierto,
     bitacora_observaciones: c.bitacora_observaciones,
+    estado: c.estado,
     curso_info: {
       nombre: c.unidades?.curso_asignaturas?.cursos?.nombre || 'N/A',
       nivel: c.unidades?.curso_asignaturas?.cursos?.niveles?.nombre || 'N/A',
@@ -304,4 +330,20 @@ export const updateClassLog = async (planificacionId: string, contenido: string,
     .eq('id', planificacionId);
 
   if (error) throw new Error(`Error al guardar la bitácora: ${error.message}`);
+};
+
+export const updateClassStatus = async (classId: string, estado: 'programada' | 'realizada' | 'cancelada') => {
+  const { error } = await supabase
+    .from('planificaciones_clase')
+    .update({ estado })
+    .eq('id', classId);
+  if (error) throw new Error(`Error al actualizar estado de la clase: ${error.message}`);
+};
+
+export const updateClassDetails = async (classId: string, details: UpdateClassPayload) => {
+    const { error } = await supabase
+        .from('planificaciones_clase')
+        .update(details)
+        .eq('id', classId);
+    if (error) throw new Error(`Error al actualizar los detalles de la clase: ${error.message}`);
 };

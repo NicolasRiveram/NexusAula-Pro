@@ -1,19 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb, MessageSquare } from 'lucide-react';
-import { fetchUnitPlanDetails, UnitPlanDetail, ScheduledClass } from '@/api/planningApi';
-import { showError } from '@/utils/toast';
+import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb } from 'lucide-react';
+import { fetchUnitPlanDetails, updateClassStatus, updateClassDetails, UnitPlanDetail, ScheduledClass, UpdateClassPayload } from '@/api/planningApi';
+import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import ClassCard from '@/components/planning/ClassCard';
+import ClassDetailDialog from '@/components/planning/ClassDetailDialog';
+import EditClassDialog from '@/components/planning/EditClassDialog';
 
 const UnitPlanDetailPage = () => {
   const { planId } = useParams<{ planId: string }>();
   const [plan, setPlan] = useState<UnitPlanDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
+  const [isDetailOpen, setDetailOpen] = useState(false);
+  const [isEditOpen, setEditOpen] = useState(false);
 
-  useEffect(() => {
+  const loadPlan = useCallback(async () => {
     if (planId) {
       setLoading(true);
       fetchUnitPlanDetails(planId)
@@ -22,6 +28,49 @@ const UnitPlanDetailPage = () => {
         .finally(() => setLoading(false));
     }
   }, [planId]);
+
+  useEffect(() => {
+    loadPlan();
+  }, [loadPlan]);
+
+  const handleStatusChange = async (classId: string, newStatus: 'realizada' | 'programada') => {
+    const toastId = showLoading('Actualizando estado...');
+    try {
+      await updateClassStatus(classId, newStatus);
+      showSuccess('Estado de la clase actualizado.');
+      loadPlan();
+      setDetailOpen(false);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      dismissToast(toastId);
+    }
+  };
+
+  const handleSaveEdit = async (classId: string, data: UpdateClassPayload) => {
+    const toastId = showLoading('Guardando cambios...');
+    try {
+      await updateClassDetails(classId, data);
+      showSuccess('Clase actualizada correctamente.');
+      loadPlan();
+      setEditOpen(false);
+      setDetailOpen(false);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      dismissToast(toastId);
+    }
+  };
+
+  const handleCardClick = (clase: ScheduledClass) => {
+    setSelectedClass(clase);
+    setDetailOpen(true);
+  };
+
+  const handleEditClick = () => {
+    setDetailOpen(false);
+    setEditOpen(true);
+  };
 
   const groupClassesByCourse = (classes: ScheduledClass[]) => {
     return classes.reduce((acc, cls) => {
@@ -103,31 +152,14 @@ const UnitPlanDetailPage = () => {
           <section>
             <h2 className="text-xl font-semibold mb-4">Secuencia de Clases Programadas</h2>
             {Object.keys(groupedClasses).length > 0 ? (
-              <Accordion type="single" collapsible className="w-full">
+              <Accordion type="single" collapsible className="w-full" defaultValue={Object.keys(groupedClasses)[0]}>
                 {Object.entries(groupedClasses).map(([courseName, classes]) => (
                   <AccordionItem key={courseName} value={courseName}>
                     <AccordionTrigger className="text-lg">{courseName}</AccordionTrigger>
                     <AccordionContent>
-                      <div className="space-y-6 pl-4 border-l-2 border-primary">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-2">
                         {classes.map((cls) => (
-                          <div key={cls.id} className="relative">
-                            <div className="absolute -left-[23px] top-1 h-4 w-4 rounded-full bg-primary" />
-                            <p className="font-semibold text-md">{format(parseISO(cls.fecha), "EEEE d 'de' LLLL", { locale: es })} - {cls.titulo}</p>
-                            <div className="mt-2 space-y-3 text-sm text-muted-foreground">
-                              <p><strong>Objetivo Docente:</strong> {cls.objetivos_clase}</p>
-                              {(cls.bitacora_contenido_cubierto || cls.bitacora_observaciones) && (
-                                <Card className="mt-4 bg-amber-50 border-amber-200">
-                                  <CardHeader className="p-3">
-                                    <CardTitle className="text-base flex items-center"><MessageSquare className="mr-2 h-4 w-4" /> Bitácora de Clase</CardTitle>
-                                  </CardHeader>
-                                  <CardContent className="p-3 pt-0 text-sm">
-                                    {cls.bitacora_contenido_cubierto && <p><strong>Contenido Cubierto:</strong> {cls.bitacora_contenido_cubierto}</p>}
-                                    {cls.bitacora_observaciones && <p className="mt-2"><strong>Observaciones:</strong> {cls.bitacora_observaciones}</p>}
-                                  </CardContent>
-                                </Card>
-                              )}
-                            </div>
-                          </div>
+                          <ClassCard key={cls.id} clase={cls} onClick={() => handleCardClick(cls)} />
                         ))}
                       </div>
                     </AccordionContent>
@@ -140,6 +172,21 @@ const UnitPlanDetailPage = () => {
           </section>
         </CardContent>
       </Card>
+
+      <ClassDetailDialog
+        isOpen={isDetailOpen}
+        onOpenChange={setDetailOpen}
+        clase={selectedClass}
+        onStatusChange={handleStatusChange}
+        onEdit={handleEditClick}
+      />
+
+      <EditClassDialog
+        isOpen={isEditOpen}
+        onOpenChange={setEditOpen}
+        clase={selectedClass}
+        onSave={handleSaveEdit}
+      />
     </div>
   );
 };
