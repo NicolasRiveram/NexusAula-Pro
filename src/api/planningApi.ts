@@ -196,7 +196,7 @@ export const fetchUnitPlans = async (docenteId: string): Promise<UnitPlan[]> => 
   return (data || []).map(plan => ({
     ...plan,
     unidad_maestra_curso_asignatura_link: plan.unidad_maestra_curso_asignatura_link.filter((link: any) => link.curso_asignaturas && link.curso_asignaturas.cursos)
-  })) as UnitPlan[];
+  })) as any;
 };
 
 export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDetail> => {
@@ -265,7 +265,7 @@ export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDeta
     ...unitData,
     unidad_maestra_curso_asignatura_link: unitData.unidad_maestra_curso_asignatura_link.filter((link: any) => link.curso_asignaturas && link.curso_asignaturas.cursos),
     clases: scheduledClasses,
-  } as UnitPlanDetail;
+  } as any;
 };
 
 export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: string) => {

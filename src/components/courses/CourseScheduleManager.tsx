@@ -110,7 +110,7 @@ const CourseScheduleManager: React.FC<CourseScheduleManagerProps> = ({ cursoAsig
         onClose={() => setDialogOpen(false)}
         onSaved={loadSchedule}
         scheduleBlock={selectedBlock}
-        cursosAsignaturas={[{ id: cursoAsignaturaId, asignatura: { nombre: '' }, curso: { nombre: cursoNombre, anio: 0, nivel: { nombre: '' } } }]}
+        cursosAsignaturas={[{ id: cursoAsignaturaId, asignatura: { nombre: '' }, curso: { id: '', nombre: cursoNombre, anio: 0, nivel: { nombre: '' } } }]}
         fixedCursoId={cursoAsignaturaId}
       />
 

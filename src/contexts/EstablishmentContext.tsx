@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
 // Tipos para el establecimiento
-interface Establishment {
+export interface Establishment {
   id: string;
   nombre: string;
   direccion?: string;

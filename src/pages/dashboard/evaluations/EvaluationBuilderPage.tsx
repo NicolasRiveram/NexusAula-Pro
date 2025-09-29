@@ -18,8 +18,11 @@ const EvaluationBuilderPage = () => {
     const toastId = showLoading("Creando evaluación...");
     try {
       const newEvaluationId = await createEvaluation({
-        ...data,
+        titulo: data.titulo,
+        tipo: data.tipo,
+        descripcion: data.descripcion || '',
         fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
+        cursoAsignaturaIds: data.cursoAsignaturaIds,
       });
       setEvaluationId(newEvaluationId);
       setEvaluationTitle(data.titulo);

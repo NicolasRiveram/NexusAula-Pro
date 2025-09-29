@@ -68,7 +68,12 @@ const ScheduleEditDialog: React.FC<ScheduleEditDialogProps> = ({ isOpen, onClose
     setIsSubmitting(true);
     const toastId = showLoading(scheduleBlock ? "Actualizando horario..." : "Guardando horario...");
     try {
-      await saveScheduleBlock(data, scheduleBlock?.id);
+      await saveScheduleBlock({
+        curso_asignatura_id: data.curso_asignatura_id,
+        dia_semana: data.dia_semana,
+        hora_inicio: data.hora_inicio,
+        hora_fin: data.hora_fin,
+      }, scheduleBlock?.id);
       dismissToast(toastId);
       showSuccess("Horario guardado correctamente.");
       onSaved();
