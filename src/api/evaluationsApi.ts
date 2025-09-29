@@ -30,6 +30,7 @@ export interface ItemAlternative {
   id: string;
   texto: string;
   es_correcta: boolean;
+  orden: number;
 }
 
 export interface PIEAdaptation {
@@ -216,7 +217,7 @@ export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationIte
         .from('evaluacion_items')
         .select(`
             id, enunciado, tipo_item, puntaje, orden, content_block_id, tiene_adaptacion_pie,
-            item_alternativas ( id, texto, es_correcta ),
+            item_alternativas ( id, texto, es_correcta, orden ),
             adaptaciones_pie ( id, enunciado_adaptado, alternativas_adaptadas )
         `)
         .eq('content_block_id', blockId)
@@ -233,7 +234,6 @@ export const generatePIEAdaptation = async (itemId: string) => {
 };
 
 export const savePIEAdaptation = async (parentItemId: string, adaptationData: any) => {
-    // Use a transaction to ensure both operations succeed or fail together
     const { error } = await supabase.tx(async (tx) => {
         const { error: insertError } = await tx
             .from('adaptaciones_pie')
@@ -254,4 +254,28 @@ export const savePIEAdaptation = async (parentItemId: string, adaptationData: an
     });
 
     if (error) throw new Error(`Error al guardar la adaptación PIE: ${error.message}`);
+};
+
+export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; alternativas: any[] }) => {
+    const { error } = await supabase.rpc('actualizar_pregunta_y_alternativas', {
+        p_item_id: itemId,
+        p_enunciado: data.enunciado,
+        p_puntaje: data.puntaje,
+        p_alternativas: data.alternativas,
+    });
+    if (error) throw new Error(`Error al actualizar la pregunta: ${error.message}`);
+};
+
+export const increaseQuestionDifficulty = async (itemId: string) => {
+    const { data: newData, error: rpcError } = await supabase.rpc('aumentar_dificultad_pregunta_ia', { p_item_id: itemId });
+    if (rpcError) throw new Error(`Error en la IA para aumentar dificultad: ${rpcError.message}`);
+
+    const { data: itemData, error: fetchError } = await supabase.from('evaluacion_items').select('puntaje').eq('id', itemId).single();
+    if (fetchError) throw new Error(`Error al obtener puntaje original: ${fetchError.message}`);
+
+    await updateEvaluationItem(itemId, {
+        enunciado: newData.enunciado,
+        puntaje: itemData.puntaje, // Mantenemos el puntaje original
+        alternativas: newData.alternativas,
+    });
 };

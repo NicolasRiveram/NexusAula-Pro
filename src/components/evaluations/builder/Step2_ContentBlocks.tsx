@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation } from '@/api/evaluationsApi';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown } from 'lucide-react';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty } from '@/api/evaluationsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
+import EditQuestionDialog from './EditQuestionDialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +15,7 @@ interface Step2ContentBlocksProps {
   onNextStep: () => void;
 }
 
-const QuestionItem = ({ item, onAdaptPIE, isAdapting }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, isAdapting: boolean }) => {
+const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, isAdapting, isIncreasingDifficulty }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, onEdit: (item: EvaluationItem) => void, onIncreaseDifficulty: (itemId: string) => void, isAdapting: boolean, isIncreasingDifficulty: boolean }) => {
     const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
 
     return (
@@ -22,7 +23,7 @@ const QuestionItem = ({ item, onAdaptPIE, isAdapting }: { item: EvaluationItem, 
             <p className="text-sm font-medium">{item.orden}. {item.enunciado}</p>
             {item.tipo_item === 'seleccion_multiple' && (
                 <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    {item.item_alternativas.map((alt, index) => (
+                    {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
                         <li key={alt.id} className={cn(alt.es_correcta && "font-semibold text-primary")}>
                             {String.fromCharCode(97 + index)}) {alt.texto}
                         </li>
@@ -50,17 +51,12 @@ const QuestionItem = ({ item, onAdaptPIE, isAdapting }: { item: EvaluationItem, 
 
             <div className="flex items-center justify-end gap-2 mt-2">
                 <Badge variant="outline" className="capitalize">{item.tipo_item.replace('_', ' ')}</Badge>
-                <Button variant="ghost" size="sm" disabled><Edit className="h-3 w-3 mr-1" /> Editar</Button>
-                <Button variant="ghost" size="sm" disabled><ChevronUp className="h-3 w-3 mr-1" /> Subir Dificultad</Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onAdaptPIE(item.id)}
-                    disabled={isAdapting || item.tiene_adaptacion_pie}
-                    className={cn(
-                        item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600"
-                    )}
-                >
+                <Button variant="ghost" size="sm" onClick={() => onEdit(item)}><Edit className="h-3 w-3 mr-1" /> Editar</Button>
+                <Button variant="ghost" size="sm" onClick={() => onIncreaseDifficulty(item.id)} disabled={isIncreasingDifficulty}>
+                    {isIncreasingDifficulty ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ChevronUp className="h-3 w-3 mr-1" />}
+                    Subir Dificultad
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie} className={cn(item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600")}>
                     {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
                     {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
                 </Button>
@@ -75,7 +71,14 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [loading, setLoading] = useState(true);
   const [generatingForBlock, setGeneratingForBlock] = useState<string | null>(null);
   const [adaptingItemId, setAdaptingItemId] = useState<string | null>(null);
+  const [increasingDifficultyId, setIncreasingDifficultyId] = useState<string | null>(null);
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<EvaluationItem | null>(null);
+  const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
+
+  const toggleBlockExpansion = (blockId: string) => {
+    setExpandedBlocks(prev => ({ ...prev, [blockId]: !prev[blockId] }));
+  };
 
   const loadBlocksAndQuestions = useCallback(async () => {
     setLoading(true);
@@ -87,10 +90,13 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       const questionsResults = await Promise.all(questionsPromises);
       
       const questionsMap: Record<string, EvaluationItem[]> = {};
+      const initialExpansionState: Record<string, boolean> = {};
       blockData.forEach((block, index) => {
         questionsMap[block.id] = questionsResults[index];
+        initialExpansionState[block.id] = true; // Expand all by default
       });
       setQuestionsByBlock(questionsMap);
+      setExpandedBlocks(initialExpansionState);
 
     } catch (error: any) {
       showError(`Error al cargar bloques y preguntas: ${error.message}`);
@@ -118,13 +124,9 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     try {
         const generatedQuestions = await generateQuestionsFromBlock(block);
         const totalItemsInEvaluation = Object.values(questionsByBlock).flat().length;
-
         await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions, totalItemsInEvaluation);
         showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
-        
-        const newQuestions = await fetchItemsForBlock(block.id);
-        setQuestionsByBlock(prev => ({ ...prev, [block.id]: newQuestions }));
-
+        loadBlocksAndQuestions();
     } catch (error: any) {
         showError(error.message);
     } finally {
@@ -138,7 +140,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         const adaptationData = await generatePIEAdaptation(itemId);
         await savePIEAdaptation(itemId, adaptationData);
         showSuccess("Pregunta adaptada para PIE exitosamente.");
-        loadBlocksAndQuestions(); // Recargar para mostrar la adaptación
+        loadBlocksAndQuestions();
     } catch (error: any) {
         showError(`Error al adaptar la pregunta: ${error.message}`);
     } finally {
@@ -146,60 +148,89 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
+  const handleEditSave = async (item: EvaluationItem, data: any) => {
+    try {
+        await updateEvaluationItem(item.id, data);
+        showSuccess("Pregunta actualizada.");
+        setEditingItem(null);
+        loadBlocksAndQuestions();
+    } catch (error: any) {
+        showError(`Error al guardar: ${error.message}`);
+    }
+  };
+
+  const handleIncreaseDifficulty = async (itemId: string) => {
+    setIncreasingDifficultyId(itemId);
+    try {
+        await increaseQuestionDifficulty(itemId);
+        showSuccess("Dificultad de la pregunta aumentada.");
+        loadBlocksAndQuestions();
+    } catch (error: any) {
+        showError(`Error al aumentar dificultad: ${error.message}`);
+    } finally {
+        setIncreasingDifficultyId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
       <div className="flex gap-2">
-        <Button onClick={() => setAddTextDialogOpen(true)}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Añadir Temario/Texto
-        </Button>
-        <Button disabled>
-          <ImageIcon className="mr-2 h-4 w-4" /> Añadir Imagen (Próximamente)
-        </Button>
+        <Button onClick={() => setAddTextDialogOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Temario/Texto</Button>
+        <Button disabled><ImageIcon className="mr-2 h-4 w-4" /> Añadir Imagen (Próximamente)</Button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-24">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+        <div className="flex justify-center items-center h-24"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : blocks.length > 0 ? (
         <div className="space-y-6">
           {blocks.map(block => (
             <div key={block.id}>
-              <Card>
+              <Card className="cursor-pointer" onClick={() => toggleBlockExpansion(block.id)}>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div className="flex items-center">
                     <FileText className="mr-3 h-5 w-5 text-muted-foreground" />
                     <div>
-                      <CardTitle className="text-base">Bloque de Texto</CardTitle>
-                      <CardDescription>Orden: {block.orden}</CardDescription>
+                      <CardTitle className="text-base">Bloque de Texto (Orden: {block.orden})</CardTitle>
+                      <CardDescription>
+                        {questionsByBlock[block.id]?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
+                      </CardDescription>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDeleteBlock(block.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteBlock(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4">{block.content.text}</p>
-                  <div className="flex justify-end mt-4">
+                {!expandedBlocks[block.id] && (
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">{block.content.text}</p>
+                    </CardContent>
+                )}
+              </Card>
+              {expandedBlocks[block.id] && (
+                <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
+                  <div className="flex justify-end">
                     <Button onClick={() => handleGenerateQuestions(block)} disabled={generatingForBlock === block.id}>
                       {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
                       Generar Preguntas
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-              {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 && (
-                <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
-                  <h4 className="font-semibold text-sm">Preguntas Generadas:</h4>
-                  {questionsByBlock[block.id].map(item => (
-                    <QuestionItem 
-                        key={item.id} 
-                        item={item} 
-                        onAdaptPIE={handleAdaptPIE}
-                        isAdapting={adaptingItemId === item.id}
-                    />
-                  ))}
+                  {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 ? (
+                    questionsByBlock[block.id].map(item => (
+                      <QuestionItem 
+                          key={item.id} 
+                          item={item} 
+                          onAdaptPIE={handleAdaptPIE}
+                          onEdit={setEditingItem}
+                          onIncreaseDifficulty={handleIncreaseDifficulty}
+                          isAdapting={adaptingItemId === item.id}
+                          isIncreasingDifficulty={increasingDifficultyId === item.id}
+                      />
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center">Aún no hay preguntas para este bloque.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -213,18 +244,11 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       )}
 
       <div className="flex justify-end pt-4">
-        <Button onClick={onNextStep} disabled={blocks.length === 0}>
-          Continuar a Revisión Final
-        </Button>
+        <Button onClick={onNextStep} disabled={blocks.length === 0}>Continuar a Revisión Final</Button>
       </div>
 
-      <AddTextBlockDialog
-        isOpen={isAddTextDialogOpen}
-        onClose={() => setAddTextDialogOpen(false)}
-        onBlockCreated={loadBlocksAndQuestions}
-        evaluationId={evaluationId}
-        currentOrder={blocks.length + 1}
-      />
+      <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
+      <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
     </div>
   );
 };
