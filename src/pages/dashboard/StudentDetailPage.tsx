@@ -3,20 +3,34 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Mail, User, Hash } from 'lucide-react';
 import { fetchStudentProfile, Estudiante } from '@/api/coursesApi';
+import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const StudentDetailPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<Estudiante | null>(null);
+  const [evaluations, setEvaluations] = useState<StudentRubricEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (studentId) {
       setLoading(true);
-      fetchStudentProfile(studentId)
-        .then(setStudent)
-        .catch(err => showError(`Error al cargar perfil: ${err.message}`))
-        .finally(() => setLoading(false));
+      Promise.all([
+        fetchStudentProfile(studentId),
+        fetchEvaluationsForStudent(studentId)
+      ]).then(([studentData, evaluationsData]) => {
+        setStudent(studentData);
+        setEvaluations(evaluationsData);
+      }).catch(err => {
+        showError(`Error al cargar datos del estudiante: ${err.message}`);
+      }).finally(() => {
+        setLoading(false);
+      });
     }
   }, [studentId]);
 
@@ -57,9 +71,70 @@ const StudentDetailPage = () => {
               <span className="ml-2">{student.email || 'No especificado'}</span>
             </div>
           </div>
-          <p className="font-semibold mt-8 text-center text-muted-foreground">
-            Las funcionalidades de rendimiento y asistencia se implementarán a continuación.
-          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Historial de Evaluaciones con Rúbrica</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {evaluations.length > 0 ? (
+            <Accordion type="single" collapsible className="w-full">
+              {evaluations.map(evaluation => (
+                <AccordionItem key={evaluation.id} value={evaluation.id}>
+                  <AccordionTrigger>
+                    <div className="flex justify-between w-full pr-4 items-center">
+                      <div className="text-left">
+                        <p className="font-semibold">{evaluation.rubrica.nombre}</p>
+                        <p className="text-sm text-muted-foreground">{evaluation.curso_asignatura.asignaturas.nombre} - {format(parseISO(evaluation.created_at), "d LLL, yyyy", { locale: es })}</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge variant="outline" className={cn("text-base", evaluation.calificacion_final < 4.0 ? "text-destructive border-destructive" : "text-green-600 border-green-600")}>
+                          Nota: {evaluation.calificacion_final.toFixed(1)}
+                        </Badge>
+                        <Badge>Puntaje: {evaluation.puntaje_obtenido}/{evaluation.puntaje_maximo}</Badge>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 p-2">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left">
+                            <th className="p-2 border-b font-medium">Criterio</th>
+                            <th className="p-2 border-b font-medium">Nivel Logrado</th>
+                            <th className="p-2 border-b font-medium text-right">Puntaje</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {evaluation.rubrica.contenido_json.criterios.map((criterion, critIndex) => {
+                            const selectedLevelIndex = evaluation.resultados_json[critIndex];
+                            const selectedLevel = criterion.niveles[selectedLevelIndex];
+                            return (
+                              <tr key={critIndex}>
+                                <td className="p-2 border-b">{criterion.nombre}</td>
+                                <td className="p-2 border-b">{selectedLevel?.nombre || 'N/A'}</td>
+                                <td className="p-2 border-b text-right">{selectedLevel?.puntaje || 0}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      {evaluation.comentarios && (
+                        <div className="pt-4">
+                          <h4 className="font-semibold">Comentarios del Docente</h4>
+                          <p className="text-muted-foreground italic bg-muted/50 p-3 rounded-md">"{evaluation.comentarios}"</p>
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          ) : (
+            <p className="text-muted-foreground text-center">Este estudiante aún no tiene evaluaciones con rúbrica registradas.</p>
+          )}
         </CardContent>
       </Card>
     </div>

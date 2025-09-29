@@ -33,6 +33,26 @@ export interface RubricEvaluationResult {
     resultados_json: any;
 }
 
+export interface StudentRubricEvaluation {
+  id: string;
+  created_at: string;
+  puntaje_obtenido: number;
+  puntaje_maximo: number;
+  calificacion_final: number;
+  comentarios: string | null;
+  resultados_json: Record<number, number>;
+  rubrica: {
+    nombre: string;
+    actividad_a_evaluar: string;
+    contenido_json: RubricContent;
+  };
+  curso_asignatura: {
+    asignaturas: {
+      nombre: string;
+    };
+  };
+}
+
 export const fetchRubrics = async (docenteId: string, establecimientoId: string): Promise<Rubric[]> => {
   if (!establecimientoId) return [];
 
@@ -102,4 +122,31 @@ export const saveRubricEvaluation = async (evaluationData: RubricEvaluationResul
         .from('rubrica_evaluaciones_estudiantes')
         .insert(evaluationData);
     if (error) throw new Error(`Error al guardar la evaluación de la rúbrica: ${error.message}`);
+};
+
+export const fetchEvaluationsForStudent = async (studentId: string): Promise<StudentRubricEvaluation[]> => {
+  const { data, error } = await supabase
+    .from('rubrica_evaluaciones_estudiantes')
+    .select(`
+      id,
+      created_at,
+      puntaje_obtenido,
+      puntaje_maximo,
+      calificacion_final,
+      comentarios,
+      resultados_json,
+      rubricas!inner (
+        nombre,
+        actividad_a_evaluar,
+        contenido_json
+      ),
+      curso_asignaturas!inner (
+        asignaturas ( nombre )
+      )
+    `)
+    .eq('estudiante_perfil_id', studentId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`Error fetching student evaluations: ${error.message}`);
+  return data as any[];
 };
