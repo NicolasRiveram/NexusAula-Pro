@@ -5,7 +5,7 @@ export interface Evaluation {
   titulo: string;
   tipo: string;
   fecha_aplicacion: string;
-  assigned_courses: {
+  curso_asignatura: {
     curso: {
       nombre: string;
       nivel: {
@@ -15,7 +15,7 @@ export interface Evaluation {
     asignatura: {
       nombre: string;
     };
-  }[];
+  };
 }
 
 export interface EvaluationContentBlock {
@@ -50,30 +50,27 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
 
   if (error) throw new Error(`Error al cargar las evaluaciones: ${error.message}`);
 
-  const evaluationMap = new Map<string, Evaluation>();
+  // Since one evaluation can be linked to multiple courses, we need to flatten the result.
+  const evaluations: Evaluation[] = [];
   (data || []).forEach((e: any) => {
-    const courseInfo = {
-      curso: {
-        nombre: e.evaluation_course_links.curso_asignaturas.cursos.nombre,
-        nivel: { nombre: e.evaluation_course_links.curso_asignaturas.cursos.niveles.nombre }
-      },
-      asignatura: { nombre: e.evaluation_course_links.curso_asignaturas.asignaturas.nombre }
-    };
-
-    if (evaluationMap.has(e.id)) {
-      evaluationMap.get(e.id)!.assigned_courses.push(courseInfo);
-    } else {
-      evaluationMap.set(e.id, {
+    e.evaluation_course_links.forEach((link: any) => {
+      evaluations.push({
         id: e.id,
         titulo: e.titulo,
         tipo: e.tipo,
         fecha_aplicacion: e.fecha_aplicacion,
-        assigned_courses: [courseInfo]
+        curso_asignatura: {
+          curso: {
+            nombre: link.curso_asignaturas.cursos.nombre,
+            nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }
+          },
+          asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre }
+        }
       });
-    }
+    });
   });
 
-  return Array.from(evaluationMap.values());
+  return evaluations;
 };
 
 export interface CreateEvaluationData {
