@@ -42,8 +42,32 @@ const EvaluationPage = () => {
     loadEvaluations();
   }, [activeEstablishment]);
 
+  const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
+    const groups: Record<string, Evaluation[]> = {};
+    evals.forEach(evaluation => {
+      const levels = new Set<string>();
+      evaluation.curso_asignaturas.forEach(ca => {
+        if (ca.curso?.nivel?.nombre) {
+          levels.add(ca.curso.nivel.nombre);
+        }
+      });
+
+      levels.forEach(levelName => {
+        if (!groups[levelName]) {
+          groups[levelName] = [];
+        }
+        // Evitar duplicados si una evaluación está en múltiples cursos del mismo nivel
+        if (!groups[levelName].some(e => e.id === evaluation.id)) {
+            groups[levelName].push(evaluation);
+        }
+      });
+    });
+    return groups;
+  };
+
   const renderEvaluations = (filterType?: string) => {
     const filtered = filterType ? evaluations.filter(e => e.tipo === filterType) : evaluations;
+    
     if (filtered.length === 0) {
       return (
         <div className="text-center py-12 border-2 border-dashed rounded-lg mt-4">
@@ -52,29 +76,40 @@ const EvaluationPage = () => {
         </div>
       );
     }
+
+    const grouped = groupEvaluationsByLevel(filtered);
+    const sortedLevels = Object.keys(grouped).sort(); // Puedes mejorar el orden si tienes una columna 'orden' en niveles
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-        {filtered.map(evaluation => (
-          <Card key={evaluation.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
-            <CardHeader>
-              <CardTitle>{evaluation.titulo}</CardTitle>
-              <CardDescription>
-                Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
-                <div className="flex flex-wrap gap-1">
-                  {evaluation.curso_asignaturas.map((ca, index) => (
-                    <Badge key={index} variant="outline">
-                      {ca.curso.nivel.nombre} {ca.curso.nombre}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="space-y-8 mt-4">
+        {sortedLevels.map(levelName => (
+          <div key={levelName}>
+            <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{levelName}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {grouped[levelName].map(evaluation => (
+                <Card key={evaluation.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
+                  <CardHeader>
+                    <CardTitle>{evaluation.titulo}</CardTitle>
+                    <CardDescription>
+                      Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {evaluation.curso_asignaturas.map((ca, index) => (
+                          <Badge key={index} variant="outline">
+                            {ca.curso.nivel.nombre} {ca.curso.nombre}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     );
