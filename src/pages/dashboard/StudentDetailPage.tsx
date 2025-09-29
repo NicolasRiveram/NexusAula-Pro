@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Mail, User, Hash } from 'lucide-react';
-import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment } from '@/api/coursesApi';
+import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory } from '@/api/coursesApi';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -11,11 +11,13 @@ import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { calculateGrade } from '@/utils/evaluationUtils';
 
 const StudentDetailPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<Estudiante | null>(null);
-  const [evaluations, setEvaluations] = useState<StudentRubricEvaluation[]>([]);
+  const [rubricEvaluations, setRubricEvaluations] = useState<StudentRubricEvaluation[]>([]);
+  const [evaluationHistory, setEvaluationHistory] = useState<StudentEvaluationHistory[]>([]);
   const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,11 +27,13 @@ const StudentDetailPage = () => {
       Promise.all([
         fetchStudentProfile(studentId),
         fetchEvaluationsForStudent(studentId),
-        fetchStudentEnrollments(studentId)
-      ]).then(([studentData, evaluationsData, enrollmentsData]) => {
+        fetchStudentEnrollments(studentId),
+        fetchStudentEvaluationHistory(studentId)
+      ]).then(([studentData, rubricData, enrollmentsData, historyData]) => {
         setStudent(studentData);
-        setEvaluations(evaluationsData);
+        setRubricEvaluations(rubricData);
         setEnrollments(enrollmentsData);
+        setEvaluationHistory(historyData);
       }).catch(err => {
         showError(`Error al cargar datos del estudiante: ${err.message}`);
       }).finally(() => {
@@ -80,34 +84,40 @@ const StudentDetailPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Inscripción en Cursos</CardTitle>
-          <CardDescription>Lista de cursos y asignaturas en los que el estudiante está inscrito.</CardDescription>
+          <CardTitle>Historial de Evaluaciones</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Año</TableHead>
-                <TableHead>Curso</TableHead>
-                <TableHead>Asignatura</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {enrollments.length > 0 ? (
-                enrollments.map((enrollment) => (
-                  <TableRow key={enrollment.curso_asignatura_id}>
-                    <TableCell>{enrollment.anio}</TableCell>
-                    <TableCell>{enrollment.nivel_nombre} {enrollment.curso_nombre}</TableCell>
-                    <TableCell>{enrollment.asignatura_nombre}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
+          {evaluationHistory.length > 0 ? (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center">No hay inscripciones en cursos.</TableCell>
+                  <TableHead>Evaluación</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Puntaje</TableHead>
+                  <TableHead>Nota (60%)</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {evaluationHistory.map(ev => {
+                  const nota = calculateGrade(ev.score_obtained, ev.max_score);
+                  return (
+                    <TableRow key={ev.evaluation_id}>
+                      <TableCell className="font-medium">{ev.evaluation_title}</TableCell>
+                      <TableCell>{format(parseISO(ev.response_date), "d LLL, yyyy", { locale: es })}</TableCell>
+                      <TableCell>{ev.score_obtained} / {ev.max_score}</TableCell>
+                      <TableCell>
+                        <span className={cn("font-semibold", nota < 4.0 ? "text-destructive" : "text-green-600")}>
+                          {nota.toFixed(1)}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-muted-foreground text-center">No hay historial de evaluaciones para mostrar.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -116,9 +126,9 @@ const StudentDetailPage = () => {
           <CardTitle>Historial de Evaluaciones con Rúbrica</CardTitle>
         </CardHeader>
         <CardContent>
-          {evaluations.length > 0 ? (
+          {rubricEvaluations.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {evaluations.map(evaluation => (
+              {rubricEvaluations.map(evaluation => (
                 <AccordionItem key={evaluation.id} value={evaluation.id}>
                   <AccordionTrigger>
                     <div className="flex justify-between w-full pr-4 items-center">
@@ -172,6 +182,39 @@ const StudentDetailPage = () => {
           ) : (
             <p className="text-muted-foreground text-center">Este estudiante aún no tiene evaluaciones con rúbrica registradas.</p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Inscripción en Cursos</CardTitle>
+          <CardDescription>Lista de cursos y asignaturas en los que el estudiante está inscrito.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Año</TableHead>
+                <TableHead>Curso</TableHead>
+                <TableHead>Asignatura</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {enrollments.length > 0 ? (
+                enrollments.map((enrollment) => (
+                  <TableRow key={enrollment.curso_asignatura_id}>
+                    <TableCell>{enrollment.anio}</TableCell>
+                    <TableCell>{enrollment.nivel_nombre} {enrollment.curso_nombre}</TableCell>
+                    <TableCell>{enrollment.asignatura_nombre}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center">No hay inscripciones en cursos.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

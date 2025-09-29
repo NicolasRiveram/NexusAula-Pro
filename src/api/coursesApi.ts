@@ -40,6 +40,14 @@ export interface StudentEnrollment {
   asignatura_nombre: string;
 }
 
+export interface StudentEvaluationHistory {
+  evaluation_id: string;
+  evaluation_title: string;
+  response_date: string;
+  score_obtained: number;
+  max_score: number;
+}
+
 // --- Funciones de Lectura ---
 
 export const fetchNiveles = async (): Promise<Nivel[]> => {
@@ -211,6 +219,17 @@ export const fetchStudentEnrollments = async (studentId: string): Promise<Studen
 
     const uniqueEnrollments = Array.from(new Map(enrollments.map(e => [e.curso_asignatura_id, e])).values());
     return uniqueEnrollments.sort((a, b) => b.anio - a.anio || a.nivel_nombre.localeCompare(b.nivel_nombre));
+};
+
+export const fetchStudentEvaluationHistory = async (studentId: string): Promise<StudentEvaluationHistory[]> => {
+    const { data, error } = await supabase.rpc('get_student_evaluation_history', {
+        p_student_id: studentId,
+    });
+
+    if (error) {
+        throw new Error(`Error fetching student evaluation history: ${error.message}`);
+    }
+    return data || [];
 };
 
 
