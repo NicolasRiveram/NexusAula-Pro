@@ -105,13 +105,13 @@ const EvaluationPage = () => {
           <TabsList>
             <TabsTrigger value="todas">Todas</TabsTrigger>
             <TabsTrigger value="Prueba">Pruebas</TabsTrigger>
-            <TabsTrigger value="Guía de trabajo">Guías</TabsTrigger>
+            <TabsTrigger value="Guia de trabajo">Guías</TabsTrigger>
             <TabsTrigger value="Disertación">Disertaciones</TabsTrigger>
             <TabsTrigger value="Otro">Otras</TabsTrigger>
           </TabsList>
           <TabsContent value="todas">{renderEvaluations()}</TabsContent>
           <TabsContent value="Prueba">{renderEvaluations('Prueba')}</TabsContent>
-          <TabsContent value="Guía de trabajo">{renderEvaluations('Guía de trabajo')}</TabsContent>
+          <TabsContent value="Guia de trabajo">{renderEvaluations('Guia de trabajo')}</TabsContent>
           <TabsContent value="Disertación">{renderEvaluations('Disertación')}</TabsContent>
           <TabsContent value="Otro">{renderEvaluations('Otro')}</TabsContent>
         </Tabs>

@@ -72,7 +72,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => 
               <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Prueba">Prueba</SelectItem>
-                <SelectItem value="Guía de trabajo">Guía de trabajo</SelectItem>
+                <SelectItem value="Guia de trabajo">Guía de trabajo</SelectItem>
                 <SelectItem value="Disertación">Disertación</SelectItem>
                 <SelectItem value="Otro">Otro</SelectItem>
               </SelectContent>
