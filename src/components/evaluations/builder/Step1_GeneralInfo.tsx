@@ -12,27 +12,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MultiSelect } from '@/components/MultiSelect';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import { showError } from '@/utils/toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
+  tipo: z.string().min(1, "El tipo de evaluación es requerido."),
   descripcion: z.string().optional(),
-  asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
-  nivelId: z.string().uuid("Debes seleccionar un nivel."),
-  cursoAsignaturaIds: z.array(z.string()).min(1, "Debes asignar la evaluación al menos a un curso."),
+  fecha_aplicacion: z.date({ required_error: "La fecha de aplicación es requerida." }),
+  cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes asignar la evaluación al menos a un curso."),
 });
 
-type FormData = z.infer<typeof schema>;
+export type EvaluationStep1Data = z.infer<typeof schema>;
 
 interface Step1GeneralInfoProps {
-  onFormSubmit: (data: FormData) => void;
+  onFormSubmit: (data: EvaluationStep1Data) => void;
 }
 
 const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<EvaluationStep1Data>({
     resolver: zodResolver(schema),
   });
 
@@ -53,20 +57,8 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => 
     loadData();
   }, [activeEstablishment]);
 
-  const onSubmit = (data: FormData) => {
-    setIsSubmitting(true);
-    // Aquí iría la lógica para guardar en la BD
-    console.log("Datos del paso 1:", data);
-    onFormSubmit(data);
-    setIsSubmitting(false);
-  };
-
-  // Lógica para derivar asignaturas y niveles únicos de los cursos del docente
-  const uniqueAsignaturas = Array.from(new Map(cursosAsignaturas.map(ca => [ca.asignatura.nombre, ca.asignatura])).values());
-  const uniqueNiveles = Array.from(new Map(cursosAsignaturas.map(ca => [ca.curso.nivel.nombre, ca.curso.nivel])).values());
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="titulo">Título de la Evaluación</Label>
@@ -74,47 +66,57 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => 
           {errors.titulo && <p className="text-red-500 text-sm">{errors.titulo.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="descripcion">Descripción (Opcional)</Label>
-          <Controller name="descripcion" control={control} render={({ field }) => <Input id="descripcion" {...field} />} />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="asignaturaId">Asignatura</Label>
-          <Controller name="asignaturaId" control={control} render={({ field }) => (
+          <Label htmlFor="tipo">Tipo</Label>
+          <Controller name="tipo" control={control} render={({ field }) => (
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
-              <SelectContent>{uniqueAsignaturas.map(a => <SelectItem key={a.nombre} value={a.nombre}>{a.nombre}</SelectItem>)}</SelectContent>
+              <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Prueba">Prueba</SelectItem>
+                <SelectItem value="Guía de trabajo">Guía de trabajo</SelectItem>
+                <SelectItem value="Disertación">Disertación</SelectItem>
+                <SelectItem value="Otro">Otro</SelectItem>
+              </SelectContent>
             </Select>
           )} />
-          {errors.asignaturaId && <p className="text-red-500 text-sm">{errors.asignaturaId.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="nivelId">Nivel Educativo</Label>
-          <Controller name="nivelId" control={control} render={({ field }) => (
-            <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
-              <SelectContent>{uniqueNiveles.map(n => <SelectItem key={n.nombre} value={n.nombre}>{n.nombre}</SelectItem>)}</SelectContent>
-            </Select>
-          )} />
-          {errors.nivelId && <p className="text-red-500 text-sm">{errors.nivelId.message}</p>}
+          {errors.tipo && <p className="text-red-500 text-sm">{errors.tipo.message}</p>}
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="cursoAsignaturaIds">Asignar a Cursos</Label>
-        <Controller
-          name="cursoAsignaturaIds"
-          control={control}
-          render={({ field }) => (
-            <MultiSelect
-              options={cursosAsignaturas.map(ca => ({ value: ca.id, label: `${ca.curso.nivel.nombre} ${ca.curso.nombre} - ${ca.asignatura.nombre}` }))}
-              selected={field.value || []}
-              onValueChange={field.onChange}
-              placeholder="Selecciona uno o más cursos"
-            />
-          )}
-        />
-        {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm">{errors.cursoAsignaturaIds.message}</p>}
+        <Label htmlFor="descripcion">Descripción (Opcional)</Label>
+        <Controller name="descripcion" control={control} render={({ field }) => <Textarea id="descripcion" {...field} />} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="fecha_aplicacion">Fecha de Aplicación</Label>
+          <Controller name="fecha_aplicacion" control={control} render={({ field }) => (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} /></PopoverContent>
+            </Popover>
+          )} />
+          {errors.fecha_aplicacion && <p className="text-red-500 text-sm">{errors.fecha_aplicacion.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="cursoAsignaturaIds">Asignar a Cursos</Label>
+          <Controller
+            name="cursoAsignaturaIds"
+            control={control}
+            render={({ field }) => (
+              <MultiSelect
+                options={cursosAsignaturas.map(ca => ({ value: ca.id, label: `${ca.curso.nivel.nombre} ${ca.curso.nombre} - ${ca.asignatura.nombre}` }))}
+                selected={field.value || []}
+                onValueChange={field.onChange}
+                placeholder="Selecciona uno o más cursos"
+              />
+            )}
+          />
+          {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm">{errors.cursoAsignaturaIds.message}</p>}
+        </div>
       </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={isSubmitting}>

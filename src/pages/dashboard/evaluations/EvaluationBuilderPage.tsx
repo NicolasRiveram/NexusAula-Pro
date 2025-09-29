@@ -2,16 +2,34 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
-import Step1GeneralInfo from '@/components/evaluations/builder/Step1_GeneralInfo';
+import Step1GeneralInfo, { EvaluationStep1Data } from '@/components/evaluations/builder/Step1_GeneralInfo';
+import Step2ContentBlocks from '@/components/evaluations/builder/Step2_ContentBlocks';
+import { createEvaluation } from '@/api/evaluationsApi';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { format } from 'date-fns';
 
 const EvaluationBuilderPage = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [evaluationId, setEvaluationId] = useState<string | null>(null);
+  const [evaluationTitle, setEvaluationTitle] = useState<string>('');
 
-  const handleStep1Submit = (data: any) => {
-    console.log("Step 1 Data:", data);
-    // Lógica para guardar y pasar al siguiente paso
-    setStep(2);
+  const handleStep1Submit = async (data: EvaluationStep1Data) => {
+    const toastId = showLoading("Creando evaluación...");
+    try {
+      const newEvaluationId = await createEvaluation({
+        ...data,
+        fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
+      });
+      setEvaluationId(newEvaluationId);
+      setEvaluationTitle(data.titulo);
+      dismissToast(toastId);
+      showSuccess("Información general guardada. Ahora añade contenido.");
+      setStep(2);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error al crear la evaluación: ${error.message}`);
+    }
   };
 
   const getStepDescription = () => {
@@ -37,7 +55,7 @@ const EvaluationBuilderPage = () => {
         </CardHeader>
         <CardContent>
           {step === 1 && <Step1GeneralInfo onFormSubmit={handleStep1Submit} />}
-          {/* Aquí se renderizarán los siguientes pasos */}
+          {step === 2 && evaluationId && <Step2ContentBlocks evaluationId={evaluationId} evaluationTitle={evaluationTitle} />}
         </CardContent>
       </Card>
     </div>
