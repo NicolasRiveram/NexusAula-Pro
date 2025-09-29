@@ -31,6 +31,7 @@ import { Toaster } from "@/components/ui/toaster";
     import RubricBuilderPage from "./pages/dashboard/rubrics/RubricBuilderPage";
     import EditRubricPage from "./pages/dashboard/rubrics/EditRubricPage";
     import RubricDetailPage from "./pages/dashboard/rubrics/RubricDetailPage";
+    import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -131,6 +132,7 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="rubricas/editar/:rubricId" element={<EditRubricPage />} />
                 <Route path="rubricas/:rubricId" element={<RubricDetailPage />} />
                 <Route path="proyectos" element={<ProjectsPage />} />
+                <Route path="analiticas" element={<AnalyticsPage />} />
                 <Route path="bitacora" element={<BitacoraPage />} />
                 <Route path="configuracion" element={<SettingsPage />} />
               </Route>
