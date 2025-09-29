@@ -32,6 +32,12 @@ export interface ItemAlternative {
   es_correcta: boolean;
 }
 
+export interface PIEAdaptation {
+  id: string;
+  enunciado_adaptado: string;
+  alternativas_adaptadas: { texto: string; es_correcta: boolean }[];
+}
+
 export interface EvaluationItem {
   id: string;
   enunciado: string;
@@ -40,6 +46,8 @@ export interface EvaluationItem {
   orden: number;
   content_block_id: string;
   item_alternativas: ItemAlternative[];
+  tiene_adaptacion_pie: boolean;
+  adaptaciones_pie: PIEAdaptation[]; // Supabase returns this as an array
 }
 
 
@@ -207,12 +215,43 @@ export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationIte
     const { data, error } = await supabase
         .from('evaluacion_items')
         .select(`
-            id, enunciado, tipo_item, puntaje, orden, content_block_id,
-            item_alternativas ( id, texto, es_correcta )
+            id, enunciado, tipo_item, puntaje, orden, content_block_id, tiene_adaptacion_pie,
+            item_alternativas ( id, texto, es_correcta ),
+            adaptaciones_pie ( id, enunciado_adaptado, alternativas_adaptadas )
         `)
         .eq('content_block_id', blockId)
         .order('orden');
 
     if (error) throw new Error(`Error fetching items for block: ${error.message}`);
     return data as EvaluationItem[];
+};
+
+export const generatePIEAdaptation = async (itemId: string) => {
+    const { data, error } = await supabase.rpc('adaptar_pregunta_pie_ia', { p_item_id: itemId });
+    if (error) throw new Error(`Error al generar adaptación PIE: ${error.message}`);
+    return data;
+};
+
+export const savePIEAdaptation = async (parentItemId: string, adaptationData: any) => {
+    // Use a transaction to ensure both operations succeed or fail together
+    const { error } = await supabase.tx(async (tx) => {
+        const { error: insertError } = await tx
+            .from('adaptaciones_pie')
+            .insert({
+                parent_item_id: parentItemId,
+                enunciado_adaptado: adaptationData.enunciado_adaptado,
+                alternativas_adaptadas: adaptationData.alternativas_adaptadas,
+            });
+
+        if (insertError) throw insertError;
+
+        const { error: updateError } = await tx
+            .from('evaluacion_items')
+            .update({ tiene_adaptacion_pie: true })
+            .eq('id', parentItemId);
+
+        if (updateError) throw updateError;
+    });
+
+    if (error) throw new Error(`Error al guardar la adaptación PIE: ${error.message}`);
 };

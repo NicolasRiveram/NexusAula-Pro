@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem } from '@/api/evaluationsApi';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation } from '@/api/evaluationsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
 import { Badge } from '@/components/ui/badge';
@@ -14,32 +14,59 @@ interface Step2ContentBlocksProps {
   onNextStep: () => void;
 }
 
-const QuestionItem = ({ item }: { item: EvaluationItem }) => (
-    <div className="p-3 border rounded-md bg-background">
-        <p className="text-sm font-medium">{item.orden}. {item.enunciado}</p>
-        {item.tipo_item === 'seleccion_multiple' && (
-            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                {item.item_alternativas.map(alt => (
-                    <li key={alt.id} className={cn(alt.es_correcta && "font-semibold text-primary")}>
-                        - {alt.texto}
-                    </li>
-                ))}
-            </ul>
-        )}
-        <div className="flex items-center justify-end gap-2 mt-2">
-            <Badge variant="outline" className="capitalize">{item.tipo_item.replace('_', ' ')}</Badge>
-            <Button variant="ghost" size="sm" disabled><Edit className="h-3 w-3 mr-1" /> Editar</Button>
-            <Button variant="ghost" size="sm" disabled><ChevronUp className="h-3 w-3 mr-1" /> Subir Dificultad</Button>
-            <Button variant="ghost" size="sm" disabled><BrainCircuit className="h-3 w-3 mr-1" /> Adaptar PIE</Button>
+const QuestionItem = ({ item, onAdaptPIE, isAdapting }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, isAdapting: boolean }) => {
+    const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
+
+    return (
+        <div className="p-3 border rounded-md bg-background">
+            <p className="text-sm font-medium">{item.orden}. {item.enunciado}</p>
+            {item.tipo_item === 'seleccion_multiple' && (
+                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {item.item_alternativas.map(alt => (
+                        <li key={alt.id} className={cn(alt.es_correcta && "font-semibold text-primary")}>
+                            - {alt.texto}
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {adaptation && (
+                <div className="mt-3 p-3 border rounded-md bg-blue-50 dark:bg-blue-900/20">
+                    <h5 className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center mb-2">
+                        <BrainCircuit className="h-4 w-4 mr-2" /> VERSIÓN ADAPTADA (PIE)
+                    </h5>
+                    <p className="text-sm font-medium" dangerouslySetInnerHTML={{ __html: adaptation.enunciado_adaptado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                    {item.tipo_item === 'seleccion_multiple' && (
+                        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            {adaptation.alternativas_adaptadas.map((alt, index) => (
+                                <li key={index} className={cn(alt.es_correcta && "font-semibold text-primary")}>
+                                    - {alt.texto}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 mt-2">
+                <Badge variant="outline" className="capitalize">{item.tipo_item.replace('_', ' ')}</Badge>
+                <Button variant="ghost" size="sm" disabled><Edit className="h-3 w-3 mr-1" /> Editar</Button>
+                <Button variant="ghost" size="sm" disabled><ChevronUp className="h-3 w-3 mr-1" /> Subir Dificultad</Button>
+                <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie}>
+                    {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
+                    {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
+                </Button>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep }) => {
   const [blocks, setBlocks] = useState<EvaluationContentBlock[]>([]);
   const [questionsByBlock, setQuestionsByBlock] = useState<Record<string, EvaluationItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [generatingForBlock, setGeneratingForBlock] = useState<string | null>(null);
+  const [adaptingItemId, setAdaptingItemId] = useState<string | null>(null);
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
 
   const loadBlocksAndQuestions = useCallback(async () => {
@@ -88,12 +115,26 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
         
         const newQuestions = await fetchItemsForBlock(block.id);
-        setQuestionsByBlock(prev => ({ ...prev, [block.id]: [...(prev[block.id] || []), ...newQuestions] }));
+        setQuestionsByBlock(prev => ({ ...prev, [block.id]: newQuestions }));
 
     } catch (error: any) {
         showError(error.message);
     } finally {
         setGeneratingForBlock(null);
+    }
+  };
+
+  const handleAdaptPIE = async (itemId: string) => {
+    setAdaptingItemId(itemId);
+    try {
+        const adaptationData = await generatePIEAdaptation(itemId);
+        await savePIEAdaptation(itemId, adaptationData);
+        showSuccess("Pregunta adaptada para PIE exitosamente.");
+        loadBlocksAndQuestions(); // Recargar para mostrar la adaptación
+    } catch (error: any) {
+        showError(`Error al adaptar la pregunta: ${error.message}`);
+    } finally {
+        setAdaptingItemId(null);
     }
   };
 
@@ -143,7 +184,14 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
               {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 && (
                 <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
                   <h4 className="font-semibold text-sm">Preguntas Generadas:</h4>
-                  {questionsByBlock[block.id].map(item => <QuestionItem key={item.id} item={item} />)}
+                  {questionsByBlock[block.id].map(item => (
+                    <QuestionItem 
+                        key={item.id} 
+                        item={item} 
+                        onAdaptPIE={handleAdaptPIE}
+                        isAdapting={adaptingItemId === item.id}
+                    />
+                  ))}
                 </div>
               )}
             </div>
