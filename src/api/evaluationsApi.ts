@@ -5,7 +5,7 @@ export interface Evaluation {
   titulo: string;
   tipo: string;
   fecha_aplicacion: string;
-  curso_asignatura: {
+  curso_asignaturas: {
     curso: {
       nombre: string;
       nivel: {
@@ -15,7 +15,7 @@ export interface Evaluation {
     asignatura: {
       nombre: string;
     };
-  };
+  }[];
 }
 
 export interface EvaluationContentBlock {
@@ -36,14 +36,16 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       titulo,
       tipo,
       fecha_aplicacion,
-      curso_asignaturas!inner (
-        docente_id,
-        cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
-        asignaturas ( nombre )
+      evaluacion_curso_asignaturas!inner (
+        curso_asignaturas!inner (
+          docente_id,
+          cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
       )
     `)
-    .eq('curso_asignaturas.cursos.establecimiento_id', establecimientoId)
-    .eq('curso_asignaturas.docente_id', docenteId)
+    .eq('evaluacion_curso_asignaturas.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+    .eq('evaluacion_curso_asignaturas.curso_asignaturas.docente_id', docenteId)
     .order('fecha_aplicacion', { ascending: false });
 
   if (error) throw new Error(`Error al cargar las evaluaciones: ${error.message}`);
@@ -53,13 +55,13 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
     titulo: e.titulo,
     tipo: e.tipo,
     fecha_aplicacion: e.fecha_aplicacion,
-    curso_asignatura: {
+    curso_asignaturas: e.evaluacion_curso_asignaturas.map((link: any) => ({
       curso: {
-        nombre: e.curso_asignaturas.cursos.nombre,
-        nivel: { nombre: e.curso_asignaturas.cursos.niveles.nombre }
+        nombre: link.curso_asignaturas.cursos.nombre,
+        nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }
       },
-      asignatura: { nombre: e.curso_asignaturas.asignaturas.nombre }
-    }
+      asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre }
+    }))
   }));
 };
 
@@ -68,7 +70,7 @@ export interface CreateEvaluationData {
   tipo: string;
   descripcion: string;
   fecha_aplicacion: string;
-  cursoAsignaturaId: string;
+  cursoAsignaturaIds: string[];
 }
 
 export const createEvaluation = async (evalData: CreateEvaluationData) => {
@@ -79,14 +81,28 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
       tipo: evalData.tipo,
       descripcion: evalData.descripcion,
       fecha_aplicacion: evalData.fecha_aplicacion,
-      curso_asignatura_id: evalData.cursoAsignaturaId,
     })
     .select('id')
     .single();
 
   if (error) throw new Error(`Error al crear la evaluación: ${error.message}`);
+  const newEvaluationId = data.id;
+
+  const links = evalData.cursoAsignaturaIds.map(id => ({
+    evaluacion_id: newEvaluationId,
+    curso_asignatura_id: id,
+  }));
+
+  const { error: linkError } = await supabase
+    .from('evaluacion_curso_asignaturas')
+    .insert(links);
+
+  if (linkError) {
+    await supabase.from('evaluaciones').delete().eq('id', newEvaluationId);
+    throw new Error(`Error al vincular la evaluación a los cursos: ${linkError.message}`);
+  }
   
-  return data.id;
+  return newEvaluationId;
 };
 
 export const fetchContentBlocks = async (evaluationId: string): Promise<EvaluationContentBlock[]> => {

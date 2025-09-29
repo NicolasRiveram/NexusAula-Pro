@@ -17,13 +17,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { MultiSelect } from '@/components/MultiSelect';
 
 const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
   tipo: z.string().min(1, "El tipo de evaluación es requerido."),
   descripcion: z.string().optional(),
   fecha_aplicacion: z.date({ required_error: "La fecha de aplicación es requerida." }),
-  cursoAsignaturaId: z.string().uuid("Debes seleccionar un curso."),
+  cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos un curso."),
 });
 
 export type EvaluationStep1Data = z.infer<typeof schema>;
@@ -70,10 +71,10 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => 
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Prueba">Prueba</SelectItem>
-                <SelectItem value="Guía de trabajo">Guía de trabajo</SelectItem>
-                <SelectItem value="Disertación">Disertación</SelectItem>
-                <SelectItem value="Otro">Otro</SelectItem>
+                <SelectItem value="sumativa">Sumativa (Prueba, Examen)</SelectItem>
+                <SelectItem value="formativa">Formativa (Guía, Tarea)</SelectItem>
+                <SelectItem value="diagnostica">Diagnóstica</SelectItem>
+                <SelectItem value="otro">Otro</SelectItem>
               </SelectContent>
             </Select>
           )} />
@@ -101,24 +102,23 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => 
           {errors.fecha_aplicacion && <p className="text-red-500 text-sm">{errors.fecha_aplicacion.message}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="cursoAsignaturaId">Asignar a Curso</Label>
+          <Label htmlFor="cursoAsignaturaIds">Asignar a Cursos</Label>
           <Controller
-            name="cursoAsignaturaId"
+            name="cursoAsignaturaIds"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger><SelectValue placeholder="Selecciona un curso" /></SelectTrigger>
-                <SelectContent>
-                  {cursosAsignaturas.map(ca => (
-                    <SelectItem key={ca.id} value={ca.id}>
-                      {`${ca.curso.nivel.nombre} ${ca.curso.nombre} - ${ca.asignatura.nombre}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiSelect
+                options={cursosAsignaturas.map(ca => ({
+                  value: ca.id,
+                  label: `${ca.curso.nivel.nombre} ${ca.curso.nombre} - ${ca.asignatura.nombre}`
+                }))}
+                selected={field.value || []}
+                onValueChange={field.onChange}
+                placeholder="Selecciona uno o más cursos"
+              />
             )}
           />
-          {errors.cursoAsignaturaId && <p className="text-red-500 text-sm">{errors.cursoAsignaturaId.message}</p>}
+          {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm">{errors.cursoAsignaturaIds.message}</p>}
         </div>
       </div>
       <div className="flex justify-end">

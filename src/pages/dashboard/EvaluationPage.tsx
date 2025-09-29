@@ -63,10 +63,14 @@ const EvaluationPage = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Badge variant="secondary">{evaluation.tipo}</Badge>
-                <p className="text-sm text-muted-foreground">
-                  {evaluation.curso_asignatura.curso.nivel.nombre} {evaluation.curso_asignatura.curso.nombre} - {evaluation.curso_asignatura.asignatura.nombre}
-                </p>
+                <Badge variant="secondary" className="capitalize">{evaluation.tipo.replace('_', ' ')}</Badge>
+                <div className="flex flex-wrap gap-1">
+                  {evaluation.curso_asignaturas.map((ca, index) => (
+                    <Badge key={index} variant="outline">
+                      {ca.curso.nivel.nombre} {ca.curso.nombre}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -100,16 +104,16 @@ const EvaluationPage = () => {
         <Tabs defaultValue="todas" className="w-full">
           <TabsList>
             <TabsTrigger value="todas">Todas</TabsTrigger>
-            <TabsTrigger value="Prueba">Sumativas</TabsTrigger>
-            <TabsTrigger value="Guía de trabajo">De Proceso</TabsTrigger>
-            <TabsTrigger value="Disertación">Rúbricas</TabsTrigger>
-            <TabsTrigger value="Otro">Otro</TabsTrigger>
+            <TabsTrigger value="sumativa">Sumativas</TabsTrigger>
+            <TabsTrigger value="formativa">Formativas</TabsTrigger>
+            <TabsTrigger value="diagnostica">Diagnósticas</TabsTrigger>
+            <TabsTrigger value="otro">Otras</TabsTrigger>
           </TabsList>
           <TabsContent value="todas">{renderEvaluations()}</TabsContent>
-          <TabsContent value="Prueba">{renderEvaluations('Prueba')}</TabsContent>
-          <TabsContent value="Guía de trabajo">{renderEvaluations('Guía de trabajo')}</TabsContent>
-          <TabsContent value="Disertación">{renderEvaluations('Disertación')}</TabsContent>
-          <TabsContent value="Otro">{renderEvaluations('Otro')}</TabsContent>
+          <TabsContent value="sumativa">{renderEvaluations('sumativa')}</TabsContent>
+          <TabsContent value="formativa">{renderEvaluations('formativa')}</TabsContent>
+          <TabsContent value="diagnostica">{renderEvaluations('diagnostica')}</TabsContent>
+          <TabsContent value="otro">{renderEvaluations('otro')}</TabsContent>
         </Tabs>
       )}
     </div>
