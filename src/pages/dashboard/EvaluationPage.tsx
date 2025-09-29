@@ -11,6 +11,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatEvaluationType } from '@/utils/evaluationUtils';
 
 const EvaluationPage = () => {
   const navigate = useNavigate();
@@ -63,7 +64,7 @@ const EvaluationPage = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Badge variant="secondary" className="capitalize">{evaluation.tipo.replace('_', ' ')}</Badge>
+                <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
                 <div className="flex flex-wrap gap-1">
                   {evaluation.curso_asignaturas.map((ca, index) => (
                     <Badge key={index} variant="outline">
@@ -104,16 +105,16 @@ const EvaluationPage = () => {
         <Tabs defaultValue="todas" className="w-full">
           <TabsList>
             <TabsTrigger value="todas">Todas</TabsTrigger>
-            <TabsTrigger value="Prueba">Pruebas</TabsTrigger>
-            <TabsTrigger value="Guía de trabajo">Guías</TabsTrigger>
-            <TabsTrigger value="Disertación">Disertaciones</TabsTrigger>
-            <TabsTrigger value="Otro">Otras</TabsTrigger>
+            <TabsTrigger value="prueba">Pruebas</TabsTrigger>
+            <TabsTrigger value="guia_de_trabajo">Guías</TabsTrigger>
+            <TabsTrigger value="disertacion">Disertaciones</TabsTrigger>
+            <TabsTrigger value="otro">Otras</TabsTrigger>
           </TabsList>
           <TabsContent value="todas">{renderEvaluations()}</TabsContent>
-          <TabsContent value="Prueba">{renderEvaluations('Prueba')}</TabsContent>
-          <TabsContent value="Guía de trabajo">{renderEvaluations('Guía de trabajo')}</TabsContent>
-          <TabsContent value="Disertación">{renderEvaluations('Disertación')}</TabsContent>
-          <TabsContent value="Otro">{renderEvaluations('Otro')}</TabsContent>
+          <TabsContent value="prueba">{renderEvaluations('prueba')}</TabsContent>
+          <TabsContent value="guia_de_trabajo">{renderEvaluations('guia_de_trabajo')}</TabsContent>
+          <TabsContent value="disertacion">{renderEvaluations('disertacion')}</TabsContent>
+          <TabsContent value="otro">{renderEvaluations('otro')}</TabsContent>
         </Tabs>
       )}
     </div>
