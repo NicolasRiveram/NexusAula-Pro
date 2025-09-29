@@ -116,10 +116,10 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
               <Select onValueChange={field.onChange} value={field.value}>
                 <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Prueba">Prueba</SelectItem>
-                  <SelectItem value="Guía de trabajo">Guía de trabajo</SelectItem>
-                  <SelectItem value="Disertación">Disertación</SelectItem>
-                  <SelectItem value="Otro">Otro</SelectItem>
+                  <SelectItem value="prueba">Prueba</SelectItem>
+                  <SelectItem value="guia_de_trabajo">Guía de trabajo</SelectItem>
+                  <SelectItem value="disertacion">Disertación</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
                 </SelectContent>
               </Select>
             )} />
