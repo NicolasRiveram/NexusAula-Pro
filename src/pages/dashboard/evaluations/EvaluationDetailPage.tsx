@@ -1,0 +1,147 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Download, Edit, Send, Loader2, BrainCircuit, FileText, Image as ImageIcon } from 'lucide-react';
+import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl } from '@/api/evaluationsApi';
+import { showError } from '@/utils/toast';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { formatEvaluationType } from '@/utils/evaluationUtils';
+import { cn } from '@/lib/utils';
+
+const EvaluationDetailPage = () => {
+  const { evaluationId } = useParams<{ evaluationId: string }>();
+  const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (evaluationId) {
+      setLoading(true);
+      fetchEvaluationDetails(evaluationId)
+        .then(setEvaluation)
+        .catch(err => showError(`Error al cargar la evaluación: ${err.message}`))
+        .finally(() => setLoading(false));
+    }
+  }, [evaluationId]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!evaluation) {
+    return (
+      <div className="container mx-auto text-center">
+        <p>No se pudo encontrar la evaluación.</p>
+        <Link to="/dashboard/evaluacion" className="text-primary hover:underline mt-4 inline-block">
+          Volver al Banco de Evaluaciones
+        </Link>
+      </div>
+    );
+  }
+
+  const totalPuntaje = evaluation.evaluation_content_blocks.reduce((total, block) => {
+    return total + block.evaluacion_items.reduce((blockTotal, item) => blockTotal + item.puntaje, 0);
+  }, 0);
+
+  return (
+    <div className="container mx-auto space-y-6">
+      <Link to="/dashboard/evaluacion" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Volver al Banco de Evaluaciones
+      </Link>
+
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <Badge variant="secondary" className="mb-2">{formatEvaluationType(evaluation.tipo)}</Badge>
+              <CardTitle className="text-3xl">{evaluation.titulo}</CardTitle>
+              <CardDescription className="mt-2">
+                Fecha de Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
+              </CardDescription>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {evaluation.curso_asignaturas.map((ca, index) => (
+                  <Badge key={index} variant="outline">
+                    {ca.curso.nivel.nombre} {ca.curso.nombre} - {ca.asignatura.nombre}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+              <Button><Edit className="mr-2 h-4 w-4" /> Editar</Button>
+              <Button><Send className="mr-2 h-4 w-4" /> Asignar</Button>
+            </div>
+          </div>
+        </CardHeader>
+        {evaluation.descripcion && (
+          <CardContent>
+            <p className="text-sm text-muted-foreground">{evaluation.descripcion}</p>
+          </CardContent>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Contenido de la Evaluación</CardTitle>
+          <CardDescription>Puntaje Total: {totalPuntaje} puntos</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-8">
+          {evaluation.evaluation_content_blocks.map(block => (
+            <div key={block.id}>
+              <div className="flex items-center text-lg font-semibold mb-4">
+                {block.block_type === 'text' ? <FileText className="mr-3 h-5 w-5" /> : <ImageIcon className="mr-3 h-5 w-5" />}
+                <h3>Sección {block.orden}: {block.block_type === 'text' ? 'Texto' : 'Imagen'}</h3>
+              </div>
+              <div className="p-4 border rounded-md bg-muted/30">
+                {block.block_type === 'text' ? (
+                  <p className="text-sm whitespace-pre-wrap">{block.content.text}</p>
+                ) : (
+                  <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido de la sección ${block.orden}`} className="rounded-md max-w-full mx-auto" />
+                )}
+              </div>
+              <div className="mt-6 space-y-6">
+                {block.evaluacion_items.map(item => (
+                  <div key={item.id}>
+                    <div className="flex justify-between items-start">
+                      <p className="font-semibold">{item.orden}. {item.enunciado}</p>
+                      <Badge variant="outline">{item.puntaje} pts.</Badge>
+                    </div>
+                    {item.tipo_item === 'seleccion_multiple' && (
+                      <ul className="mt-2 space-y-2 text-sm pl-5">
+                        {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
+                          <li key={alt.id} className={cn("flex items-center", alt.es_correcta && "font-bold")}>
+                            <span className="mr-2">{String.fromCharCode(97 + index)})</span>
+                            <span>{alt.texto}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {item.tiene_adaptacion_pie && item.adaptaciones_pie[0] && (
+                        <div className="mt-3 p-3 border rounded-md bg-blue-50 dark:bg-blue-900/20">
+                            <h5 className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center mb-2">
+                                <BrainCircuit className="h-4 w-4 mr-2" /> VERSIÓN ADAPTADA (PIE)
+                            </h5>
+                            <p className="text-sm font-medium" dangerouslySetInnerHTML={{ __html: item.adaptaciones_pie[0].enunciado_adaptado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                        </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Separator className="my-8" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default EvaluationDetailPage;

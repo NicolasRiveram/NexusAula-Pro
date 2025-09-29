@@ -51,6 +51,13 @@ export interface EvaluationItem {
   adaptaciones_pie: PIEAdaptation[]; // Supabase returns this as an array
 }
 
+export interface EvaluationDetail extends Evaluation {
+  descripcion: string;
+  evaluation_content_blocks: (EvaluationContentBlock & {
+    evaluacion_items: EvaluationItem[];
+  })[];
+}
+
 
 export const fetchEvaluations = async (docenteId: string, establecimientoId: string): Promise<Evaluation[]> => {
   if (!establecimientoId) return [];
@@ -129,6 +136,52 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
   }
   
   return newEvaluationId;
+};
+
+export const fetchEvaluationDetails = async (evaluationId: string): Promise<EvaluationDetail> => {
+  const { data, error } = await supabase
+    .from('evaluaciones')
+    .select(`
+      id,
+      titulo,
+      tipo,
+      descripcion,
+      fecha_aplicacion,
+      evaluacion_curso_asignaturas (
+        curso_asignaturas (
+          cursos ( nombre, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
+      ),
+      evaluation_content_blocks (
+        *,
+        evaluacion_items (
+          *,
+          item_alternativas ( * ),
+          adaptaciones_pie ( * )
+        )
+      )
+    `)
+    .eq('id', evaluationId)
+    .order('orden', { referencedTable: 'evaluation_content_blocks' })
+    .order('orden', { referencedTable: 'evaluation_content_blocks.evaluacion_items' })
+    .single();
+
+  if (error) throw new Error(`Error fetching evaluation details: ${error.message}`);
+  if (!data) throw new Error('Evaluation not found.');
+
+  const formattedData = {
+    ...data,
+    curso_asignaturas: data.evaluacion_curso_asignaturas.map((link: any) => ({
+      curso: {
+        nombre: link.curso_asignaturas.cursos.nombre,
+        nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }
+      },
+      asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre }
+    }))
+  };
+
+  return formattedData as EvaluationDetail;
 };
 
 export const fetchContentBlocks = async (evaluationId: string): Promise<EvaluationContentBlock[]> => {
