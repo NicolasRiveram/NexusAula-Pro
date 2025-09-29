@@ -23,6 +23,7 @@ import { Toaster } from "@/components/ui/toaster";
     import ProfileSetup from "./pages/ProfileSetup";
     import NotFound from "./pages/NotFound";
     import { EstablishmentProvider } from "./contexts/EstablishmentContext";
+    import BitacoraPage from "./pages/dashboard/BitacoraPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -115,6 +116,7 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="planificacion/:planId" element={<UnitPlanDetailPage />} />
                 <Route path="evaluacion" element={<EvaluationPage />} />
                 <Route path="proyectos" element={<ProjectsPage />} />
+                <Route path="bitacora" element={<BitacoraPage />} />
                 <Route path="configuracion" element={<SettingsPage />} />
               </Route>
             ) : (

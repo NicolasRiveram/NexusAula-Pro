@@ -64,8 +64,56 @@ export interface UnitPlanDetail extends UnitPlan {
   clases: ScheduledClass[];
 }
 
+export interface ClassLogEntry {
+  id: string;
+  fecha: string;
+  bitacora_contenido_cubierto: string;
+  bitacora_observaciones: string | null;
+  curso_asignatura_id: string;
+  curso_info: {
+    nombre: string;
+    nivel: string;
+    asignatura: string;
+  };
+}
+
 
 // --- Funciones de API ---
+
+export const fetchClassLogsForTeacher = async (docenteId: string, establecimientoId: string): Promise<ClassLogEntry[]> => {
+  const { data, error } = await supabase
+    .from('planificaciones_clase')
+    .select(`
+      id, fecha, bitacora_contenido_cubierto, bitacora_observaciones,
+      unidades!inner (
+        curso_asignatura_id,
+        curso_asignaturas!inner (
+          docente_id,
+          cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
+      )
+    `)
+    .eq('unidades.curso_asignaturas.docente_id', docenteId)
+    .eq('unidades.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+    .not('bitacora_contenido_cubierto', 'is', null)
+    .order('fecha', { ascending: false });
+
+  if (error) throw new Error(`Error fetching class logs: ${error.message}`);
+
+  return (data || []).map((log: any) => ({
+    id: log.id,
+    fecha: log.fecha,
+    bitacora_contenido_cubierto: log.bitacora_contenido_cubierto,
+    bitacora_observaciones: log.bitacora_observaciones,
+    curso_asignatura_id: log.unidades.curso_asignatura_id,
+    curso_info: {
+      nombre: log.unidades.curso_asignaturas.cursos.nombre,
+      nivel: log.unidades.curso_asignaturas.cursos.niveles.nombre,
+      asignatura: log.unidades.curso_asignaturas.asignaturas.nombre,
+    }
+  }));
+};
 
 export const fetchClassesForMonth = async (docenteId: string, establecimientoId: string, month: Date): Promise<ScheduledClass[]> => {
   const startDate = format(startOfMonth(month), 'yyyy-MM-dd');
