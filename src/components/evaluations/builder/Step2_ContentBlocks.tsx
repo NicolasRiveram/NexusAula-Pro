@@ -22,9 +22,9 @@ const QuestionItem = ({ item, onAdaptPIE, isAdapting }: { item: EvaluationItem, 
             <p className="text-sm font-medium">{item.orden}. {item.enunciado}</p>
             {item.tipo_item === 'seleccion_multiple' && (
                 <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    {item.item_alternativas.map(alt => (
+                    {item.item_alternativas.map((alt, index) => (
                         <li key={alt.id} className={cn(alt.es_correcta && "font-semibold text-primary")}>
-                            - {alt.texto}
+                            {String.fromCharCode(97 + index)}) {alt.texto}
                         </li>
                     ))}
                 </ul>
@@ -40,7 +40,7 @@ const QuestionItem = ({ item, onAdaptPIE, isAdapting }: { item: EvaluationItem, 
                         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                             {adaptation.alternativas_adaptadas.map((alt, index) => (
                                 <li key={index} className={cn(alt.es_correcta && "font-semibold text-primary")}>
-                                    - {alt.texto}
+                                    {String.fromCharCode(97 + index)}) {alt.texto}
                                 </li>
                             ))}
                         </ul>
@@ -52,7 +52,15 @@ const QuestionItem = ({ item, onAdaptPIE, isAdapting }: { item: EvaluationItem, 
                 <Badge variant="outline" className="capitalize">{item.tipo_item.replace('_', ' ')}</Badge>
                 <Button variant="ghost" size="sm" disabled><Edit className="h-3 w-3 mr-1" /> Editar</Button>
                 <Button variant="ghost" size="sm" disabled><ChevronUp className="h-3 w-3 mr-1" /> Subir Dificultad</Button>
-                <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie}>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAdaptPIE(item.id)}
+                    disabled={isAdapting || item.tiene_adaptacion_pie}
+                    className={cn(
+                        item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600"
+                    )}
+                >
                     {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
                     {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
                 </Button>
