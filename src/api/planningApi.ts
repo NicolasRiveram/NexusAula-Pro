@@ -50,6 +50,8 @@ export interface ScheduledClass {
   actividades_desarrollo: string;
   actividades_cierre: string;
   recursos: string;
+  bitacora_contenido_cubierto?: string;
+  bitacora_observaciones?: string;
   curso_info: {
     nombre: string;
     nivel: string;
@@ -157,6 +159,7 @@ export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDeta
     .select(`
       id, fecha, titulo, objetivos_clase, objetivo_estudiante, aporte_proyecto,
       actividades_inicio, actividades_desarrollo, actividades_cierre, recursos,
+      bitacora_contenido_cubierto, bitacora_observaciones,
       unidades ( curso_asignaturas ( cursos ( nombre, niveles ( nombre ) ), asignaturas ( nombre ) ) )
     `)
     .eq('unidad_maestra_id', planId)
@@ -175,6 +178,8 @@ export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDeta
     actividades_desarrollo: c.actividades_desarrollo,
     actividades_cierre: c.actividades_cierre,
     recursos: c.recursos,
+    bitacora_contenido_cubierto: c.bitacora_contenido_cubierto,
+    bitacora_observaciones: c.bitacora_observaciones,
     curso_info: {
       nombre: c.unidades?.curso_asignaturas?.cursos?.nombre || 'N/A',
       nivel: c.unidades?.curso_asignaturas?.cursos?.niveles?.nombre || 'N/A',
@@ -239,4 +244,16 @@ export const scheduleClassesFromUnitPlan = async (unitMasterId: string, classes:
   });
 
   if (error) throw new Error(`Error al programar las clases: ${error.message}`);
+};
+
+export const updateClassLog = async (planificacionId: string, contenido: string, observaciones: string) => {
+  const { error } = await supabase
+    .from('planificaciones_clase')
+    .update({
+      bitacora_contenido_cubierto: contenido,
+      bitacora_observaciones: observaciones,
+    })
+    .eq('id', planificacionId);
+
+  if (error) throw new Error(`Error al guardar la bitácora: ${error.message}`);
 };

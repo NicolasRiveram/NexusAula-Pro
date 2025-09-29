@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb, MessageSquare } from 'lucide-react';
 import { fetchUnitPlanDetails, UnitPlanDetail, ScheduledClass } from '@/api/planningApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -115,12 +115,17 @@ const UnitPlanDetailPage = () => {
                             <p className="font-semibold text-md">{format(parseISO(cls.fecha), "EEEE d 'de' LLLL", { locale: es })} - {cls.titulo}</p>
                             <div className="mt-2 space-y-3 text-sm text-muted-foreground">
                               <p><strong>Objetivo Docente:</strong> {cls.objetivos_clase}</p>
-                              <p><strong>Objetivo Estudiante:</strong> {cls.objetivo_estudiante}</p>
-                              <p><strong>Aporte al Proyecto:</strong> {cls.aporte_proyecto}</p>
-                              <p><strong>Inicio:</strong> {cls.actividades_inicio}</p>
-                              <p><strong>Desarrollo:</strong> {cls.actividades_desarrollo}</p>
-                              <p><strong>Cierre:</strong> {cls.actividades_cierre}</p>
-                              <p><strong>Recursos:</strong> {cls.recursos}</p>
+                              {(cls.bitacora_contenido_cubierto || cls.bitacora_observaciones) && (
+                                <Card className="mt-4 bg-amber-50 border-amber-200">
+                                  <CardHeader className="p-3">
+                                    <CardTitle className="text-base flex items-center"><MessageSquare className="mr-2 h-4 w-4" /> Bitácora de Clase</CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="p-3 pt-0 text-sm">
+                                    {cls.bitacora_contenido_cubierto && <p><strong>Contenido Cubierto:</strong> {cls.bitacora_contenido_cubierto}</p>}
+                                    {cls.bitacora_observaciones && <p className="mt-2"><strong>Observaciones:</strong> {cls.bitacora_observaciones}</p>}
+                                  </CardContent>
+                                </Card>
+                              )}
                             </div>
                           </div>
                         ))}

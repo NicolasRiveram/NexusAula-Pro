@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 
 export interface AgendaClase {
   id: string;
@@ -33,6 +33,39 @@ export interface DailyAgendaData {
   evaluaciones: AgendaEvaluacion[];
   anuncios: AgendaAnuncio[];
 }
+
+export interface ProactiveNotification {
+    id: string;
+    type: 'evaluation';
+    text: string;
+    time: string;
+    date: Date;
+}
+
+export const fetchProactiveNotifications = async (docenteId: string, establecimientoId: string): Promise<ProactiveNotification[]> => {
+    const today = new Date();
+    const sevenDaysFromNow = addDays(today, 7);
+
+    const { data, error } = await supabase
+        .from('evaluaciones')
+        .select('id, titulo, fecha_aplicacion, curso_asignaturas!inner(cursos(nombre, niveles(nombre)))')
+        .eq('curso_asignaturas.docente_id', docenteId)
+        .eq('curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+        .gte('fecha_aplicacion', format(today, 'yyyy-MM-dd'))
+        .lte('fecha_aplicacion', format(sevenDaysFromNow, 'yyyy-MM-dd'))
+        .order('fecha_aplicacion', { ascending: true });
+
+    if (error) throw new Error(`Error fetching notifications: ${error.message}`);
+
+    return (data || []).map((e: any) => ({
+        id: e.id,
+        type: 'evaluation',
+        text: `La evaluación "${e.titulo}" para ${e.curso_asignaturas.cursos.niveles.nombre} ${e.curso_asignaturas.cursos.nombre} está programada.`,
+        time: format(parseISO(e.fecha_aplicacion), "EEEE, d 'de' LLLL"),
+        date: parseISO(e.fecha_aplicacion),
+    }));
+};
+
 
 export const fetchDashboardDataForDay = async (
   docenteId: string,
