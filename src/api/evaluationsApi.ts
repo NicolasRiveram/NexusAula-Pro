@@ -6,6 +6,7 @@ export interface Evaluation {
   tipo: string;
   fecha_aplicacion: string;
   curso_asignaturas: {
+    id: string; // This is the curso_asignatura_id
     curso: {
       nombre: string;
       nivel: {
@@ -70,6 +71,7 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       tipo,
       fecha_aplicacion,
       evaluacion_curso_asignaturas!inner (
+        curso_asignatura_id,
         curso_asignaturas!inner (
           docente_id,
           cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
@@ -89,6 +91,7 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
     tipo: e.tipo,
     fecha_aplicacion: e.fecha_aplicacion,
     curso_asignaturas: e.evaluacion_curso_asignaturas.map((link: any) => ({
+      id: link.curso_asignatura_id,
       curso: {
         nombre: link.curso_asignaturas.cursos.nombre,
         nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }
@@ -138,6 +141,53 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
   return newEvaluationId;
 };
 
+export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData) => {
+  const { error: updateError } = await supabase
+    .from('evaluaciones')
+    .update({
+      titulo: evalData.titulo,
+      tipo: evalData.tipo,
+      descripcion: evalData.descripcion,
+      fecha_aplicacion: evalData.fecha_aplicacion,
+    })
+    .eq('id', evaluationId);
+
+  if (updateError) throw new Error(`Error updating evaluation: ${updateError.message}`);
+
+  const { data: existingLinks, error: fetchError } = await supabase
+    .from('evaluacion_curso_asignaturas')
+    .select('curso_asignatura_id')
+    .eq('evaluacion_id', evaluationId);
+
+  if (fetchError) throw new Error(`Error fetching existing links: ${fetchError.message}`);
+
+  const existingIds = existingLinks.map(l => l.curso_asignatura_id);
+  const newIds = evalData.cursoAsignaturaIds;
+
+  const idsToRemove = existingIds.filter(id => !newIds.includes(id));
+  const idsToAdd = newIds.filter(id => !existingIds.includes(id));
+
+  if (idsToRemove.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('evaluacion_curso_asignaturas')
+      .delete()
+      .eq('evaluacion_id', evaluationId)
+      .in('curso_asignatura_id', idsToRemove);
+    if (deleteError) throw new Error(`Error removing old links: ${deleteError.message}`);
+  }
+
+  if (idsToAdd.length > 0) {
+    const linksToInsert = idsToAdd.map(id => ({
+      evaluacion_id: evaluationId,
+      curso_asignatura_id: id,
+    }));
+    const { error: insertError } = await supabase
+      .from('evaluacion_curso_asignaturas')
+      .insert(linksToInsert);
+    if (insertError) throw new Error(`Error adding new links: ${insertError.message}`);
+  }
+};
+
 export const fetchEvaluationDetails = async (evaluationId: string): Promise<EvaluationDetail> => {
   const { data, error } = await supabase
     .from('evaluaciones')
@@ -148,6 +198,7 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       descripcion,
       fecha_aplicacion,
       evaluacion_curso_asignaturas (
+        curso_asignatura_id,
         curso_asignaturas (
           cursos ( nombre, niveles ( nombre ) ),
           asignaturas ( nombre )
@@ -173,6 +224,7 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
   const formattedData = {
     ...data,
     curso_asignaturas: data.evaluacion_curso_asignaturas.map((link: any) => ({
+      id: link.curso_asignatura_id,
       curso: {
         nombre: link.curso_asignaturas.cursos.nombre,
         nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Edit, Send, Loader2, BrainCircuit, FileText, Image as ImageIcon } from 'lucide-react';
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 const EvaluationDetailPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
+  const navigate = useNavigate();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -76,7 +77,7 @@ const EvaluationDetailPage = () => {
             </div>
             <div className="flex gap-2">
               <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Descargar</Button>
-              <Button><Edit className="mr-2 h-4 w-4" /> Editar</Button>
+              <Button onClick={() => navigate(`/dashboard/evaluacion/editar/${evaluation.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
               <Button><Send className="mr-2 h-4 w-4" /> Asignar</Button>
             </div>
           </div>

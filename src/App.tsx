@@ -121,6 +121,7 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="planificacion/:planId" element={<UnitPlanDetailPage />} />
                 <Route path="evaluacion" element={<EvaluationPage />} />
                 <Route path="evaluacion/crear" element={<EvaluationBuilderPage />} />
+                <Route path="evaluacion/editar/:evaluationId" element={<EvaluationBuilderPage />} />
                 <Route path="evaluacion/:evaluationId" element={<EvaluationDetailPage />} />
                 <Route path="rubricas" element={<RubricsPage />} />
                 <Route path="rubricas/crear" element={<RubricBuilderPage />} />

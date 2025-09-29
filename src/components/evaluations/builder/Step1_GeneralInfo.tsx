@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,13 +31,16 @@ export type EvaluationStep1Data = z.infer<typeof schema>;
 
 interface Step1GeneralInfoProps {
   onFormSubmit: (data: EvaluationStep1Data) => void;
+  control: Control<EvaluationStep1Data>;
+  isSubmitting: boolean;
 }
 
-const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => {
+const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, control, isSubmitting }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<EvaluationStep1Data>({
+  const { handleSubmit, formState: { errors } } = useForm<EvaluationStep1Data>({
     resolver: zodResolver(schema),
+    // The control is now passed from the parent, so we don't need to manage it here
   });
 
   useEffect(() => {
