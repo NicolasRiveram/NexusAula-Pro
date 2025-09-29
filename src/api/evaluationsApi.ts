@@ -161,6 +161,27 @@ export const deleteContentBlock = async (blockId: string) => {
   if (error) throw new Error(`Error al eliminar el bloque de contenido: ${error.message}`);
 };
 
+export const uploadEvaluationImage = async (evaluationId: string, file: File): Promise<string> => {
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExtension}`;
+    const filePath = `public/${evaluationId}/${fileName}`;
+
+    const { error } = await supabase.storage
+        .from('evaluation_images')
+        .upload(filePath, file);
+
+    if (error) {
+        throw new Error(`Error al subir la imagen: ${error.message}`);
+    }
+
+    return filePath;
+};
+
+export const getPublicImageUrl = (path: string): string => {
+    const { data } = supabase.storage.from('evaluation_images').getPublicUrl(path);
+    return data.publicUrl;
+};
+
 export const generateQuestionsFromBlock = async (block: EvaluationContentBlock) => {
   const { data, error } = await supabase.rpc('generar_preguntas_ia', {
     p_block_content: block.content,

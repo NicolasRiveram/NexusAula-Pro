@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty } from '@/api/evaluationsApi';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl } from '@/api/evaluationsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
+import AddImageBlockDialog from './AddImageBlockDialog';
 import EditQuestionDialog from './EditQuestionDialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -73,6 +74,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [adaptingItemId, setAdaptingItemId] = useState<string | null>(null);
   const [increasingDifficultyId, setIncreasingDifficultyId] = useState<string | null>(null);
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
+  const [isAddImageDialogOpen, setAddImageDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EvaluationItem | null>(null);
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
 
@@ -177,7 +179,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
       <div className="flex gap-2">
         <Button onClick={() => setAddTextDialogOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Temario/Texto</Button>
-        <Button disabled><ImageIcon className="mr-2 h-4 w-4" /> Añadir Imagen (Próximamente)</Button>
+        <Button onClick={() => setAddImageDialogOpen(true)}><ImageIcon className="mr-2 h-4 w-4" /> Añadir Imagen</Button>
       </div>
 
       {loading ? (
@@ -189,9 +191,9 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
               <Card className="cursor-pointer" onClick={() => toggleBlockExpansion(block.id)}>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div className="flex items-center">
-                    <FileText className="mr-3 h-5 w-5 text-muted-foreground" />
+                    {block.block_type === 'text' ? <FileText className="mr-3 h-5 w-5 text-muted-foreground" /> : <ImageIcon className="mr-3 h-5 w-5 text-muted-foreground" />}
                     <div>
-                      <CardTitle className="text-base">Bloque de Texto (Orden: {block.orden})</CardTitle>
+                      <CardTitle className="text-base">Bloque de {block.block_type === 'text' ? 'Texto' : 'Imagen'} (Orden: {block.orden})</CardTitle>
                       <CardDescription>
                         {questionsByBlock[block.id]?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
                       </CardDescription>
@@ -204,7 +206,11 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                 </CardHeader>
                 {!expandedBlocks[block.id] && (
                     <CardContent>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">{block.content.text}</p>
+                        {block.block_type === 'text' ? (
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">{block.content.text}</p>
+                        ) : (
+                            <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Bloque ${block.orden}`} className="rounded-md max-h-24 object-contain" />
+                        )}
                     </CardContent>
                 )}
               </Card>
@@ -248,6 +254,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       </div>
 
       <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
+      <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
     </div>
   );
