@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl } from '@/api/evaluationsApi';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus } from 'lucide-react';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
 import AddImageBlockDialog from './AddImageBlockDialog';
 import EditQuestionDialog from './EditQuestionDialog';
 import UseDidacticPlanDialog from './UseDidacticPlanDialog';
+import UseExistingResourceDialog from './UseExistingResourceDialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +79,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
   const [isAddImageDialogOpen, setAddImageDialogOpen] = useState(false);
   const [isUsePlanDialogOpen, setUsePlanDialogOpen] = useState(false);
+  const [isUseResourceDialogOpen, setUseResourceDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EvaluationItem | null>(null);
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
 
@@ -196,6 +198,35 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
+  const handleResourceSelected = async (resourceId: string) => {
+    const toastId = showLoading("Importando contenido del recurso...");
+    try {
+      const blocksToImport = await fetchEvaluationContentForImport(resourceId);
+      if (blocksToImport.length === 0) {
+        showError("El recurso seleccionado no tiene contenido para importar.");
+        dismissToast(toastId);
+        return;
+      }
+
+      const createBlockPromises = blocksToImport.map((block, index) =>
+        createContentBlock(
+          evaluationId,
+          block.block_type,
+          block.content,
+          blocks.length + index + 1
+        )
+      );
+      await Promise.all(createBlockPromises);
+
+      showSuccess(`Se importaron ${blocksToImport.length} bloques de contenido.`);
+      loadBlocksAndQuestions();
+    } catch (error: any) {
+      showError(`Error al importar el recurso: ${error.message}`);
+    } finally {
+      dismissToast(toastId);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
@@ -203,6 +234,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         <Button onClick={() => setAddTextDialogOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Temario/Texto</Button>
         <Button onClick={() => setAddImageDialogOpen(true)}><ImageIcon className="mr-2 h-4 w-4" /> Añadir Imagen</Button>
         <Button onClick={() => setUsePlanDialogOpen(true)} variant="outline"><BookCopy className="mr-2 h-4 w-4" /> Usar Plan Didáctico</Button>
+        <Button onClick={() => setUseResourceDialogOpen(true)} variant="outline"><CopyPlus className="mr-2 h-4 w-4" /> Reutilizar Recurso</Button>
       </div>
 
       {loading ? (
@@ -279,6 +311,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
+      <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
       <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
     </div>
   );

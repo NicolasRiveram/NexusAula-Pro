@@ -141,6 +141,16 @@ export const fetchContentBlocks = async (evaluationId: string): Promise<Evaluati
   return data;
 };
 
+export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content'>[]> => {
+    const { data, error } = await supabase
+        .from('evaluation_content_blocks')
+        .select('block_type, content')
+        .eq('evaluation_id', resourceId)
+        .order('orden');
+    if (error) throw new Error(`Error al importar contenido: ${error.message}`);
+    return data;
+};
+
 export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number) => {
   const { data, error } = await supabase
     .from('evaluation_content_blocks')
