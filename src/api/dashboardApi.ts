@@ -1,8 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
-import { format, addDays } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
 
 export interface AgendaClase {
-  id: string;
+  id: string; // Este será ahora el ID de planificaciones_clase
   titulo: string;
   hora_inicio: string;
   hora_fin: string;
@@ -74,31 +74,33 @@ export const fetchDashboardDataForDay = async (
 ): Promise<DailyAgendaData> => {
   const formattedDate = format(date, 'yyyy-MM-dd');
 
-  // 1. Fetch Clases
+  // 1. Fetch Clases (CORREGIDO)
   const { data: clasesData, error: clasesError } = await supabase
-    .from('horario_curso')
+    .from('planificaciones_clase')
     .select(`
-      id, hora_inicio, hora_fin,
-      curso_asignaturas!inner (
-        id,
-        cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
-        asignaturas ( nombre )
+      id, titulo, hora_inicio, hora_fin,
+      unidades!inner (
+        curso_asignaturas!inner (
+          docente_id,
+          cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
       )
     `)
-    .eq('curso_asignaturas.docente_id', docenteId)
-    .eq('curso_asignaturas.cursos.establecimiento_id', establecimientoId)
-    .eq('dia_semana', date.getDay() === 0 ? 7 : date.getDay()); // Ajuste para DOW
+    .eq('fecha', formattedDate)
+    .eq('unidades.curso_asignaturas.docente_id', docenteId)
+    .eq('unidades.curso_asignaturas.cursos.establecimiento_id', establecimientoId);
 
   if (clasesError) throw new Error(`Error fetching classes: ${clasesError.message}`);
 
   const clases: AgendaClase[] = (clasesData || []).map((c: any) => ({
     id: c.id,
-    titulo: c.curso_asignaturas.asignaturas.nombre,
-    hora_inicio: c.hora_inicio.substring(0, 5),
-    hora_fin: c.hora_fin.substring(0, 5),
+    titulo: c.titulo,
+    hora_inicio: c.hora_inicio ? c.hora_inicio.substring(0, 5) : 'N/A',
+    hora_fin: c.hora_fin ? c.hora_fin.substring(0, 5) : 'N/A',
     curso_info: {
-      nombre: c.curso_asignaturas.cursos.nombre,
-      nivel: c.curso_asignaturas.cursos.niveles.nombre,
+      nombre: c.unidades.curso_asignaturas.cursos.nombre,
+      nivel: c.unidades.curso_asignaturas.cursos.niveles.nombre,
     },
   }));
 
