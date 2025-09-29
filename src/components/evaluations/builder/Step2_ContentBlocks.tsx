@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl } from '@/api/evaluationsApi';
-import { showError, showSuccess } from '@/utils/toast';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy } from 'lucide-react';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl } from '@/api/evaluationsApi';
+import { UnitPlan } from '@/api/planningApi';
+import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
 import AddImageBlockDialog from './AddImageBlockDialog';
 import EditQuestionDialog from './EditQuestionDialog';
+import UseDidacticPlanDialog from './UseDidacticPlanDialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +77,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [increasingDifficultyId, setIncreasingDifficultyId] = useState<string | null>(null);
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
   const [isAddImageDialogOpen, setAddImageDialogOpen] = useState(false);
+  const [isUsePlanDialogOpen, setUsePlanDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EvaluationItem | null>(null);
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
 
@@ -95,7 +98,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       const initialExpansionState: Record<string, boolean> = {};
       blockData.forEach((block, index) => {
         questionsMap[block.id] = questionsResults[index];
-        initialExpansionState[block.id] = true; // Expand all by default
+        initialExpansionState[block.id] = true;
       });
       setQuestionsByBlock(questionsMap);
       setExpandedBlocks(initialExpansionState);
@@ -174,12 +177,32 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
+  const handlePlanSelected = async (plan: UnitPlan) => {
+    const toastId = showLoading("Creando bloque desde el plan...");
+    try {
+      const contentText = `Contenido de la unidad: ${plan.titulo}\n\n${plan.descripcion_contenidos}`;
+      await createContentBlock(
+        evaluationId,
+        'text',
+        { text: contentText },
+        blocks.length + 1
+      );
+      showSuccess("Bloque de contenido creado desde el plan didáctico.");
+      loadBlocksAndQuestions();
+    } catch (error: any) {
+      showError(`Error al crear el bloque: ${error.message}`);
+    } finally {
+      dismissToast(toastId);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button onClick={() => setAddTextDialogOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Temario/Texto</Button>
         <Button onClick={() => setAddImageDialogOpen(true)}><ImageIcon className="mr-2 h-4 w-4" /> Añadir Imagen</Button>
+        <Button onClick={() => setUsePlanDialogOpen(true)} variant="outline"><BookCopy className="mr-2 h-4 w-4" /> Usar Plan Didáctico</Button>
       </div>
 
       {loading ? (
@@ -255,6 +278,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
 
       <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
+      <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
       <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
     </div>
   );
