@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { AISuggestions } from '@/pages/dashboard/planning/Step2_ReviewSuggestions';
 import { ClassPlan } from '@/pages/dashboard/planning/Step3_ClassSequence';
 
@@ -64,6 +64,43 @@ export interface UnitPlanDetail extends UnitPlan {
 
 
 // --- Funciones de API ---
+
+export const fetchClassesForMonth = async (docenteId: string, establecimientoId: string, month: Date): Promise<ScheduledClass[]> => {
+  const startDate = format(startOfMonth(month), 'yyyy-MM-dd');
+  const endDate = format(endOfMonth(month), 'yyyy-MM-dd');
+
+  const { data, error } = await supabase
+    .from('planificaciones_clase')
+    .select(`
+      id, fecha, titulo,
+      unidades!inner (
+        curso_asignatura_id,
+        curso_asignaturas!inner (
+          docente_id,
+          cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
+      )
+    `)
+    .eq('unidades.curso_asignaturas.docente_id', docenteId)
+    .eq('unidades.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+    .gte('fecha', startDate)
+    .lte('fecha', endDate);
+
+  if (error) throw new Error(`Error fetching classes for month: ${error.message}`);
+
+  return (data || []).map((c: any) => ({
+    id: c.id,
+    fecha: c.fecha,
+    titulo: c.titulo,
+    curso_info: {
+      nombre: c.unidades?.curso_asignaturas?.cursos?.nombre || 'N/A',
+      nivel: c.unidades?.curso_asignaturas?.cursos?.niveles?.nombre || 'N/A',
+      asignatura: c.unidades?.curso_asignaturas?.asignaturas?.nombre || 'N/A',
+    }
+  })) as ScheduledClass[];
+};
+
 
 export const fetchUnitPlans = async (docenteId: string): Promise<UnitPlan[]> => {
   const { data, error } = await supabase

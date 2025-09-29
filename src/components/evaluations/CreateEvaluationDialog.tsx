@@ -133,7 +133,7 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
                     {field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} /></PopoverContent>
               </Popover>
             )} />
             {errors.fecha_aplicacion && <p className="text-red-500 text-sm">{errors.fecha_aplicacion.message}</p>}

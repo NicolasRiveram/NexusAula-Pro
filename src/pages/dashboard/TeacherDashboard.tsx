@@ -1,5 +1,5 @@
 import React from 'react';
-import UpcomingClasses from '@/components/dashboard/teacher/UpcomingClasses';
+import DashboardCalendar from '@/components/dashboard/teacher/DashboardCalendar';
 import QuickActions from '@/components/dashboard/teacher/QuickActions';
 import NotificationsPanel from '@/components/dashboard/teacher/NotificationsPanel';
 import StatisticsWidget from '@/components/dashboard/teacher/StatisticsWidget';
@@ -10,7 +10,7 @@ const TeacherDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna principal */}
         <div className="lg:col-span-2 space-y-6">
-          <UpcomingClasses />
+          <DashboardCalendar />
           <QuickActions />
         </div>
 
