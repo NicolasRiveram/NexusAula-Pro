@@ -122,11 +122,18 @@ const EvaluationPage = () => {
           <h1 className="text-3xl font-bold">Banco de Evaluaciones</h1>
           <p className="text-muted-foreground">Crea, gestiona y comparte tus instrumentos de evaluación.</p>
         </div>
-        <Button asChild disabled={!activeEstablishment}>
-          <Link to="/dashboard/evaluacion/crear">
-            <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Evaluación
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" disabled={!activeEstablishment}>
+            <Link to="/dashboard/rubricas/crear">
+              <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
+            </Link>
+          </Button>
+          <Button asChild disabled={!activeEstablishment}>
+            <Link to="/dashboard/evaluacion/crear">
+              <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Evaluación
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {loading ? (
