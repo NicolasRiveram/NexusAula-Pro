@@ -98,6 +98,14 @@ export const createRubric = async (
   return data.id;
 };
 
+export const updateRubric = async (rubricId: string, rubricData: Partial<Omit<Rubric, 'id' | 'created_at'>>) => {
+  const { error } = await supabase
+    .from('rubricas')
+    .update(rubricData)
+    .eq('id', rubricId);
+  if (error) throw new Error(`Error al actualizar la rúbrica: ${error.message}`);
+};
+
 export const generateRubricWithAI = async (activity: string, description: string): Promise<RubricContent> => {
   const { data, error } = await supabase.rpc('generar_rubrica_ia', {
     p_nombre_actividad: activity,

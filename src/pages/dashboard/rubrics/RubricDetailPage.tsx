@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Download, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, Save, Edit } from 'lucide-react';
 import { fetchRubricById, saveRubricEvaluation, Rubric } from '@/api/rubricsApi';
 import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura, Estudiante } from '@/api/coursesApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
@@ -28,6 +28,7 @@ const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number =>
 
 const RubricDetailPage = () => {
   const { rubricId } = useParams<{ rubricId: string }>();
+  const navigate = useNavigate();
   const { activeEstablishment } = useEstablishment();
   const [rubric, setRubric] = useState<Rubric | null>(null);
   const [cursos, setCursos] = useState<CursoAsignatura[]>([]);
@@ -73,9 +74,10 @@ const RubricDetailPage = () => {
             showError(err.message);
           }
         }
+      } else {
+        setEstudiantes([]);
       }
       setSelectedEstudianteId('');
-      setEstudiantes([]);
     };
     loadEstudiantes();
   }, [selectedCursoId, cursos]);
@@ -144,7 +146,10 @@ const RubricDetailPage = () => {
               <CardTitle className="text-2xl">{rubric.nombre}</CardTitle>
               <CardDescription>Actividad: {rubric.actividad_a_evaluar}</CardDescription>
             </div>
-            <Button variant="outline" onClick={() => window.print()}><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => window.print()}><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+              <Button onClick={() => navigate(`/dashboard/rubricas/editar/${rubric.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
