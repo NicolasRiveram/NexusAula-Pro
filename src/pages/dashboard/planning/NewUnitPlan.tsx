@@ -42,7 +42,7 @@ const NewUnitPlan = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado.");
 
-      const newUnitId = await createUnitPlan(data as UnitPlanFormData, user.id);
+      const newUnitId = await createUnitPlan(data, user.id);
       setUnitMasterId(newUnitId);
       
       await new Promise(resolve => setTimeout(resolve, 1500)); // Simular llamada a IA
