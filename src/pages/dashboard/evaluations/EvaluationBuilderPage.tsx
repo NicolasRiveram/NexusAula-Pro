@@ -35,11 +35,17 @@ const EvaluationBuilderPage = () => {
     }
   };
 
+  const handleNextFromContent = () => {
+    // For now, this just navigates away. Later it will go to Step 3.
+    showSuccess("Contenido y preguntas guardados. La revisión final estará disponible pronto.");
+    navigate('/dashboard/evaluacion');
+  };
+
   const getStepDescription = () => {
     switch (step) {
       case 1: return 'Define la información general de tu evaluación.';
-      case 2: return 'Añade bloques de contenido para contextualizar la IA.';
-      case 3: return 'Genera, revisa y edita las preguntas para cada bloque.';
+      case 2: return 'Añade bloques de contenido y genera preguntas para cada uno.';
+      case 3: return 'Revisa y edita la evaluación completa antes de finalizar.';
       default: return '';
     }
   };
@@ -58,7 +64,13 @@ const EvaluationBuilderPage = () => {
         </CardHeader>
         <CardContent>
           {step === 1 && <Step1GeneralInfo onFormSubmit={handleStep1Submit} />}
-          {step === 2 && evaluationId && <Step2ContentBlocks evaluationId={evaluationId} evaluationTitle={evaluationTitle} />}
+          {step === 2 && evaluationId && (
+            <Step2ContentBlocks 
+              evaluationId={evaluationId} 
+              evaluationTitle={evaluationTitle}
+              onNextStep={handleNextFromContent}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

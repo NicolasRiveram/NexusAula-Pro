@@ -21,10 +21,27 @@ export interface Evaluation {
 export interface EvaluationContentBlock {
   id: string;
   evaluation_id: string;
-  block_type: 'text' | 'image' | 'unit_plan' | 'library_text';
+  block_type: 'text' | 'image';
   content: any;
   orden: number;
 }
+
+export interface ItemAlternative {
+  id: string;
+  texto: string;
+  es_correcta: boolean;
+}
+
+export interface EvaluationItem {
+  id: string;
+  enunciado: string;
+  tipo_item: 'seleccion_multiple' | 'desarrollo' | 'verdadero_falso';
+  puntaje: number;
+  orden: number;
+  content_block_id: string;
+  item_alternativas: ItemAlternative[];
+}
+
 
 export const fetchEvaluations = async (docenteId: string, establecimientoId: string): Promise<Evaluation[]> => {
   if (!establecimientoId) return [];
@@ -133,4 +150,69 @@ export const createContentBlock = async (evaluationId: string, blockType: string
 export const deleteContentBlock = async (blockId: string) => {
   const { error } = await supabase.from('evaluation_content_blocks').delete().eq('id', blockId);
   if (error) throw new Error(`Error al eliminar el bloque de contenido: ${error.message}`);
+};
+
+export const generateQuestionsFromBlock = async (block: EvaluationContentBlock) => {
+  const { data, error } = await supabase.rpc('generar_preguntas_ia', {
+    p_block_content: block.content,
+    p_block_type: block.block_type,
+  });
+  if (error) throw new Error(`Error al generar preguntas con IA: ${error.message}`);
+  return data;
+};
+
+export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[], currentItemCount: number) => {
+  const itemsToInsert = questions.map((q, index) => ({
+    evaluacion_id: evaluationId,
+    content_block_id: blockId,
+    enunciado: q.enunciado,
+    tipo_item: q.tipo_item,
+    puntaje: q.puntaje,
+    orden: currentItemCount + index + 1,
+  }));
+
+  const { data: insertedItems, error: itemsError } = await supabase
+    .from('evaluacion_items')
+    .insert(itemsToInsert)
+    .select();
+
+  if (itemsError) throw new Error(`Error al guardar las preguntas: ${itemsError.message}`);
+  if (!insertedItems) throw new Error('No se pudieron guardar las preguntas.');
+
+  const alternativesToInsert: any[] = [];
+  insertedItems.forEach((item, index) => {
+    if (questions[index].tipo_item === 'seleccion_multiple' && questions[index].alternativas) {
+      questions[index].alternativas.forEach((alt: any, altIndex: number) => {
+        alternativesToInsert.push({
+          evaluacion_item_id: item.id,
+          texto: alt.texto,
+          es_correcta: alt.es_correcta,
+          orden: altIndex + 1,
+        });
+      });
+    }
+  });
+
+  if (alternativesToInsert.length > 0) {
+    const { error: altsError } = await supabase.from('item_alternativas').insert(alternativesToInsert);
+    if (altsError) {
+      throw new Error(`Error al guardar las alternativas: ${altsError.message}`);
+    }
+  }
+
+  return insertedItems;
+};
+
+export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationItem[]> => {
+    const { data, error } = await supabase
+        .from('evaluacion_items')
+        .select(`
+            id, enunciado, tipo_item, puntaje, orden, content_block_id,
+            item_alternativas ( id, texto, es_correcta )
+        `)
+        .eq('content_block_id', blockId)
+        .order('orden');
+
+    if (error) throw new Error(`Error fetching items for block: ${error.message}`);
+    return data as EvaluationItem[];
 };
