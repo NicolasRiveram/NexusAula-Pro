@@ -104,16 +104,16 @@ const EvaluationPage = () => {
         <Tabs defaultValue="todas" className="w-full">
           <TabsList>
             <TabsTrigger value="todas">Todas</TabsTrigger>
-            <TabsTrigger value="sumativa">Sumativas</TabsTrigger>
-            <TabsTrigger value="formativa">Formativas</TabsTrigger>
-            <TabsTrigger value="diagnostica">Diagnósticas</TabsTrigger>
-            <TabsTrigger value="otro">Otras</TabsTrigger>
+            <TabsTrigger value="Prueba">Pruebas</TabsTrigger>
+            <TabsTrigger value="Guía de trabajo">Guías</TabsTrigger>
+            <TabsTrigger value="Disertación">Disertaciones</TabsTrigger>
+            <TabsTrigger value="Otro">Otras</TabsTrigger>
           </TabsList>
           <TabsContent value="todas">{renderEvaluations()}</TabsContent>
-          <TabsContent value="sumativa">{renderEvaluations('sumativa')}</TabsContent>
-          <TabsContent value="formativa">{renderEvaluations('formativa')}</TabsContent>
-          <TabsContent value="diagnostica">{renderEvaluations('diagnostica')}</TabsContent>
-          <TabsContent value="otro">{renderEvaluations('otro')}</TabsContent>
+          <TabsContent value="Prueba">{renderEvaluations('Prueba')}</TabsContent>
+          <TabsContent value="Guía de trabajo">{renderEvaluations('Guía de trabajo')}</TabsContent>
+          <TabsContent value="Disertación">{renderEvaluations('Disertación')}</TabsContent>
+          <TabsContent value="Otro">{renderEvaluations('Otro')}</TabsContent>
         </Tabs>
       )}
     </div>

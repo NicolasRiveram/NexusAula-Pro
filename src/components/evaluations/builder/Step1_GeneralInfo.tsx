@@ -71,10 +71,10 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit }) => 
             <Select onValueChange={field.onChange} value={field.value}>
               <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="sumativa">Sumativa (Prueba, Examen)</SelectItem>
-                <SelectItem value="formativa">Formativa (Guía, Tarea)</SelectItem>
-                <SelectItem value="diagnostica">Diagnóstica</SelectItem>
-                <SelectItem value="otro">Otro</SelectItem>
+                <SelectItem value="Prueba">Prueba</SelectItem>
+                <SelectItem value="Guía de trabajo">Guía de trabajo</SelectItem>
+                <SelectItem value="Disertación">Disertación</SelectItem>
+                <SelectItem value="Otro">Otro</SelectItem>
               </SelectContent>
             </Select>
           )} />
