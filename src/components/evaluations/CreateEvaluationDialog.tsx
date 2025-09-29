@@ -71,7 +71,7 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
         tipo: data.tipo,
         descripcion: data.descripcion || '',
         fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
-        cursoAsignaturaId: data.cursoAsignaturaId,
+        cursoAsignaturaIds: [data.cursoAsignaturaId],
       });
       dismissToast(toastId);
       showSuccess("Evaluación creada. Ahora puedes añadirle preguntas.");

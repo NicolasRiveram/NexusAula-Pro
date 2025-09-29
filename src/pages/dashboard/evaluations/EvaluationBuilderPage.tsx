@@ -22,7 +22,7 @@ const EvaluationBuilderPage = () => {
         tipo: data.tipo,
         descripcion: data.descripcion || '',
         fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
-        cursoAsignaturaId: data.cursoAsignaturaId,
+        cursoAsignaturaIds: data.cursoAsignaturaIds,
       });
       setEvaluationId(newEvaluationId);
       setEvaluationTitle(data.titulo);
