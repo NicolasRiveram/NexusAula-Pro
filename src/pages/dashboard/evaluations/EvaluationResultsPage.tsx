@@ -9,18 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import EvaluationStatsCard from '@/components/evaluations/results/EvaluationStatsCard';
-
-const calcularNota = (puntajeObtenido: number | null, puntajeMaximo: number): number => {
-  if (puntajeObtenido === null || puntajeMaximo <= 0) return 1.0;
-  const puntajeMinimoAprobacion = puntajeMaximo * 0.6;
-  let nota;
-  if (puntajeObtenido >= puntajeMinimoAprobacion) {
-    nota = 4.0 + 3.0 * ((puntajeObtenido - puntajeMinimoAprobacion) / (puntajeMaximo - puntajeMinimoAprobacion));
-  } else {
-    nota = 1.0 + 3.0 * (puntajeObtenido / puntajeMinimoAprobacion);
-  }
-  return Math.round(nota * 10) / 10;
-};
+import { calculateGrade } from '@/utils/evaluationUtils';
 
 const EvaluationResultsPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -98,7 +87,7 @@ const EvaluationResultsPage = () => {
             </TableHeader>
             <TableBody>
               {results.map(result => {
-                const nota = calcularNota(result.score, puntajeMaximo);
+                const nota = calculateGrade(result.score, puntajeMaximo);
                 return (
                   <TableRow key={result.student_id}>
                     <TableCell className="font-medium">{result.student_name}</TableCell>
@@ -112,8 +101,12 @@ const EvaluationResultsPage = () => {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {result.status === 'Completado' && (
-                        <Button variant="outline" size="sm">Ver Respuestas</Button>
+                      {result.response_id && (
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/dashboard/evaluacion/${evaluationId}/resultados/${result.response_id}`}>
+                            Ver Respuestas
+                          </Link>
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>

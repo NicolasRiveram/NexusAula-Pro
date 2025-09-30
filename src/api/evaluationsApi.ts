@@ -77,6 +77,20 @@ export interface EvaluationStatistics {
   score_distribution: { range: string; count: number }[];
 }
 
+export interface StudentResponseItem {
+  id: string;
+  evaluacion_item_id: string;
+  alternativa_seleccionada_id: string | null;
+  es_correcto: boolean;
+  puntaje_item_obtenido: number;
+}
+
+export interface StudentResponseHeader {
+  student_name: string;
+  evaluation_title: string;
+}
+
+
 export const fetchEvaluations = async (docenteId: string, establecimientoId: string): Promise<Evaluation[]> => {
   if (!establecimientoId) return [];
 
@@ -454,4 +468,33 @@ export const increaseQuestionDifficulty = async (itemId: string) => {
         puntaje: itemData.puntaje, // Mantenemos el puntaje original
         alternativas: newData.alternativas,
     });
+};
+
+export const fetchStudentAndEvaluationInfo = async (responseId: string): Promise<StudentResponseHeader> => {
+  const { data, error } = await supabase
+    .from('respuestas_estudiante')
+    .select(`
+      evaluaciones ( titulo ),
+      perfiles ( nombre_completo )
+    `)
+    .eq('id', responseId)
+    .single();
+
+  if (error) throw new Error(`Error fetching response info: ${error.message}`);
+  if (!data) throw new Error('Response not found.');
+
+  return {
+    student_name: data.perfiles?.nombre_completo || 'Estudiante Desconocido',
+    evaluation_title: data.evaluaciones?.titulo || 'Evaluación Desconocida',
+  };
+};
+
+export const fetchStudentResponseDetails = async (responseId: string): Promise<StudentResponseItem[]> => {
+  const { data, error } = await supabase
+    .from('desempeno_item_estudiante')
+    .select('*')
+    .eq('respuesta_estudiante_id', responseId);
+
+  if (error) throw new Error(`Error fetching student response details: ${error.message}`);
+  return data || [];
 };

@@ -32,6 +32,7 @@ import { Toaster } from "@/components/ui/toaster";
     import EditRubricPage from "./pages/dashboard/rubrics/EditRubricPage";
     import RubricDetailPage from "./pages/dashboard/rubrics/RubricDetailPage";
     import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
+    import StudentResponseDetailPage from "./pages/dashboard/evaluations/StudentResponseDetailPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -127,6 +128,7 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="evaluacion/editar/:evaluationId" element={<EvaluationBuilderPage />} />
                 <Route path="evaluacion/:evaluationId" element={<EvaluationDetailPage />} />
                 <Route path="evaluacion/:evaluationId/resultados" element={<EvaluationResultsPage />} />
+                <Route path="evaluacion/:evaluationId/resultados/:responseId" element={<StudentResponseDetailPage />} />
                 <Route path="rubricas" element={<RubricsPage />} />
                 <Route path="rubricas/crear" element={<RubricBuilderPage />} />
                 <Route path="rubricas/editar/:rubricId" element={<EditRubricPage />} />
