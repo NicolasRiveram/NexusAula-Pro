@@ -219,10 +219,10 @@ export const fetchStudentEnrollments = async (studentId: string): Promise<Studen
             enrollment.cursos.curso_asignaturas.forEach((ca: any) => {
                 enrollments.push({
                     curso_asignatura_id: ca.id,
-                    curso_nombre: enrollment.cursos.nombre,
+                    curso_nombre: enrollment.cursos.nombre || 'Curso sin nombre',
                     anio: enrollment.cursos.anio,
-                    nivel_nombre: enrollment.cursos.niveles.nombre,
-                    asignatura_nombre: ca.asignaturas.nombre,
+                    nivel_nombre: enrollment.cursos.niveles?.nombre || 'Nivel no asignado',
+                    asignatura_nombre: ca.asignaturas?.nombre || 'Asignatura no asignada',
                 });
             });
         }

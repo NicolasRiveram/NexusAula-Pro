@@ -185,7 +185,7 @@ const StudentDetailPage = () => {
                     <div className="flex justify-between w-full pr-4 items-center">
                       <div className="text-left">
                         <p className="font-semibold">{evaluation.rubrica.nombre}</p>
-                        <p className="text-sm text-muted-foreground">{evaluation.curso_asignatura.asignaturas.nombre} - {format(parseISO(evaluation.created_at), "d LLL, yyyy", { locale: es })}</p>
+                        <p className="text-sm text-muted-foreground">{evaluation.curso_asignatura.asignaturas?.nombre || 'Asignatura no especificada'} - {format(parseISO(evaluation.created_at), "d LLL, yyyy", { locale: es })}</p>
                       </div>
                       <div className="flex items-center gap-4">
                         <Badge variant="outline" className={cn("text-base", evaluation.calificacion_final < 4.0 ? "text-destructive border-destructive" : "text-green-600 border-green-600")}>
