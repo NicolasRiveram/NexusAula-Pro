@@ -32,6 +32,74 @@ export interface StudentScheduleBlock {
   asignatura_nombre: string;
 }
 
+export interface StudentCourseEvaluation {
+  id: string;
+  titulo: string;
+  tipo: string;
+  fecha_aplicacion: string;
+  status: 'Pendiente' | 'Completado';
+}
+
+export const fetchStudentCourseDetails = async (studentId: string, cursoAsignaturaId: string): Promise<StudentCourse | null> => {
+  const { data, error } = await supabase
+    .from('curso_asignaturas')
+    .select(`
+      id,
+      asignaturas ( nombre ),
+      perfiles ( nombre_completo ),
+      cursos!inner (
+        nombre,
+        niveles ( nombre ),
+        curso_estudiantes!inner ( estudiante_perfil_id )
+      )
+    `)
+    .eq('id', cursoAsignaturaId)
+    .eq('cursos.curso_estudiantes.estudiante_perfil_id', studentId)
+    .single();
+
+  if (error) throw new Error(`Error fetching student course details: ${error.message}`);
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    curso_nombre: data.cursos.nombre,
+    asignatura_nombre: data.asignaturas.nombre,
+    nivel_nombre: data.cursos.niveles.nombre,
+    docente_nombre: data.perfiles?.nombre_completo || 'No asignado',
+  };
+};
+
+export const fetchStudentEvaluationsForCourse = async (studentId: string, cursoAsignaturaId: string): Promise<StudentCourseEvaluation[]> => {
+  const { data: evalLinks, error: linkError } = await supabase
+    .from('evaluacion_curso_asignaturas')
+    .select('evaluacion_id')
+    .eq('curso_asignatura_id', cursoAsignaturaId);
+  if (linkError) throw new Error(linkError.message);
+  const evalIds = evalLinks.map(l => l.evaluacion_id);
+
+  if (evalIds.length === 0) return [];
+
+  const { data: evals, error: evalsError } = await supabase
+    .from('evaluaciones')
+    .select('id, titulo, tipo, fecha_aplicacion')
+    .in('id', evalIds)
+    .order('fecha_aplicacion', { ascending: false });
+  if (evalsError) throw new Error(evalsError.message);
+
+  const { data: responses, error: responsesError } = await supabase
+    .from('respuestas_estudiante')
+    .select('evaluacion_id')
+    .eq('estudiante_perfil_id', studentId)
+    .in('evaluacion_id', evalIds);
+  if (responsesError) throw new Error(responsesError.message);
+  const completedEvalIds = new Set(responses.map(r => r.evaluacion_id));
+
+  return evals.map(e => ({
+    ...e,
+    status: completedEvalIds.has(e.id) ? 'Completado' : 'Pendiente',
+  }));
+};
+
 export const fetchStudentCourses = async (studentId: string, establecimientoId: string): Promise<StudentCourse[]> => {
   const { data, error } = await supabase
     .from('curso_estudiantes')
