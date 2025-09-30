@@ -195,40 +195,18 @@ export const fetchStudentProfile = async (studentId: string): Promise<Estudiante
 };
 
 export const fetchStudentEnrollments = async (studentId: string): Promise<StudentEnrollment[]> => {
-    const { data, error } = await supabase
-        .from('curso_estudiantes')
-        .select(`
-            cursos!inner (
-                id,
-                nombre,
-                anio,
-                niveles ( nombre ),
-                curso_asignaturas!inner (
-                    id,
-                    asignaturas ( nombre )
-                )
-            )
-        `)
-        .eq('estudiante_perfil_id', studentId);
-
-    if (error) throw new Error(`Error fetching student enrollments: ${error.message}`);
-
-    const enrollments: StudentEnrollment[] = [];
-    data.forEach((enrollment: any) => {
-        if (enrollment.cursos && enrollment.cursos.curso_asignaturas) {
-            enrollment.cursos.curso_asignaturas.forEach((ca: any) => {
-                enrollments.push({
-                    curso_asignatura_id: ca.id,
-                    curso_nombre: enrollment.cursos.nombre || 'Curso sin nombre',
-                    anio: enrollment.cursos.anio,
-                    nivel_nombre: enrollment.cursos.niveles?.nombre || 'Nivel no asignado',
-                    asignatura_nombre: ca.asignaturas?.nombre || 'Asignatura no asignada',
-                });
-            });
-        }
+    const { data, error } = await supabase.rpc('get_student_enrollments', {
+        p_student_id: studentId,
     });
 
+    if (error) {
+        throw new Error(`Error fetching student enrollments: ${error.message}`);
+    }
+
+    const enrollments = data || [];
+    
     const uniqueEnrollments = Array.from(new Map(enrollments.map(e => [e.curso_asignatura_id, e])).values());
+    
     return uniqueEnrollments.sort((a, b) => b.anio - a.anio || a.nivel_nombre.localeCompare(b.nivel_nombre));
 };
 
