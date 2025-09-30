@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Controller, Control } from 'react-hook-form';
+import { Controller, Control, useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
