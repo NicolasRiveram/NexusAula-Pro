@@ -33,6 +33,8 @@ import { Toaster } from "@/components/ui/toaster";
     import RubricDetailPage from "./pages/dashboard/rubrics/RubricDetailPage";
     import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
     import StudentResponseDetailPage from "./pages/dashboard/evaluations/StudentResponseDetailPage";
+    import DashboardIndex from "./pages/dashboard/DashboardIndex";
+    import AdminDashboard from "./pages/dashboard/AdminDashboard";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -115,7 +117,7 @@ import { Toaster } from "@/components/ui/toaster";
 
             {session && profileComplete ? (
               <Route path="/dashboard" element={<Dashboard />}>
-                <Route index element={<TeacherDashboard />} />
+                <Route index element={<DashboardIndex />} />
                 <Route path="cursos" element={<CoursesPage />} />
                 <Route path="cursos/:cursoAsignaturaId" element={<CourseDetailPage />} />
                 <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
