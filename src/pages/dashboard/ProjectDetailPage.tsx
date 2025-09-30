@@ -3,7 +3,7 @@ import { useParams, Link, useOutletContext } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Loader2, Book, Calendar, UserPlus, LogOut, Link2, Link2Off, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Book, Calendar, UserPlus, LogOut, Link2, Link2Off, PlusCircle, Edit, Trash2, Target } from 'lucide-react';
 import { fetchProjectDetails, ProjectDetail, unlinkCourseFromProject, unlinkUnitFromProject, deleteStage, updateStageStatus, ProjectStage } from '@/api/projectsApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import JoinProjectDialog from '@/components/projects/JoinProjectDialog';
 import LinkUnitDialog from '@/components/projects/LinkUnitDialog';
 import StageEditDialog from '@/components/projects/StageEditDialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -228,21 +229,39 @@ const ProjectDetailPage = () => {
             </CardHeader>
             <CardContent>
                 {project.proyecto_unidades_link.length > 0 ? (
-                    <div className="space-y-2">
+                    <Accordion type="single" collapsible className="w-full">
                         {project.proyecto_unidades_link.map(link => (
-                            <div key={link.unidades.id} className="flex justify-between items-center group p-2 rounded-md hover:bg-muted/50">
-                                <div>
-                                    <p className="font-semibold text-sm">{link.unidades.nombre}</p>
-                                    <p className="text-xs text-muted-foreground">{link.unidades.curso_asignaturas.cursos.niveles.nombre} {link.unidades.curso_asignaturas.cursos.nombre}</p>
-                                </div>
-                                {isOwner && !isStudent && (
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkUnit(link.unidades.id)}>
-                                        <Link2Off className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                )}
-                            </div>
+                            <AccordionItem key={link.unidades.id} value={link.unidades.id}>
+                                <AccordionTrigger>
+                                    <div className="flex justify-between w-full pr-4 items-center">
+                                        <div className="text-left">
+                                            <p className="font-semibold">{link.unidades.nombre}</p>
+                                            <p className="text-sm text-muted-foreground">{link.unidades.curso_asignaturas.cursos.niveles.nombre} {link.unidades.curso_asignaturas.cursos.nombre}</p>
+                                        </div>
+                                        {isOwner && !isStudent && (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleUnlinkUnit(link.unidades.id); }}>
+                                                <Link2Off className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="space-y-3 p-2">
+                                        {link.unidades.planificaciones_clase.length > 0 ? link.unidades.planificaciones_clase.map(clase => (
+                                            <div key={clase.id} className="p-3 border rounded-md">
+                                                <p className="font-semibold text-sm">{clase.titulo}</p>
+                                                <p className="text-xs text-muted-foreground mt-1 flex items-start">
+                                                    <Target className="h-3 w-3 mr-2 mt-0.5 flex-shrink-0" />
+                                                    <span className="font-medium mr-1">Aporte al Proyecto:</span>
+                                                    {clase.aporte_proyecto || 'No especificado.'}
+                                                </p>
+                                            </div>
+                                        )) : <p className="text-sm text-muted-foreground text-center">Esta unidad aún no tiene clases planificadas.</p>}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
                         ))}
-                    </div>
+                    </Accordion>
                 ) : (
                     <p className="text-muted-foreground text-center py-4">Aún no hay unidades vinculadas a este proyecto.</p>
                 )}

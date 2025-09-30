@@ -47,6 +47,12 @@ export interface UnitLink {
         };
       };
     };
+    planificaciones_clase: {
+      id: string;
+      titulo: string;
+      objetivos_clase: string;
+      aporte_proyecto: string;
+    }[];
   };
 }
 
@@ -138,6 +144,12 @@ export const fetchProjectDetails = async (projectId: string): Promise<ProjectDet
           nombre,
           curso_asignaturas (
             cursos ( nombre, niveles ( nombre ) )
+          ),
+          planificaciones_clase (
+            id,
+            titulo,
+            objetivos_clase,
+            aporte_proyecto
           )
         )
       )
