@@ -48,9 +48,9 @@ export const fetchProactiveNotifications = async (docenteId: string, establecimi
 
     const { data, error } = await supabase
         .from('evaluaciones')
-        .select('id, titulo, fecha_aplicacion, curso_asignaturas!inner(cursos(nombre, niveles(nombre)))')
-        .eq('curso_asignaturas.docente_id', docenteId)
-        .eq('curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+        .select('id, titulo, fecha_aplicacion, evaluacion_curso_asignaturas!inner(curso_asignaturas!inner(cursos(nombre, niveles(nombre))))')
+        .eq('evaluacion_curso_asignaturas.curso_asignaturas.docente_id', docenteId)
+        .eq('evaluacion_curso_asignaturas.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
         .gte('fecha_aplicacion', format(today, 'yyyy-MM-dd'))
         .lte('fecha_aplicacion', format(sevenDaysFromNow, 'yyyy-MM-dd'))
         .order('fecha_aplicacion', { ascending: true });
@@ -60,7 +60,7 @@ export const fetchProactiveNotifications = async (docenteId: string, establecimi
     return (data || []).map((e: any) => ({
         id: e.id,
         type: 'evaluation',
-        text: `La evaluación "${e.titulo}" para ${e.curso_asignaturas.cursos.niveles.nombre} ${e.curso_asignaturas.cursos.nombre} está programada.`,
+        text: `La evaluación "${e.titulo}" para ${e.evaluacion_curso_asignaturas[0].curso_asignaturas.cursos.niveles.nombre} ${e.evaluacion_curso_asignaturas[0].curso_asignaturas.cursos.nombre} está programada.`,
         time: format(parseISO(e.fecha_aplicacion), "EEEE, d 'de' LLLL"),
         date: parseISO(e.fecha_aplicacion),
     }));
@@ -109,13 +109,15 @@ export const fetchDashboardDataForDay = async (
     .from('evaluaciones')
     .select(`
       id, titulo, tipo,
-      curso_asignaturas!inner (
-        docente_id,
-        cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) )
+      evaluacion_curso_asignaturas!inner(
+        curso_asignaturas!inner (
+          docente_id,
+          cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) )
+        )
       )
     `)
-    .eq('curso_asignaturas.docente_id', docenteId)
-    .eq('curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+    .eq('evaluacion_curso_asignaturas.curso_asignaturas.docente_id', docenteId)
+    .eq('evaluacion_curso_asignaturas.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
     .eq('fecha_aplicacion', formattedDate);
 
   if (evaluacionesError) throw new Error(`Error fetching evaluations: ${evaluacionesError.message}`);
@@ -125,8 +127,8 @@ export const fetchDashboardDataForDay = async (
     titulo: e.titulo,
     tipo: e.tipo,
     curso_info: {
-      nombre: e.curso_asignaturas.cursos.nombre,
-      nivel: e.curso_asignaturas.cursos.niveles.nombre,
+      nombre: e.evaluacion_curso_asignaturas[0].curso_asignaturas.cursos.nombre,
+      nivel: e.evaluacion_curso_asignaturas[0].curso_asignaturas.cursos.niveles.nombre,
     },
   }));
 
