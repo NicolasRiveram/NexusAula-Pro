@@ -31,6 +31,21 @@ export interface NonSchoolDay {
   tipo: string;
 }
 
+export interface EstablishmentStats {
+  docentes: number;
+  estudiantes: number;
+  cursos: number;
+  pendientes: number;
+}
+
+export const fetchEstablishmentStats = async (establecimientoId: string): Promise<EstablishmentStats> => {
+  const { data, error } = await supabase.rpc('get_establishment_stats', {
+    p_establecimiento_id: establecimientoId,
+  });
+  if (error) throw new Error(`Error fetching establishment stats: ${error.message}`);
+  return data;
+};
+
 export const fetchPendingRequests = async (establecimientoId: string): Promise<PendingRequest[]> => {
   const { data, error } = await supabase.rpc('get_pending_requests', {
     p_establecimiento_id: establecimientoId,
