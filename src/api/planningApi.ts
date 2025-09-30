@@ -90,6 +90,44 @@ export interface UpdateClassPayload {
 
 // --- Funciones de API ---
 
+export const linkNewUnitsToProject = async (unidadMaestraId: string, proyectoId: string) => {
+  // 1. Find all planificaciones_clase with unidad_maestra_id
+  const { data: clases, error: clasesError } = await supabase
+    .from('planificaciones_clase')
+    .select('unidad_id')
+    .eq('unidad_maestra_id', unidadMaestraId);
+
+  if (clasesError) {
+    throw new Error(`Error finding newly created units: ${clasesError.message}`);
+  }
+
+  if (!clases || clases.length === 0) {
+    // No classes were created, so nothing to link. Not an error.
+    return;
+  }
+
+  // 2. Get distinct unidad_ids
+  const unidadIds = [...new Set(clases.map(c => c.unidad_id).filter(Boolean))];
+
+  if (unidadIds.length === 0) {
+    return;
+  }
+
+  // 3. Create links in proyecto_unidades_link
+  const linksToInsert = unidadIds.map(unidadId => ({
+    proyecto_id: proyectoId,
+    unidad_id: unidadId,
+  }));
+
+  const { error: linkError } = await supabase
+    .from('proyecto_unidades_link')
+    .insert(linksToInsert);
+
+  if (linkError) {
+    throw new Error(`Error linking new units to project: ${linkError.message}`);
+  }
+};
+
 export const fetchClassLogsForTeacher = async (docenteId: string, establecimientoId: string): Promise<ClassLogEntry[]> => {
   const { data, error } = await supabase
     .from('planificaciones_clase')

@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import Step1UnitConfig, { UnitPlanFormData } from './Step1_UnitConfig';
 import Step2ReviewSuggestions, { AISuggestions } from './Step2_ReviewSuggestions';
 import Step3ClassSequence, { ClassPlan } from './Step3_ClassSequence';
-import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan } from '@/api/planningApi';
+import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan, linkNewUnitsToProject } from '@/api/planningApi';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
@@ -33,6 +33,7 @@ const NewUnitPlan = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const [unitMasterId, setUnitMasterId] = useState<string | null>(null);
+  const [proyectoId, setProyectoId] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
   const [classSequence, setClassSequence] = useState<ClassPlan[] | null>(null);
 
@@ -44,6 +45,12 @@ const NewUnitPlan = () => {
 
       const newUnitId = await createUnitPlan(data, user.id);
       setUnitMasterId(newUnitId);
+      
+      if (data.proyectoId && data.proyectoId !== 'none') {
+        setProyectoId(data.proyectoId);
+      } else {
+        setProyectoId(null);
+      }
       
       await new Promise(resolve => setTimeout(resolve, 1500)); // Simular llamada a IA
       
@@ -66,6 +73,10 @@ const NewUnitPlan = () => {
     try {
       await updateUnitPlanSuggestions(unitMasterId, data);
       setAiSuggestions(data);
+
+      if (proyectoId) {
+        console.log(`AI would now generate classes adapted for project ID: ${proyectoId}`);
+      }
 
       await new Promise(resolve => setTimeout(resolve, 2000)); // Simular generación de clases
       
@@ -96,6 +107,10 @@ const NewUnitPlan = () => {
     try {
       const classesToSave = data.classes.map(({ id, ...rest }) => rest);
       await scheduleClassesFromUnitPlan(unitMasterId, classesToSave);
+      
+      if (proyectoId) {
+        await linkNewUnitsToProject(unitMasterId, proyectoId);
+      }
       
       showSuccess("¡Planificación guardada y clases programadas exitosamente!");
       setTimeout(() => navigate('/dashboard/planificacion'), 2000);

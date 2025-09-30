@@ -17,6 +17,8 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MultiSelect } from '@/components/MultiSelect';
 import { showError } from '@/utils/toast';
+import { fetchRelevantProjects, SimpleProject } from '@/api/projectsApi';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const schema = z.object({
   cursoAsignaturaIds: z.array(z.string()).min(1, "Debes seleccionar al menos un curso."),
@@ -27,6 +29,7 @@ const schema = z.object({
   }),
   descripcionContenidos: z.string().min(10, "Describe los contenidos a abordar."),
   instruccionesAdicionales: z.string().optional(),
+  proyectoId: z.string().optional(),
 });
 
 export type UnitPlanFormData = z.infer<typeof schema>;
@@ -47,10 +50,14 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
   const [cursos, setCursos] = useState<CursoParaSeleccion[]>([]);
   const [niveles, setNiveles] = useState<Record<string, string>>({});
   const [selectedNivel, setSelectedNivel] = useState<string | null>(null);
+  const [relevantProjects, setRelevantProjects] = useState<SimpleProject[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<UnitPlanFormData>({
     resolver: zodResolver(schema),
   });
+
+  const selectedCursoAsignaturaIds = watch('cursoAsignaturaIds');
 
   useEffect(() => {
     const fetchCursos = async () => {
@@ -87,6 +94,25 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
     };
     fetchCursos();
   }, [activeEstablishment]);
+
+  useEffect(() => {
+    const getProjects = async () => {
+        if (selectedCursoAsignaturaIds && selectedCursoAsignaturaIds.length > 0) {
+            setLoadingProjects(true);
+            try {
+                const projects = await fetchRelevantProjects(selectedCursoAsignaturaIds);
+                setRelevantProjects(projects);
+            } catch (error: any) {
+                showError("Error al cargar proyectos: " + error.message);
+            } finally {
+                setLoadingProjects(false);
+            }
+        } else {
+            setRelevantProjects([]);
+        }
+    };
+    getProjects();
+  }, [selectedCursoAsignaturaIds]);
 
   const handleNivelChange = (nivelId: string) => {
     setSelectedNivel(nivelId);
@@ -134,6 +160,27 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
           {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm mt-1">{errors.cursoAsignaturaIds.message}</p>}
         </div>
       )}
+
+      <div>
+        <Label>Vincular a Proyecto ABP (Opcional)</Label>
+        <Controller
+            name="proyectoId"
+            control={control}
+            render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCursoAsignaturaIds || selectedCursoAsignaturaIds.length === 0 || loadingProjects}>
+                    <SelectTrigger>
+                        <SelectValue placeholder={loadingProjects ? "Cargando proyectos..." : "Selecciona un proyecto"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">No vincular a un proyecto</SelectItem>
+                        {relevantProjects.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
+        />
+      </div>
 
       <div>
         <Label htmlFor="titulo">3. Título de la Unidad</Label>

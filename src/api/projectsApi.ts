@@ -35,6 +35,11 @@ export interface Project {
   }[];
 }
 
+export interface SimpleProject {
+  id: string;
+  nombre: string;
+}
+
 export interface UnitLink {
   unidades: {
     id: string;
@@ -61,6 +66,31 @@ export interface ProjectDetail extends Project {
   proyecto_etapas: ProjectStage[];
   proyecto_unidades_link: UnitLink[];
 }
+
+export const fetchRelevantProjects = async (cursoAsignaturaIds: string[]): Promise<SimpleProject[]> => {
+  if (!cursoAsignaturaIds || cursoAsignaturaIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('proyecto_curso_asignaturas')
+    .select('proyectos_abp!inner(id, nombre)')
+    .in('curso_asignatura_id', cursoAsignaturaIds);
+
+  if (error) {
+    throw new Error(`Error fetching relevant projects: ${error.message}`);
+  }
+
+  // Deduplicate projects
+  const projectMap = new Map<string, SimpleProject>();
+  data.forEach((item: any) => {
+    if (item.proyectos_abp) {
+      projectMap.set(item.proyectos_abp.id, item.proyectos_abp);
+    }
+  });
+
+  return Array.from(projectMap.values());
+};
 
 export const fetchAllProjects = async (establecimientoId: string, nivelId?: string, asignaturaId?: string): Promise<Project[]> => {
   let query = supabase
