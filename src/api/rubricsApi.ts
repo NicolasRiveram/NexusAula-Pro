@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 export interface Rubric {
   id: string;
@@ -111,7 +112,12 @@ export const generateRubricWithAI = async (activity: string, description: string
     body: { activity, description },
   });
 
-  if (error) throw new Error(`Error en la IA al generar la rúbrica: ${error.message}`);
+  if (error instanceof FunctionsHttpError) {
+    const errorMessage = await error.context.json();
+    throw new Error(`Error en la IA al generar la rúbrica: ${errorMessage.error}`);
+  } else if (error) {
+    throw new Error(`Error en la IA al generar la rúbrica: ${error.message}`);
+  }
   return data as RubricContent;
 };
 

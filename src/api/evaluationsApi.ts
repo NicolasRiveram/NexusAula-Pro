@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 export interface Evaluation {
   id: string;
@@ -426,7 +427,12 @@ export const generateQuestionsFromBlock = async (block: EvaluationContentBlock) 
       block_type: block.block_type,
     },
   });
-  if (error) throw new Error(`Error al generar preguntas con IA: ${error.message}`);
+  if (error instanceof FunctionsHttpError) {
+    const errorMessage = await error.context.json();
+    throw new Error(`Error al generar preguntas con IA: ${errorMessage.error}`);
+  } else if (error) {
+    throw new Error(`Error al generar preguntas con IA: ${error.message}`);
+  }
   return data;
 };
 
@@ -500,7 +506,12 @@ export const generatePIEAdaptation = async (itemId: string) => {
     const { data, error } = await supabase.functions.invoke('adapt-question-pie', {
         body: { item }
     });
-    if (error) throw new Error(`Error al generar adaptación PIE: ${error.message}`);
+    if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        throw new Error(`Error al generar adaptación PIE: ${errorMessage.error}`);
+    } else if (error) {
+        throw new Error(`Error al generar adaptación PIE: ${error.message}`);
+    }
     return data;
 };
 
@@ -548,10 +559,15 @@ export const increaseQuestionDifficulty = async (itemId: string) => {
     if (fetchError) throw new Error(`Error al obtener la pregunta para modificar: ${fetchError.message}`);
     if (!item) throw new Error('Pregunta no encontrada.');
 
-    const { data: newData, error: rpcError } = await supabase.functions.invoke('increase-question-difficulty', {
+    const { data: newData, error } = await supabase.functions.invoke('increase-question-difficulty', {
         body: { item }
     });
-    if (rpcError) throw new Error(`Error en la IA para aumentar dificultad: ${rpcError.message}`);
+    if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        throw new Error(`Error en la IA para aumentar dificultad: ${errorMessage.error}`);
+    } else if (error) {
+        throw new Error(`Error en la IA para aumentar dificultad: ${error.message}`);
+    }
 
     await updateEvaluationItem(itemId, {
         enunciado: newData.enunciado,

@@ -9,6 +9,7 @@ import Step3ClassSequence, { ClassPlan } from './Step3_ClassSequence';
 import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan, linkNewUnitsToProject } from '@/api/planningApi';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const NewUnitPlan = () => {
   const navigate = useNavigate();
@@ -44,7 +45,12 @@ const NewUnitPlan = () => {
         },
       });
 
-      if (error) throw error;
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        throw new Error(errorMessage.error);
+      } else if (error) {
+        throw error;
+      }
       
       setAiSuggestions(suggestions);
       showSuccess("Sugerencias de Objetivos y Proyecto generadas.");
@@ -71,7 +77,12 @@ const NewUnitPlan = () => {
         body: { suggestions: data, projectContext: proyectoId },
       });
 
-      if (error) throw error;
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        throw new Error(errorMessage.error);
+      } else if (error) {
+        throw error;
+      }
       
       // The sequence from the function doesn't have IDs or dates, which is correct.
       // The backend RPC will handle scheduling. We add temporary IDs for the UI key prop.
