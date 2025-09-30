@@ -13,24 +13,26 @@ import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-// Función para calcular la nota con 60% de exigencia
+// Función para calcular la nota con 60% de exigencia (mejorada)
 const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number => {
-  if (puntajeMaximo <= 0) return 1.0;
-  const puntajeMinimoAprobacion = puntajeMaximo * 0.6;
-  let nota;
-  if (puntajeObtenido >= puntajeMinimoAprobacion) {
-    // If max score and min passing score are the same, avoid division by zero
-    if (puntajeMaximo - puntajeMinimoAprobacion === 0) {
-        return puntajeObtenido >= puntajeMinimoAprobacion ? 7.0 : 1.0;
-    }
-    nota = 4.0 + 3.0 * ((puntajeObtenido - puntajeMinimoAprobacion) / (puntajeMaximo - puntajeMinimoAprobacion));
-  } else {
-    if (puntajeMinimoAprobacion === 0) return 7.0; // if max score is 0, min passing is 0, any score is >= 0
-    nota = 1.0 + 3.0 * (puntajeObtenido / puntajeMinimoAprobacion);
+  if (puntajeMaximo <= 0) {
+    return 1.0;
   }
-  // Clamp nota between 1.0 and 7.0
-  nota = Math.max(1.0, Math.min(7.0, nota));
-  return Math.round(nota * 10) / 10;
+
+  const porcentajeLogro = puntajeObtenido / puntajeMaximo;
+  let nota;
+
+  if (porcentajeLogro >= 0.6) {
+    // Nota de 4.0 a 7.0
+    nota = 4.0 + 3.0 * ((porcentajeLogro - 0.6) / 0.4);
+  } else {
+    // Nota de 1.0 a 3.9
+    nota = 1.0 + 3.0 * (porcentajeLogro / 0.6);
+  }
+
+  // Clamp nota between 1.0 and 7.0 and round to one decimal place
+  const notaFinal = Math.max(1.0, Math.min(7.0, nota));
+  return Math.round(notaFinal * 10) / 10;
 };
 
 const RubricDetailPage = () => {
@@ -203,7 +205,7 @@ const RubricDetailPage = () => {
               <thead>
                 <tr>
                   <th className="border p-2 w-1/4 align-top text-left">Criterio de Evaluación</th>
-                  {rubric.contenido_json.criterios[0]?.niveles.map((level, levelIndex) => (
+                  {rubric.contenido_json.criterios[0]?.niveles?.map((level, levelIndex) => (
                     <th key={levelIndex} className="border p-2 align-top text-left">
                       <p className="font-bold">{level.nombre}</p>
                       <p className="font-normal text-sm">({level.puntaje} pts)</p>
@@ -219,7 +221,7 @@ const RubricDetailPage = () => {
                       <Badge variant="secondary" className="mt-1">{criterion.habilidad}</Badge>
                       <p className="text-sm text-muted-foreground mt-2">{criterion.descripcion}</p>
                     </td>
-                    {criterion.niveles.map((level, levelIndex) => (
+                    {criterion.niveles?.map((level, levelIndex) => (
                       <td key={levelIndex} className={cn("border p-2 align-top cursor-pointer hover:bg-primary/10", evaluation[critIndex] === levelIndex && "bg-primary/20")} onClick={() => handleLevelSelect(critIndex, levelIndex)}>
                         <p className="text-sm">{level.descripcion}</p>
                       </td>
