@@ -6,6 +6,7 @@ import { fetchStudentDashboardData, fetchStudentCourses } from '@/api/studentApi
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, FileText, Megaphone, Book, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import RecentPerformance from '@/components/dashboard/student/RecentPerformance';
 
 const StudentDashboard = () => {
   const { activeEstablishment } = useEstablishment();
@@ -81,7 +82,7 @@ const StudentDashboard = () => {
             </CardContent>
           </Card>
         </div>
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Anuncios</CardTitle>
@@ -100,6 +101,7 @@ const StudentDashboard = () => {
               )}
             </CardContent>
           </Card>
+          {user && <RecentPerformance studentId={user.id} />}
         </div>
       </div>
     </div>
