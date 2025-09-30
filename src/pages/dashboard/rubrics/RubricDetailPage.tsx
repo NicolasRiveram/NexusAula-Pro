@@ -13,24 +13,17 @@ import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-// Función para calcular la nota con 60% de exigencia (mejorada)
 const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number => {
   if (puntajeMaximo <= 0) {
     return 1.0;
   }
-
   const porcentajeLogro = puntajeObtenido / puntajeMaximo;
   let nota;
-
   if (porcentajeLogro >= 0.6) {
-    // Nota de 4.0 a 7.0
     nota = 4.0 + 3.0 * ((porcentajeLogro - 0.6) / 0.4);
   } else {
-    // Nota de 1.0 a 3.9
     nota = 1.0 + 3.0 * (porcentajeLogro / 0.6);
   }
-
-  // Clamp nota between 1.0 and 7.0 and round to one decimal place
   const notaFinal = Math.max(1.0, Math.min(7.0, nota));
   return Math.round(notaFinal * 10) / 10;
 };
@@ -92,22 +85,21 @@ const RubricDetailPage = () => {
   }, [selectedCursoId, cursos]);
 
   useEffect(() => {
-    // Reset evaluation when student changes
     setEvaluation({});
     setComentarios('');
   }, [selectedEstudianteId]);
 
   const { puntajeTotal, puntajeMaximo } = useMemo(() => {
-    if (!rubric?.contenido_json?.criterios || rubric.contenido_json.criterios.length === 0) {
+    const criterios = rubric?.contenido_json?.criterios;
+    if (!criterios || criterios.length === 0) {
       return { puntajeTotal: 0, puntajeMaximo: 0 };
     }
-    const max = rubric.contenido_json.criterios.reduce((acc, crit) => {
-      const nivelPuntajes = crit.niveles?.map(n => n.puntaje) || [];
-      const maxNivelPuntaje = nivelPuntajes.length > 0 ? Math.max(...nivelPuntajes) : 0;
-      return acc + maxNivelPuntaje;
+    const max = criterios.reduce((acc, crit) => {
+      const nivelPuntajes = Array.isArray(crit.niveles) ? crit.niveles.map(n => n.puntaje) : [];
+      return acc + (nivelPuntajes.length > 0 ? Math.max(...nivelPuntajes) : 0);
     }, 0);
     const total = Object.entries(evaluation).reduce((acc, [critIndex, levelIndex]) => {
-      const criterion = rubric.contenido_json!.criterios[Number(critIndex)];
+      const criterion = criterios[Number(critIndex)];
       return acc + (criterion?.niveles?.[Number(levelIndex)]?.puntaje || 0);
     }, 0);
     return { puntajeTotal: total, puntajeMaximo: max };
@@ -139,10 +131,7 @@ const RubricDetailPage = () => {
       });
       dismissToast(toastId);
       showSuccess("Evaluación guardada correctamente.");
-      // Reset state
       setSelectedEstudianteId('');
-      setEvaluation({});
-      setComentarios('');
     } catch (err: any) {
       dismissToast(toastId);
       showError(err.message);
@@ -153,6 +142,9 @@ const RubricDetailPage = () => {
 
   if (loading) return <div className="container mx-auto"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!rubric) return <div className="container mx-auto"><p>Rúbrica no encontrada.</p></div>;
+
+  const criterios = rubric.contenido_json?.criterios;
+  const hasCriterios = Array.isArray(criterios) && criterios.length > 0;
 
   return (
     <div className="container mx-auto space-y-6">
@@ -195,7 +187,18 @@ const RubricDetailPage = () => {
         </CardContent>
       </Card>
 
-      {selectedEstudianteId && rubric.contenido_json?.criterios && rubric.contenido_json.criterios.length > 0 && (
+      {selectedEstudianteId && !hasCriterios && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rúbrica Incompleta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-muted-foreground">Esta rúbrica no tiene criterios de evaluación definidos. Por favor, edita la rúbrica para añadir el contenido.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedEstudianteId && hasCriterios && (
         <Card>
           <CardHeader>
             <CardTitle>Rúbrica de Evaluación</CardTitle>
@@ -205,7 +208,7 @@ const RubricDetailPage = () => {
               <thead>
                 <tr>
                   <th className="border p-2 w-1/4 align-top text-left">Criterio de Evaluación</th>
-                  {rubric.contenido_json.criterios[0]?.niveles?.map((level, levelIndex) => (
+                  {criterios[0]?.niveles?.map((level, levelIndex) => (
                     <th key={levelIndex} className="border p-2 align-top text-left">
                       <p className="font-bold">{level.nombre}</p>
                       <p className="font-normal text-sm">({level.puntaje} pts)</p>
@@ -214,14 +217,14 @@ const RubricDetailPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {rubric.contenido_json.criterios.map((criterion, critIndex) => (
+                {criterios.map((criterion, critIndex) => (
                   <tr key={critIndex}>
                     <td className="border p-2 align-top">
                       <p className="font-semibold">{criterion.nombre}</p>
                       <Badge variant="secondary" className="mt-1">{criterion.habilidad}</Badge>
                       <p className="text-sm text-muted-foreground mt-2">{criterion.descripcion}</p>
                     </td>
-                    {criterion.niveles?.map((level, levelIndex) => (
+                    {Array.isArray(criterion.niveles) && criterion.niveles.map((level, levelIndex) => (
                       <td key={levelIndex} className={cn("border p-2 align-top cursor-pointer hover:bg-primary/10", evaluation[critIndex] === levelIndex && "bg-primary/20")} onClick={() => handleLevelSelect(critIndex, levelIndex)}>
                         <p className="text-sm">{level.descripcion}</p>
                       </td>
