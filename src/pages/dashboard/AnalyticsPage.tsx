@@ -5,12 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import { Loader2, TrendingDown, TrendingUp, UserCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import { fetchStudentPerformance, fetchSkillPerformance, StudentPerformance, SkillPerformance } from '@/api/analyticsApi';
 import { showError } from '@/utils/toast';
 import { Link } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 const AnalyticsPage = () => {
   const { activeEstablishment } = useEstablishment();
@@ -49,7 +49,8 @@ const AnalyticsPage = () => {
               fetchStudentPerformance(user.id, activeEstablishment.id, cursoFilter),
               fetchSkillPerformance(user.id, activeEstablishment.id, cursoFilter),
             ]);
-            setStudentPerformance(studentData);
+            // The RPC sorts ascending, so we reverse for a descending view (best performers first)
+            setStudentPerformance(studentData.reverse());
             setSkillPerformance(skillData);
           } catch (err: any) {
             showError(`Error al cargar analíticas: ${err.message}`);
@@ -65,13 +66,10 @@ const AnalyticsPage = () => {
     loadAnalytics();
   }, [activeEstablishment, selectedCursoId]);
 
-  const topStudents = useMemo(() => [...studentPerformance].sort((a, b) => b.average_score - a.average_score).slice(0, 5), [studentPerformance]);
-  const studentsToWatch = useMemo(() => [...studentPerformance].sort((a, b) => a.average_score - b.average_score).slice(0, 5), [studentPerformance]);
-
-  const chartData = skillPerformance.map(stat => ({
+  const chartData = useMemo(() => skillPerformance.map(stat => ({
     name: stat.habilidad_nombre.substring(0, 15) + (stat.habilidad_nombre.length > 15 ? '...' : ''),
     Logro: Math.round(stat.promedio_logro),
-  }));
+  })), [skillPerformance]);
 
   return (
     <div className="container mx-auto space-y-6">
@@ -128,59 +126,54 @@ const AnalyticsPage = () => {
             </CardContent>
           </Card>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center"><TrendingUp className="mr-2 text-green-500" /> Estudiantes Destacados</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StudentTable students={topStudents} />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center"><TrendingDown className="mr-2 text-destructive" /> Estudiantes a Observar</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StudentTable students={studentsToWatch} />
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Rendimiento General de Estudiantes</CardTitle>
+              <CardDescription>
+                Un resumen del rendimiento de cada estudiante en las evaluaciones completadas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Estudiante</TableHead>
+                    <TableHead className="w-[250px]">Rendimiento Promedio</TableHead>
+                    <TableHead className="text-center">Evaluaciones Completadas</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studentPerformance.length > 0 ? (
+                    studentPerformance.map(student => (
+                      <TableRow key={student.student_id}>
+                        <TableCell>
+                          <Link to={`/dashboard/estudiante/${student.student_id}`} className="font-medium hover:underline">
+                            {student.student_name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={student.average_score} className="w-2/3" />
+                            <span className="font-semibold text-muted-foreground">{student.average_score.toFixed(1)}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">{student.completed_evaluations}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center h-24">
+                        No hay datos de rendimiento de estudiantes para mostrar.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
-  );
-};
-
-const StudentTable = ({ students }: { students: StudentPerformance[] }) => {
-  if (students.length === 0) {
-    return <p className="text-center text-muted-foreground py-8">No hay datos de estudiantes.</p>;
-  }
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Estudiante</TableHead>
-          <TableHead className="text-right">Promedio</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {students.map(student => (
-          <TableRow key={student.student_id}>
-            <TableCell>
-              <Link to={`/dashboard/estudiante/${student.student_id}`} className="font-medium hover:underline">
-                {student.student_name}
-              </Link>
-            </TableCell>
-            <TableCell className="text-right">
-              <Badge variant={student.average_score >= 60 ? "default" : "destructive"}>
-                {student.average_score.toFixed(1)}%
-              </Badge>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   );
 };
 
