@@ -37,8 +37,24 @@ export interface Project {
   }[];
 }
 
+export interface UnitLink {
+  unidades: {
+    id: string;
+    nombre: string;
+    curso_asignaturas: {
+      cursos: {
+        nombre: string;
+        niveles: {
+          nombre: string;
+        };
+      };
+    };
+  };
+}
+
 export interface ProjectDetail extends Project {
   proyecto_etapas: ProjectStage[];
+  proyecto_unidades_link: UnitLink[];
 }
 
 export const fetchAllProjects = async (establecimientoId: string, nivelId?: string, asignaturaId?: string): Promise<Project[]> => {
@@ -87,7 +103,16 @@ export const fetchProjectDetails = async (projectId: string): Promise<ProjectDet
           asignaturas ( id, nombre )
         )
       ),
-      proyecto_etapas ( * )
+      proyecto_etapas ( * ),
+      proyecto_unidades_link (
+        unidades (
+          id,
+          nombre,
+          curso_asignaturas (
+            cursos ( nombre, niveles ( nombre ) )
+          )
+        )
+      )
     `)
     .eq('id', projectId)
     .order('orden', { referencedTable: 'proyecto_etapas' })
@@ -157,4 +182,52 @@ export const unlinkCourseFromProject = async (projectId: string, cursoAsignatura
         .eq('curso_asignatura_id', cursoAsignaturaId);
 
     if (error) throw new Error(`Error al desvincular el curso: ${error.message}`);
+};
+
+export const fetchAvailableUnitsForProject = async (projectId: string, docenteId: string): Promise<any[]> => {
+  const { data: linkedCourses, error: linkedCoursesError } = await supabase
+    .from('proyecto_curso_asignaturas')
+    .select('curso_asignatura_id')
+    .eq('proyecto_id', projectId);
+  if (linkedCoursesError) throw new Error(linkedCoursesError.message);
+  const linkedCourseIds = linkedCourses.map(lc => lc.curso_asignatura_id);
+
+  const { data: linkedUnits, error: linkedUnitsError } = await supabase
+    .from('proyecto_unidades_link')
+    .select('unidad_id')
+    .eq('proyecto_id', projectId);
+  if (linkedUnitsError) throw new Error(linkedUnitsError.message);
+  const linkedUnitIds = linkedUnits.map(lu => lu.unidad_id);
+
+  let query = supabase
+    .from('unidades')
+    .select('id, nombre, curso_asignaturas(cursos(nombre, niveles(nombre)), asignaturas(nombre))')
+    .in('curso_asignatura_id', linkedCourseIds);
+  
+  if (linkedUnitIds.length > 0) {
+    query = query.not('id', 'in', `(${linkedUnitIds.join(',')})`);
+  }
+
+  const { data: availableUnits, error: availableUnitsError } = await query;
+  if (availableUnitsError) throw new Error(availableUnitsError.message);
+
+  return availableUnits || [];
+};
+
+export const linkUnitsToProject = async (projectId: string, unidadIds: string[]) => {
+  const links = unidadIds.map(id => ({
+    proyecto_id: projectId,
+    unidad_id: id,
+  }));
+  const { error } = await supabase.from('proyecto_unidades_link').insert(links);
+  if (error) throw new Error(`Error linking units: ${error.message}`);
+};
+
+export const unlinkUnitFromProject = async (projectId: string, unidadId: string) => {
+  const { error } = await supabase
+    .from('proyecto_unidades_link')
+    .delete()
+    .eq('proyecto_id', projectId)
+    .eq('unidad_id', unidadId);
+  if (error) throw new Error(`Error unlinking unit: ${error.message}`);
 };

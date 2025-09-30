@@ -2,19 +2,21 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Book, Calendar, CheckCircle, Circle, UserPlus, LogOut } from 'lucide-react';
-import { fetchProjectDetails, ProjectDetail, unlinkCourseFromProject } from '@/api/projectsApi';
+import { ArrowLeft, Loader2, Book, Calendar, CheckCircle, Circle, UserPlus, LogOut, Link2, Link2Off } from 'lucide-react';
+import { fetchProjectDetails, ProjectDetail, unlinkCourseFromProject, unlinkUnitFromProject } from '@/api/projectsApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import JoinProjectDialog from '@/components/projects/JoinProjectDialog';
+import LinkUnitDialog from '@/components/projects/LinkUnitDialog';
 
 const ProjectDetailPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isJoinDialogOpen, setJoinDialogOpen] = useState(false);
+  const [isLinkUnitDialogOpen, setLinkUnitDialogOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,13 +41,27 @@ const ProjectDetailPage = () => {
     loadProject();
   }, [loadProject]);
 
-  const handleUnlink = async (cursoAsignaturaId: string) => {
+  const handleUnlinkCourse = async (cursoAsignaturaId: string) => {
     if (!projectId || !window.confirm("¿Estás seguro de que quieres desvincular este curso del proyecto?")) return;
     const toastId = showLoading("Desvinculando curso...");
     try {
         await unlinkCourseFromProject(projectId, cursoAsignaturaId);
         dismissToast(toastId);
         showSuccess("Curso desvinculado.");
+        loadProject();
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(error.message);
+    }
+  };
+
+  const handleUnlinkUnit = async (unidadId: string) => {
+    if (!projectId || !window.confirm("¿Estás seguro de que quieres desvincular esta unidad del proyecto?")) return;
+    const toastId = showLoading("Desvinculando unidad...");
+    try {
+        await unlinkUnitFromProject(projectId, unidadId);
+        dismissToast(toastId);
+        showSuccess("Unidad desvinculada.");
         loadProject();
     } catch (error: any) {
         dismissToast(toastId);
@@ -121,7 +137,7 @@ const ProjectDetailPage = () => {
                       <p className="text-xs text-muted-foreground">{link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}</p>
                     </div>
                     {isOwner && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlink(link.curso_asignaturas.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkCourse(link.curso_asignaturas.id)}>
                             <LogOut className="h-4 w-4 text-destructive" />
                         </Button>
                     )}
@@ -150,15 +166,52 @@ const ProjectDetailPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="text-lg flex items-center"><Link2 className="mr-2 h-5 w-5" /> Unidades Vinculadas</CardTitle>
+                    <CardDescription>Planes de unidad que forman parte de este proyecto.</CardDescription>
+                </div>
+                <Button variant="outline" onClick={() => setLinkUnitDialogOpen(true)}>Vincular Unidad</Button>
+            </CardHeader>
+            <CardContent>
+                {project.proyecto_unidades_link.length > 0 ? (
+                    <div className="space-y-2">
+                        {project.proyecto_unidades_link.map(link => (
+                            <div key={link.unidades.id} className="flex justify-between items-center group p-2 rounded-md hover:bg-muted/50">
+                                <div>
+                                    <p className="font-semibold text-sm">{link.unidades.nombre}</p>
+                                    <p className="text-xs text-muted-foreground">{link.unidades.curso_asignaturas.cursos.niveles.nombre} {link.unidades.curso_asignaturas.cursos.nombre}</p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkUnit(link.unidades.id)}>
+                                    <Link2Off className="h-4 w-4 text-destructive" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground text-center py-4">Aún no hay unidades vinculadas a este proyecto.</p>
+                )}
+            </CardContent>
+        </Card>
       </div>
       {projectId && (
-        <JoinProjectDialog
-          isOpen={isJoinDialogOpen}
-          onClose={() => setJoinDialogOpen(false)}
-          onJoined={loadProject}
-          projectId={projectId}
-          alreadyLinkedIds={project.proyecto_curso_asignaturas.map(link => link.curso_asignaturas.id)}
-        />
+        <>
+          <JoinProjectDialog
+            isOpen={isJoinDialogOpen}
+            onClose={() => setJoinDialogOpen(false)}
+            onJoined={loadProject}
+            projectId={projectId}
+            alreadyLinkedIds={project.proyecto_curso_asignaturas.map(link => link.curso_asignaturas.id)}
+          />
+          <LinkUnitDialog
+            isOpen={isLinkUnitDialogOpen}
+            onClose={() => setLinkUnitDialogOpen(false)}
+            onLinked={loadProject}
+            projectId={projectId}
+          />
+        </>
       )}
     </>
   );
