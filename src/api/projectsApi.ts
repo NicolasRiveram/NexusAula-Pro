@@ -17,9 +17,7 @@ export interface Project {
   fecha_inicio: string;
   fecha_fin: string;
   producto_final: string;
-  creado_por: {
-    nombre_completo: string;
-  };
+  creado_por: string;
   proyecto_curso_asignaturas: {
     curso_asignaturas: {
       id: string;
@@ -53,6 +51,7 @@ export interface UnitLink {
 }
 
 export interface ProjectDetail extends Project {
+  creado_por: string;
   proyecto_etapas: ProjectStage[];
   proyecto_unidades_link: UnitLink[];
 }
@@ -62,6 +61,7 @@ export const fetchAllProjects = async (establecimientoId: string, nivelId?: stri
     .from('proyectos_abp')
     .select(`
       id, nombre, descripcion, fecha_inicio, fecha_fin, producto_final,
+      creado_por,
       perfiles!creado_por ( nombre_completo ),
       proyecto_curso_asignaturas!inner (
         curso_asignaturas!inner (
@@ -94,6 +94,7 @@ export const fetchProjectDetails = async (projectId: string): Promise<ProjectDet
     .from('proyectos_abp')
     .select(`
       id, nombre, descripcion, fecha_inicio, fecha_fin, producto_final,
+      creado_por,
       perfiles!creado_por ( nombre_completo ),
       proyecto_curso_asignaturas (
         curso_asignaturas (
@@ -230,4 +231,35 @@ export const unlinkUnitFromProject = async (projectId: string, unidadId: string)
     .eq('proyecto_id', projectId)
     .eq('unidad_id', unidadId);
   if (error) throw new Error(`Error unlinking unit: ${error.message}`);
+};
+
+export interface StageData {
+  nombre: string;
+  descripcion: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
+export const saveStage = async (projectId: string, stageData: StageData, stageId?: string) => {
+  if (stageId) {
+    const { error } = await supabase.from('proyecto_etapas').update(stageData).eq('id', stageId);
+    if (error) throw new Error(`Error updating stage: ${error.message}`);
+  } else {
+    const { data: existingStages, error: countError } = await supabase.from('proyecto_etapas').select('orden', { count: 'exact' }).eq('proyecto_id', projectId);
+    if (countError) throw new Error(`Error counting stages: ${countError.message}`);
+    const newOrder = (existingStages?.length || 0) + 1;
+
+    const { error } = await supabase.from('proyecto_etapas').insert({ ...stageData, proyecto_id: projectId, orden: newOrder });
+    if (error) throw new Error(`Error creating stage: ${error.message}`);
+  }
+};
+
+export const deleteStage = async (stageId: string) => {
+  const { error } = await supabase.from('proyecto_etapas').delete().eq('id', stageId);
+  if (error) throw new Error(`Error deleting stage: ${error.message}`);
+};
+
+export const updateStageStatus = async (stageId: string, completada: boolean) => {
+  const { error } = await supabase.from('proyecto_etapas').update({ completada }).eq('id', stageId);
+  if (error) throw new Error(`Error updating stage status: ${error.message}`);
 };
