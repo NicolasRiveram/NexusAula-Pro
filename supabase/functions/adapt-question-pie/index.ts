@@ -31,7 +31,7 @@ serve(async (req) => {
     const { item } = await req.json(); // The item object will be passed from the frontend
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
       Eres un asistente experto en adaptaciones curriculares para el Programa de Integración Escolar (PIE) de Chile.

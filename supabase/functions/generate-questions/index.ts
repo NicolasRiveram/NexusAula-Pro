@@ -31,7 +31,7 @@ serve(async (req) => {
     const { block_content, block_type } = await req.json();
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const contentPrompt = block_type === 'text' 
       ? `el siguiente texto: "${block_content.text}"`

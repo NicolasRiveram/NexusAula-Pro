@@ -32,7 +32,7 @@ serve(async (req) => {
     const { suggestions, projectContext } = await req.json();
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     const prompt = `
       Eres un asistente experto en planificación de clases y didáctica para la educación chilena.
