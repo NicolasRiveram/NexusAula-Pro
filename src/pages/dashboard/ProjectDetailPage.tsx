@@ -129,7 +129,7 @@ const ProjectDetailPage = () => {
     );
   }
 
-  const isOwner = project.creado_por.id === currentUserId;
+  const isOwner = project.creado_por === currentUserId;
 
   return (
     <>
@@ -145,7 +145,7 @@ const ProjectDetailPage = () => {
               <div>
                 <CardTitle className="text-3xl">{project.nombre}</CardTitle>
                 <CardDescription>
-                  Creado por: {project.creado_por.nombre_completo}
+                  Creado por: {project.perfiles.nombre_completo}
                 </CardDescription>
               </div>
               {!isStudent && (

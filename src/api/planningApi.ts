@@ -339,7 +339,7 @@ export const updateUnitPlanSuggestions = async (unitMasterId: string, suggestion
   if (error) throw new Error(`Error guardando las sugerencias de la IA: ${error.message}`);
 };
 
-export const scheduleClassesFromUnitPlan = async (unitMasterId: string, classes: Omit<ClassPlan, 'id'>[]) => {
+export const scheduleClassesFromUnitPlan = async (unitMasterId: string, classes: Omit<ClassPlan, 'id' | 'fecha'>[]) => {
   const { error } = await supabase.rpc('programar_clases_desde_maestra', {
     p_unidad_maestra_id: unitMasterId,
     p_clases_data: classes,

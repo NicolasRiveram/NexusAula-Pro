@@ -203,7 +203,7 @@ export const fetchStudentEvaluations = async (studentId: string, establecimiento
 export interface CreateEvaluationData {
   titulo: string;
   tipo: string;
-  descripcion: string;
+  descripcion?: string;
   fecha_aplicacion: string;
   cursoAsignaturaIds: string[];
 }
@@ -492,26 +492,28 @@ export const generatePIEAdaptation = async (itemId: string) => {
 };
 
 export const savePIEAdaptation = async (parentItemId: string, adaptationData: any) => {
-    const { error } = await supabase.tx(async (tx) => {
-        const { error: insertError } = await tx
-            .from('adaptaciones_pie')
-            .insert({
-                parent_item_id: parentItemId,
-                enunciado_adaptado: adaptationData.enunciado_adaptado,
-                alternativas_adaptadas: adaptationData.alternativas_adaptadas,
-            });
+    const { error: insertError } = await supabase
+        .from('adaptaciones_pie')
+        .insert({
+            parent_item_id: parentItemId,
+            enunciado_adaptado: adaptationData.enunciado_adaptado,
+            alternativas_adaptadas: adaptationData.alternativas_adaptadas,
+        });
 
-        if (insertError) throw insertError;
+    if (insertError) {
+        throw new Error(`Error al guardar la adaptación PIE: ${insertError.message}`);
+    }
 
-        const { error: updateError } = await tx
-            .from('evaluacion_items')
-            .update({ tiene_adaptacion_pie: true })
-            .eq('id', parentItemId);
+    const { error: updateError } = await supabase
+        .from('evaluacion_items')
+        .update({ tiene_adaptacion_pie: true })
+        .eq('id', parentItemId);
 
-        if (updateError) throw updateError;
-    });
-
-    if (error) throw new Error(`Error al guardar la adaptación PIE: ${error.message}`);
+    if (updateError) {
+        // Attempt to clean up if the second part fails. Not a true transaction.
+        await supabase.from('adaptaciones_pie').delete().eq('parent_item_id', parentItemId);
+        throw new Error(`Error al actualizar el item, se revirtió la adaptación: ${updateError.message}`);
+    }
 };
 
 export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; alternativas: any[] }) => {
@@ -552,8 +554,8 @@ export const fetchStudentAndEvaluationInfo = async (responseId: string): Promise
   if (!data) throw new Error('Response not found.');
 
   return {
-    student_name: data.perfiles?.nombre_completo || 'Estudiante Desconocido',
-    evaluation_title: data.evaluaciones?.titulo || 'Evaluación Desconocida',
+    student_name: (data.perfiles as any)?.nombre_completo || 'Estudiante Desconocido',
+    evaluation_title: (data.evaluaciones as any)?.titulo || 'Evaluación Desconocida',
   };
 };
 

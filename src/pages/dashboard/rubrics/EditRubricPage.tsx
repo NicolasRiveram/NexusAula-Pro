@@ -63,7 +63,7 @@ const EditRubricPage = () => {
   const onSubmit = async (data: RubricFormData) => {
     if (!rubricId) return;
     try {
-      await updateRubric(rubricId, data);
+      await updateRubric(rubricId, data as any);
       showSuccess("Rúbrica actualizada exitosamente.");
       navigate(`/dashboard/rubricas/${rubricId}`);
     } catch (error: any) {

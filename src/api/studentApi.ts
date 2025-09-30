@@ -62,10 +62,10 @@ export const fetchStudentCourseDetails = async (studentId: string, cursoAsignatu
 
   return {
     id: data.id,
-    curso_nombre: data.cursos.nombre,
-    asignatura_nombre: data.asignaturas.nombre,
-    nivel_nombre: data.cursos.niveles.nombre,
-    docente_nombre: data.perfiles?.nombre_completo || 'No asignado',
+    curso_nombre: (data.cursos as any).nombre,
+    asignatura_nombre: (data.asignaturas as any).nombre,
+    nivel_nombre: (data.cursos as any).niveles.nombre,
+    docente_nombre: (data.perfiles as any)?.nombre_completo || 'No asignado',
   };
 };
 

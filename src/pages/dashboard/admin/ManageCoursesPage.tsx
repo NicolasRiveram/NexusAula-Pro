@@ -10,6 +10,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { MoreHorizontal, Trash2, Edit, PlusCircle, ArrowLeft } from 'lucide-react';
 import CourseEditDialog from '@/components/dashboard/admin/CourseEditDialog';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 type CursoConNivelId = CursoBase & { nivel: { id: string, nombre: string } };
 

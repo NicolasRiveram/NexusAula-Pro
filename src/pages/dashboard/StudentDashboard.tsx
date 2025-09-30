@@ -10,7 +10,14 @@ import RecentPerformance from '@/components/dashboard/student/RecentPerformance'
 
 const StudentDashboard = () => {
   const { activeEstablishment } = useEstablishment();
-  const { data: { user } } = supabase.auth.getUser();
+  
+  const { data: user, isLoading: isLoadingUser } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
+    }
+  });
 
   const { data: dashboardData, isLoading: isLoadingDashboard } = useQuery({
     queryKey: ['studentDashboard', user?.id, activeEstablishment?.id, new Date().toDateString()],
