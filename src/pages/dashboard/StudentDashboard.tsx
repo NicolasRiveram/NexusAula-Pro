@@ -50,7 +50,11 @@ const StudentDashboard = () => {
                     <div key={item.id} className="flex items-center">
                       {item.type === 'class' ? <Clock className="h-5 w-5 mr-3 text-primary" /> : <FileText className="h-5 w-5 mr-3 text-orange-500" />}
                       <div>
-                        <p className="font-medium">{item.titulo}</p>
+                        {item.type === 'evaluation' ? (
+                          <Link to={`/dashboard/evaluacion/${item.id}/responder`} className="font-medium hover:underline">{item.titulo}</Link>
+                        ) : (
+                          <p className="font-medium">{item.titulo}</p>
+                        )}
                         <p className="text-sm text-muted-foreground">{item.curso_info} {item.hora_inicio && `- ${item.hora_inicio}`}</p>
                       </div>
                     </div>
