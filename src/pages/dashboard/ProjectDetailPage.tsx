@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useOutletContext } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,6 +13,10 @@ import JoinProjectDialog from '@/components/projects/JoinProjectDialog';
 import LinkUnitDialog from '@/components/projects/LinkUnitDialog';
 import StageEditDialog from '@/components/projects/StageEditDialog';
 
+interface DashboardContext {
+  profile: { rol: string };
+}
+
 const ProjectDetailPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<ProjectDetail | null>(null);
@@ -22,6 +26,8 @@ const ProjectDetailPage = () => {
   const [isStageDialogOpen, setStageDialogOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<ProjectStage | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { profile } = useOutletContext<DashboardContext>();
+  const isStudent = profile.rol === 'estudiante';
 
   useEffect(() => {
     const getUserId = async () => {
@@ -129,7 +135,7 @@ const ProjectDetailPage = () => {
       <div className="container mx-auto space-y-6">
         <Link to="/dashboard/proyectos" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a Explorar Proyectos
+          Volver a Proyectos
         </Link>
 
         <Card>
@@ -141,9 +147,11 @@ const ProjectDetailPage = () => {
                   Creado por: {project.creado_por.nombre_completo}
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setJoinDialogOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Unirse al Proyecto</Button>
-              </div>
+              {!isStudent && (
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setJoinDialogOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Unirse al Proyecto</Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -172,7 +180,7 @@ const ProjectDetailPage = () => {
                       <p className="font-semibold text-sm">{link.curso_asignaturas.asignaturas.nombre}</p>
                       <p className="text-xs text-muted-foreground">{link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}</p>
                     </div>
-                    {isCourseOwner && (
+                    {isCourseOwner && !isStudent && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkCourse(link.curso_asignaturas.id)}>
                             <LogOut className="h-4 w-4 text-destructive" />
                         </Button>
@@ -185,12 +193,12 @@ const ProjectDetailPage = () => {
           <Card className="md:col-span-2">
             <CardHeader className="flex justify-between items-center">
               <CardTitle className="text-lg">Etapas del Proyecto</CardTitle>
-              {isOwner && <Button size="sm" onClick={handleAddStage}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Etapa</Button>}
+              {isOwner && !isStudent && <Button size="sm" onClick={handleAddStage}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Etapa</Button>}
             </CardHeader>
             <CardContent className="space-y-4">
               {project.proyecto_etapas.length > 0 ? project.proyecto_etapas.map(etapa => (
                 <div key={etapa.id} className="flex items-start gap-4 group">
-                  <Checkbox checked={etapa.completada} onCheckedChange={() => handleToggleStageStatus(etapa)} disabled={!isOwner} className="mt-1" />
+                  <Checkbox checked={etapa.completada} onCheckedChange={() => handleToggleStageStatus(etapa)} disabled={!isOwner || isStudent} className="mt-1" />
                   <div className="flex-1">
                     <p className="font-semibold">{etapa.nombre}</p>
                     <p className="text-sm text-muted-foreground">{etapa.descripcion}</p>
@@ -198,7 +206,7 @@ const ProjectDetailPage = () => {
                       <p className="text-xs text-muted-foreground mt-1">{format(parseISO(etapa.fecha_inicio), 'P', { locale: es })} - {format(parseISO(etapa.fecha_fin), 'P', { locale: es })}</p>
                     )}
                   </div>
-                  {isOwner && (
+                  {isOwner && !isStudent && (
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditStage(etapa)}><Edit className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteStage(etapa)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -216,7 +224,7 @@ const ProjectDetailPage = () => {
                     <CardTitle className="text-lg flex items-center"><Link2 className="mr-2 h-5 w-5" /> Unidades Vinculadas</CardTitle>
                     <CardDescription>Planes de unidad que forman parte de este proyecto.</CardDescription>
                 </div>
-                <Button variant="outline" onClick={() => setLinkUnitDialogOpen(true)}>Vincular Unidad</Button>
+                {!isStudent && <Button variant="outline" onClick={() => setLinkUnitDialogOpen(true)}>Vincular Unidad</Button>}
             </CardHeader>
             <CardContent>
                 {project.proyecto_unidades_link.length > 0 ? (
@@ -227,7 +235,7 @@ const ProjectDetailPage = () => {
                                     <p className="font-semibold text-sm">{link.unidades.nombre}</p>
                                     <p className="text-xs text-muted-foreground">{link.unidades.curso_asignaturas.cursos.niveles.nombre} {link.unidades.curso_asignaturas.cursos.nombre}</p>
                                 </div>
-                                {isOwner && (
+                                {isOwner && !isStudent && (
                                     <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkUnit(link.unidades.id)}>
                                         <Link2Off className="h-4 w-4 text-destructive" />
                                     </Button>
@@ -241,7 +249,7 @@ const ProjectDetailPage = () => {
             </CardContent>
         </Card>
       </div>
-      {projectId && (
+      {projectId && !isStudent && (
         <>
           <JoinProjectDialog
             isOpen={isJoinDialogOpen}

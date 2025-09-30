@@ -89,6 +89,33 @@ export const fetchAllProjects = async (establecimientoId: string, nivelId?: stri
   return uniqueProjects as any;
 };
 
+export const fetchStudentProjects = async (studentId: string, establecimientoId: string): Promise<Project[]> => {
+  const { data, error } = await supabase
+    .from('proyectos_abp')
+    .select(`
+      id, nombre, descripcion, fecha_inicio, fecha_fin, producto_final,
+      creado_por,
+      perfiles!creado_por ( nombre_completo ),
+      proyecto_curso_asignaturas!inner (
+        curso_asignaturas!inner (
+          id,
+          docente_id,
+          cursos!inner ( id, nombre, nivel_id, niveles ( nombre ) ),
+          asignaturas!inner ( id, nombre ),
+          curso_estudiantes!inner ( estudiante_perfil_id )
+        )
+      )
+    `)
+    .eq('establecimiento_id', establecimientoId)
+    .eq('proyecto_curso_asignaturas.curso_asignaturas.curso_estudiantes.estudiante_perfil_id', studentId);
+
+  if (error) throw new Error(`Error fetching student projects: ${error.message}`);
+  
+  const uniqueProjects = Array.from(new Map(data.map(p => [p.id, p])).values());
+  
+  return uniqueProjects as any;
+};
+
 export const fetchProjectDetails = async (projectId: string): Promise<ProjectDetail> => {
   const { data, error } = await supabase
     .from('proyectos_abp')

@@ -20,6 +20,7 @@ const studentNavItems = [
   { to: '/dashboard/cursos', icon: Book, label: 'Mis Cursos' },
   { to: '/dashboard/horario', icon: Clock, label: 'Horario' },
   { to: '/dashboard/evaluacion', icon: FileText, label: 'Mis Evaluaciones' },
+  { to: '/dashboard/proyectos', icon: Briefcase, label: 'Mis Proyectos' },
 ];
 
 const adminNavItems = [
