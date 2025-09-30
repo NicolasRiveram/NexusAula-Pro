@@ -9,7 +9,6 @@ import { Toaster } from "@/components/ui/toaster";
     import Index from "./pages/Index";
     import Login from "./pages/Login";
     import Dashboard from "./pages/Dashboard"; 
-    import TeacherDashboard from "./pages/dashboard/TeacherDashboard";
     import CoursesPage from "./pages/dashboard/CoursesPage";
     import SchedulePage from "./pages/dashboard/SchedulePage";
     import DidacticPlannerPage from "./pages/dashboard/DidacticPlannerPage";
@@ -34,7 +33,7 @@ import { Toaster } from "@/components/ui/toaster";
     import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
     import StudentResponseDetailPage from "./pages/dashboard/evaluations/StudentResponseDetailPage";
     import DashboardIndex from "./pages/dashboard/DashboardIndex";
-    import AdminDashboard from "./pages/dashboard/AdminDashboard";
+    import ManageCoursesPage from "./pages/dashboard/admin/ManageCoursesPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -118,6 +117,7 @@ import { Toaster } from "@/components/ui/toaster";
             {session && profileComplete ? (
               <Route path="/dashboard" element={<Dashboard />}>
                 <Route index element={<DashboardIndex />} />
+                {/* Teacher Routes */}
                 <Route path="cursos" element={<CoursesPage />} />
                 <Route path="cursos/:cursoAsignaturaId" element={<CourseDetailPage />} />
                 <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
@@ -139,6 +139,8 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="analiticas" element={<AnalyticsPage />} />
                 <Route path="bitacora" element={<BitacoraPage />} />
                 <Route path="configuracion" element={<SettingsPage />} />
+                {/* Admin Routes */}
+                <Route path="gestion/cursos" element={<ManageCoursesPage />} />
               </Route>
             ) : (
               <Route path="*" element={<Login />} />

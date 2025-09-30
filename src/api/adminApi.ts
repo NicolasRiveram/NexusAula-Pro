@@ -111,3 +111,18 @@ export const deleteAnnouncement = async (announcementId: string) => {
     .eq('id', announcementId);
   if (error) throw new Error(`Error deleting announcement: ${error.message}`);
 };
+
+export const updateCourse = async (courseId: string, nombre: string, nivelId: string, anio: number) => {
+    const { error } = await supabase.rpc('update_course', {
+        p_course_id: courseId,
+        p_nombre: nombre,
+        p_nivel_id: nivelId,
+        p_anio: anio,
+    });
+    if (error) throw new Error(`Error updating course: ${error.message}`);
+};
+
+export const deleteCourse = async (courseId: string) => {
+    const { error } = await supabase.rpc('delete_course', { p_course_id: courseId });
+    if (error) throw new Error(`Error deleting course: ${error.message}`);
+};
