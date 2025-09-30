@@ -19,10 +19,17 @@ const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number =>
   const puntajeMinimoAprobacion = puntajeMaximo * 0.6;
   let nota;
   if (puntajeObtenido >= puntajeMinimoAprobacion) {
+    // If max score and min passing score are the same, avoid division by zero
+    if (puntajeMaximo - puntajeMinimoAprobacion === 0) {
+        return puntajeObtenido >= puntajeMinimoAprobacion ? 7.0 : 1.0;
+    }
     nota = 4.0 + 3.0 * ((puntajeObtenido - puntajeMinimoAprobacion) / (puntajeMaximo - puntajeMinimoAprobacion));
   } else {
+    if (puntajeMinimoAprobacion === 0) return 7.0; // if max score is 0, min passing is 0, any score is >= 0
     nota = 1.0 + 3.0 * (puntajeObtenido / puntajeMinimoAprobacion);
   }
+  // Clamp nota between 1.0 and 7.0
+  nota = Math.max(1.0, Math.min(7.0, nota));
   return Math.round(nota * 10) / 10;
 };
 
@@ -82,12 +89,24 @@ const RubricDetailPage = () => {
     loadEstudiantes();
   }, [selectedCursoId, cursos]);
 
+  useEffect(() => {
+    // Reset evaluation when student changes
+    setEvaluation({});
+    setComentarios('');
+  }, [selectedEstudianteId]);
+
   const { puntajeTotal, puntajeMaximo } = useMemo(() => {
-    if (!rubric?.contenido_json) return { puntajeTotal: 0, puntajeMaximo: 0 };
-    const max = rubric.contenido_json.criterios.reduce((acc, crit) => acc + Math.max(...crit.niveles.map(n => n.puntaje)), 0);
+    if (!rubric?.contenido_json?.criterios || rubric.contenido_json.criterios.length === 0) {
+      return { puntajeTotal: 0, puntajeMaximo: 0 };
+    }
+    const max = rubric.contenido_json.criterios.reduce((acc, crit) => {
+      const nivelPuntajes = crit.niveles?.map(n => n.puntaje) || [];
+      const maxNivelPuntaje = nivelPuntajes.length > 0 ? Math.max(...nivelPuntajes) : 0;
+      return acc + maxNivelPuntaje;
+    }, 0);
     const total = Object.entries(evaluation).reduce((acc, [critIndex, levelIndex]) => {
       const criterion = rubric.contenido_json!.criterios[Number(critIndex)];
-      return acc + (criterion?.niveles[Number(levelIndex)]?.puntaje || 0);
+      return acc + (criterion?.niveles?.[Number(levelIndex)]?.puntaje || 0);
     }, 0);
     return { puntajeTotal: total, puntajeMaximo: max };
   }, [rubric, evaluation]);
@@ -174,7 +193,7 @@ const RubricDetailPage = () => {
         </CardContent>
       </Card>
 
-      {selectedEstudianteId && rubric.contenido_json && (
+      {selectedEstudianteId && rubric.contenido_json?.criterios && rubric.contenido_json.criterios.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Rúbrica de Evaluación</CardTitle>
