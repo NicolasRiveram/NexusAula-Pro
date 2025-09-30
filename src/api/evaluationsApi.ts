@@ -19,6 +19,12 @@ export interface Evaluation {
   }[];
 }
 
+export interface StudentEvaluation extends Omit<Evaluation, 'curso_asignaturas'> {
+  status: 'Pendiente' | 'Completado';
+  curso_nombre: string;
+  asignatura_nombre: string;
+}
+
 export interface EvaluationContentBlock {
   id: string;
   evaluation_id: string;
@@ -154,6 +160,44 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre }
     }))
   }));
+};
+
+export const fetchStudentEvaluations = async (studentId: string, establecimientoId: string): Promise<StudentEvaluation[]> => {
+  if (!establecimientoId) return [];
+
+  const { data, error } = await supabase
+    .from('evaluaciones')
+    .select(`
+      id, titulo, tipo, fecha_aplicacion,
+      evaluacion_curso_asignaturas!inner(
+        curso_asignaturas!inner(
+          cursos!inner(
+            nombre, establecimiento_id, niveles(nombre),
+            curso_estudiantes!inner(estudiante_perfil_id)
+          ),
+          asignaturas(nombre)
+        )
+      ),
+      respuestas_estudiante(id)
+    `)
+    .eq('evaluacion_curso_asignaturas.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+    .eq('evaluacion_curso_asignaturas.curso_asignaturas.cursos.curso_estudiantes.estudiante_perfil_id', studentId)
+    .order('fecha_aplicacion', { ascending: false });
+
+  if (error) throw new Error(`Error fetching student evaluations: ${error.message}`);
+
+  return (data || []).map((e: any) => {
+    const cursoAsignatura = e.evaluacion_curso_asignaturas[0]?.curso_asignaturas;
+    return {
+      id: e.id,
+      titulo: e.titulo,
+      tipo: e.tipo,
+      fecha_aplicacion: e.fecha_aplicacion,
+      status: e.respuestas_estudiante.some((r: any) => r.id) ? 'Completado' : 'Pendiente',
+      curso_nombre: `${cursoAsignatura?.cursos?.niveles?.nombre} ${cursoAsignatura?.cursos?.nombre}`,
+      asignatura_nombre: cursoAsignatura?.asignaturas?.nombre,
+    };
+  });
 };
 
 export interface CreateEvaluationData {
