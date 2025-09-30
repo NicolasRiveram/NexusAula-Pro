@@ -1,100 +1,102 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle } from 'lucide-react';
-import { fetchProjects, Project } from '@/api/projectsApi';
-import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
+import { PlusCircle, Loader2 } from 'lucide-react';
+import { fetchAllProjects, Project } from '@/api/projectsApi';
+import { fetchNiveles, fetchAsignaturas, Nivel, Asignatura } from '@/api/coursesApi';
 import { showError } from '@/utils/toast';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
+import ProjectCard from '@/components/projects/ProjectCard';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ProjectsPage = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [niveles, setNiveles] = useState<Nivel[]>([]);
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
+  const [selectedNivel, setSelectedNivel] = useState<string>('');
+  const [selectedAsignatura, setSelectedAsignatura] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const { activeEstablishment } = useEstablishment();
 
-  const loadProjects = async () => {
-    if (!activeEstablishment) {
-      setProjects([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+  useEffect(() => {
+    const loadFilters = async () => {
       try {
-        const data = await fetchProjects(user.id, activeEstablishment.id);
+        const [nivelesData, asignaturasData] = await Promise.all([fetchNiveles(), fetchAsignaturas()]);
+        setNiveles(nivelesData);
+        setAsignaturas(asignaturasData);
+      } catch (err: any) {
+        showError(`Error al cargar filtros: ${err.message}`);
+      }
+    };
+    loadFilters();
+  }, []);
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      if (!activeEstablishment) {
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await fetchAllProjects(activeEstablishment.id, selectedNivel || undefined, selectedAsignatura || undefined);
         setProjects(data);
       } catch (err: any) {
         showError(`Error al cargar proyectos: ${err.message}`);
+      } finally {
+        setLoading(false);
       }
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
+    };
     loadProjects();
-  }, [activeEstablishment]);
+  }, [activeEstablishment, selectedNivel, selectedAsignatura]);
 
   return (
     <div className="container mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Proyectos ABP</h1>
-          <p className="text-muted-foreground">Gestiona tus proyectos de Aprendizaje Basado en Proyectos.</p>
+          <h1 className="text-3xl font-bold">Explorar Proyectos ABP</h1>
+          <p className="text-muted-foreground">Descubre y colabora en los proyectos de tu establecimiento.</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)} disabled={!activeEstablishment}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Crear Nuevo Proyecto
-        </Button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <Select value={selectedNivel} onValueChange={setSelectedNivel}>
+            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por Nivel" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todos los niveles</SelectItem>
+              {niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={selectedAsignatura} onValueChange={setSelectedAsignatura}>
+            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por Asignatura" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Todas las asignaturas</SelectItem>
+              {asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {loading ? (
-        <p>Cargando proyectos...</p>
+        <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
       ) : !activeEstablishment ? (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <h3 className="text-xl font-semibold">Selecciona un establecimiento</h3>
-          <p className="text-muted-foreground mt-2">Elige un establecimiento para gestionar tus proyectos.</p>
+          <p className="text-muted-foreground mt-2">Elige un establecimiento para explorar proyectos.</p>
         </div>
       ) : projects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map(project => (
-            <Card key={project.id}>
-              <CardHeader>
-                <CardTitle>{project.nombre}</CardTitle>
-                <CardDescription>
-                  {format(parseISO(project.fecha_inicio), "d LLL", { locale: es })} - {format(parseISO(project.fecha_fin), "d LLL, yyyy", { locale: es })}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground line-clamp-3">{project.descripcion}</p>
-                  <div>
-                    <Badge variant="outline">{project.curso_asignatura.curso.nivel.nombre} {project.curso_asignatura.curso.nombre}</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ProjectCard key={project.id} project={project} />
           ))}
         </div>
       ) : (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <h3 className="text-xl font-semibold">No tienes proyectos</h3>
+          <h3 className="text-xl font-semibold">No se encontraron proyectos</h3>
           <p className="text-muted-foreground mt-2">
-            Crea tu primer proyecto ABP para este establecimiento.
+            Prueba a cambiar los filtros o crea el primer proyecto para este establecimiento.
           </p>
         </div>
       )}
-
-      <CreateProjectDialog
-        isOpen={isCreateDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        onProjectCreated={loadProjects}
-      />
     </div>
   );
 };

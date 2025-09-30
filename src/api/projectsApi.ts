@@ -1,5 +1,15 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export interface ProjectStage {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  completada: boolean;
+  orden: number;
+}
+
 export interface Project {
   id: string;
   nombre: string;
@@ -7,88 +17,120 @@ export interface Project {
   fecha_inicio: string;
   fecha_fin: string;
   producto_final: string;
-  curso_asignatura: {
-    id: string;
-    curso: {
-      nombre: string;
-      nivel: {
+  creado_por: {
+    nombre_completo: string;
+  };
+  proyecto_curso_asignaturas: {
+    curso_asignaturas: {
+      id: string;
+      cursos: {
         nombre: string;
-      }
-    },
-    asignatura: {
-      nombre: string;
-    }
-  }
+        niveles: {
+          nombre: string;
+        };
+      };
+      asignaturas: {
+        nombre: string;
+      };
+    };
+  }[];
 }
 
-export const fetchProjects = async (docenteId: string, establecimientoId: string): Promise<Project[]> => {
-  if (!establecimientoId) return [];
+export interface ProjectDetail extends Project {
+  proyecto_etapas: ProjectStage[];
+}
 
+export const fetchAllProjects = async (establecimientoId: string, nivelId?: string, asignaturaId?: string): Promise<Project[]> => {
+  let query = supabase
+    .from('proyectos_abp')
+    .select(`
+      id, nombre, descripcion, fecha_inicio, fecha_fin, producto_final,
+      perfiles!creado_por ( nombre_completo ),
+      proyecto_curso_asignaturas!inner (
+        curso_asignaturas!inner (
+          id,
+          cursos!inner ( id, nombre, nivel_id, niveles ( nombre ) ),
+          asignaturas!inner ( id, nombre )
+        )
+      )
+    `)
+    .eq('establecimiento_id', establecimientoId);
+
+  if (nivelId) {
+    query = query.eq('proyecto_curso_asignaturas.curso_asignaturas.cursos.nivel_id', nivelId);
+  }
+  if (asignaturaId) {
+    query = query.eq('proyecto_curso_asignaturas.curso_asignaturas.asignaturas.id', asignaturaId);
+  }
+
+  const { data, error } = await query.order('fecha_inicio', { ascending: false });
+  if (error) throw new Error(`Error fetching projects: ${error.message}`);
+  
+  // Deduplicate projects since a project can match multiple courses
+  const uniqueProjects = Array.from(new Map(data.map(p => [p.id, p])).values());
+  
+  return uniqueProjects as any;
+};
+
+export const fetchProjectDetails = async (projectId: string): Promise<ProjectDetail> => {
   const { data, error } = await supabase
     .from('proyectos_abp')
     .select(`
-      id,
-      nombre,
-      descripcion,
-      fecha_inicio,
-      fecha_fin,
-      producto_final,
-      curso_asignaturas!inner (
-        id,
-        cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
-        asignaturas ( nombre )
-      )
+      id, nombre, descripcion, fecha_inicio, fecha_fin, producto_final,
+      perfiles!creado_por ( nombre_completo ),
+      proyecto_curso_asignaturas (
+        curso_asignaturas (
+          id,
+          cursos ( id, nombre, niveles ( nombre ) ),
+          asignaturas ( id, nombre )
+        )
+      ),
+      proyecto_etapas ( * )
     `)
-    .eq('curso_asignaturas.cursos.establecimiento_id', establecimientoId)
-    .order('fecha_inicio', { ascending: false });
+    .eq('id', projectId)
+    .order('orden', { referencedTable: 'proyecto_etapas' })
+    .single();
 
-  if (error) throw new Error(`Error fetching projects: ${error.message}`);
-
-  // Filtrar por docente en el lado del cliente, ya que la consulta RLS lo requiere
-  const userProjects = data.filter((p: any) => p.curso_asignaturas.docente_id === docenteId);
-
-  return userProjects.map((p: any) => ({
-    id: p.id,
-    nombre: p.nombre,
-    descripcion: p.descripcion,
-    fecha_inicio: p.fecha_inicio,
-    fecha_fin: p.fecha_fin,
-    producto_final: p.producto_final,
-    curso_asignatura: {
-      id: p.curso_asignaturas.id,
-      curso: {
-        nombre: p.curso_asignaturas.cursos.nombre,
-        nivel: {
-          nombre: p.curso_asignaturas.cursos.niveles.nombre,
-        }
-      },
-      asignatura: {
-        nombre: p.curso_asignaturas.asignaturas.nombre,
-      }
-    }
-  }));
+  if (error) throw new Error(`Error fetching project details: ${error.message}`);
+  return data as any;
 };
 
 export interface CreateProjectData {
-  cursoAsignaturaId: string;
   nombre: string;
   descripcion: string;
   fecha_inicio: string;
   fecha_fin: string;
   producto_final: string;
+  establecimiento_id: string;
+  creado_por: string;
+  curso_asignatura_ids: string[];
 }
 
 export const createProject = async (projectData: CreateProjectData) => {
-  const { error } = await supabase
+  const { curso_asignatura_ids, ...project } = projectData;
+  
+  const { data: newProject, error } = await supabase
     .from('proyectos_abp')
-    .insert({
-      curso_asignatura_id: projectData.cursoAsignaturaId,
-      nombre: projectData.nombre,
-      descripcion: projectData.descripcion,
-      fecha_inicio: projectData.fecha_inicio,
-      fecha_fin: projectData.fecha_fin,
-      producto_final: projectData.producto_final,
-    });
+    .insert(project)
+    .select('id')
+    .single();
 
   if (error) throw new Error(`Error creating project: ${error.message}`);
+
+  const links = curso_asignatura_ids.map(id => ({
+    proyecto_id: newProject.id,
+    curso_asignatura_id: id,
+  }));
+
+  const { error: linkError } = await supabase
+    .from('proyecto_curso_asignaturas')
+    .insert(links);
+
+  if (linkError) {
+    // Rollback project creation
+    await supabase.from('proyectos_abp').delete().eq('id', newProject.id);
+    throw new Error(`Error linking courses to project: ${linkError.message}`);
+  }
+
+  return newProject.id;
 };
