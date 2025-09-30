@@ -4,9 +4,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import Step1GeneralInfo, { EvaluationStep1Data } from '@/components/evaluations/builder/Step1_GeneralInfo';
+import Step1GeneralInfo, { EvaluationStep1Data, schema as step1Schema } from '@/components/evaluations/builder/Step1_GeneralInfo';
 import Step2ContentBlocks from '@/components/evaluations/builder/Step2_ContentBlocks';
-import { createEvaluation, fetchEvaluationDetails, updateEvaluation } from '@/api/evaluationsApi';
+import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 
@@ -20,7 +20,9 @@ const EvaluationBuilderPage = () => {
   const [evaluationTitle, setEvaluationTitle] = useState<string>('');
   const [loadingInitialData, setLoadingInitialData] = useState(isEditMode);
 
-  const { control, handleSubmit, formState: { isSubmitting }, reset } = useForm<EvaluationStep1Data>();
+  const { control, handleSubmit, formState: { isSubmitting }, reset } = useForm<EvaluationStep1Data>({
+    resolver: zodResolver(step1Schema),
+  });
 
   useEffect(() => {
     if (isEditMode && evaluationId) {
@@ -49,9 +51,12 @@ const EvaluationBuilderPage = () => {
   const handleStep1Submit = async (data: EvaluationStep1Data) => {
     const toastId = showLoading(isEditMode ? "Actualizando evaluación..." : "Creando evaluación...");
     try {
-      const payload = {
-        ...data,
+      const payload: CreateEvaluationData = {
+        titulo: data.titulo,
+        tipo: data.tipo,
+        descripcion: data.descripcion,
         fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
+        cursoAsignaturaIds: data.cursoAsignaturaIds,
       };
 
       if (isEditMode && evaluationId) {
@@ -104,7 +109,7 @@ const EvaluationBuilderPage = () => {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : step === 1 ? (
-            <Step1GeneralInfo onFormSubmit={handleStep1Submit} control={control} isSubmitting={isSubmitting} />
+            <Step1GeneralInfo onFormSubmit={handleSubmit(handleStep1Submit)} control={control} isSubmitting={isSubmitting} />
           ) : (
             evaluationId && (
               <Step2ContentBlocks 

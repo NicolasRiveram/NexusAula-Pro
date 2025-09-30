@@ -195,7 +195,7 @@ export const fetchStudentProfile = async (studentId: string): Promise<Estudiante
 };
 
 export const fetchStudentEnrollments = async (studentId: string): Promise<StudentEnrollment[]> => {
-    const { data, error } = await supabase.rpc<StudentEnrollment>('get_student_enrollments', {
+    const { data, error } = await supabase.rpc('get_student_enrollments', {
         p_student_id: studentId,
     });
 
@@ -203,7 +203,7 @@ export const fetchStudentEnrollments = async (studentId: string): Promise<Studen
         throw new Error(`Error fetching student enrollments: ${error.message}`);
     }
 
-    const enrollments: StudentEnrollment[] = data || [];
+    const enrollments: StudentEnrollment[] = (data as any) || [];
     
     const uniqueEnrollments = Array.from(new Map(enrollments.map(e => [e.curso_asignatura_id, e])).values());
     

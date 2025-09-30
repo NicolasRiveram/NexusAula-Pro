@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { fetchCursosPorEstablecimiento, CursoBase } from '@/api/coursesApi';
+import { CursoBase } from '@/api/coursesApi';
 import { deleteCourse } from '@/api/adminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { MoreHorizontal, Trash2, Edit, PlusCircle, ArrowLeft } from 'lucide-react';
@@ -29,7 +29,6 @@ const ManageCoursesPage = () => {
     }
     setLoading(true);
     try {
-      // This function needs to be adapted to also return nivel id
       const { data, error } = await supabase
         .from('cursos')
         .select('id, nombre, anio, niveles(id, nombre)')
@@ -38,7 +37,15 @@ const ManageCoursesPage = () => {
         .order('nombre');
       if (error) throw new Error(error.message);
       
-      setCourses(data.filter((c: any) => c.niveles) as CursoConNivelId[]);
+      const formattedCourses = data
+        .filter((c: any) => c.niveles)
+        .map((c: any) => ({
+          id: c.id,
+          nombre: c.nombre,
+          anio: c.anio,
+          nivel: c.niveles,
+        }));
+      setCourses(formattedCourses);
     } catch (error: any) {
       showError(error.message);
     } finally {

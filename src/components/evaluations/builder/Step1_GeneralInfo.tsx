@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller, Control } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, Control } from 'react-hook-form';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
@@ -19,7 +18,7 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MultiSelect } from '@/components/MultiSelect';
 
-const schema = z.object({
+export const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
   tipo: z.string().min(1, "El tipo de evaluación es requerido."),
   descripcion: z.string().optional(),
@@ -30,7 +29,7 @@ const schema = z.object({
 export type EvaluationStep1Data = z.infer<typeof schema>;
 
 interface Step1GeneralInfoProps {
-  onFormSubmit: (data: EvaluationStep1Data) => void;
+  onFormSubmit: (e: React.BaseSyntheticEvent) => Promise<void>;
   control: Control<EvaluationStep1Data>;
   isSubmitting: boolean;
 }
@@ -38,10 +37,9 @@ interface Step1GeneralInfoProps {
 const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, control, isSubmitting }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
-  const { handleSubmit, formState: { errors } } = useForm<EvaluationStep1Data>({
-    resolver: zodResolver(schema),
-    // The control is now passed from the parent, so we don't need to manage it here
-  });
+  
+  // We get errors from the parent's useForm hook via control
+  const { formState: { errors } } = useForm({ control });
 
   useEffect(() => {
     const loadData = async () => {
@@ -61,7 +59,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
   }, [activeEstablishment]);
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
+    <form onSubmit={onFormSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="titulo">Título de la Evaluación</Label>
