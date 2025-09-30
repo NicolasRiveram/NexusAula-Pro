@@ -19,8 +19,8 @@ const ProjectsPage = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [niveles, setNiveles] = useState<Nivel[]>([]);
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
-  const [selectedNivel, setSelectedNivel] = useState<string>('');
-  const [selectedAsignatura, setSelectedAsignatura] = useState<string>('');
+  const [selectedNivel, setSelectedNivel] = useState<string>('all');
+  const [selectedAsignatura, setSelectedAsignatura] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const { activeEstablishment } = useEstablishment();
@@ -43,7 +43,9 @@ const ProjectsPage = () => {
       if (isStudent) {
         data = await fetchStudentProjects(user.id, activeEstablishment.id);
       } else {
-        data = await fetchAllProjects(activeEstablishment.id, selectedNivel || undefined, selectedAsignatura || undefined);
+        const nivelFilter = selectedNivel === 'all' ? undefined : selectedNivel;
+        const asignaturaFilter = selectedAsignatura === 'all' ? undefined : selectedAsignatura;
+        data = await fetchAllProjects(activeEstablishment.id, nivelFilter, asignaturaFilter);
       }
       setProjects(data);
     } catch (err: any) {
@@ -95,14 +97,14 @@ const ProjectsPage = () => {
               <Select value={selectedNivel} onValueChange={setSelectedNivel}>
                 <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por Nivel" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los niveles</SelectItem>
+                  <SelectItem value="all">Todos los niveles</SelectItem>
                   {niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={selectedAsignatura} onValueChange={setSelectedAsignatura}>
                 <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por Asignatura" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas las asignaturas</SelectItem>
+                  <SelectItem value="all">Todas las asignaturas</SelectItem>
                   {asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}
                 </SelectContent>
               </Select>
