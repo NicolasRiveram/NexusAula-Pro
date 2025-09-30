@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
@@ -20,9 +19,10 @@ import { cn } from '@/lib/utils';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import { createProject } from '@/api/projectsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { MultiSelect } from '@/components/MultiSelect';
 
 const schema = z.object({
-  cursoAsignaturaId: z.string().uuid("Debes seleccionar un curso."),
+  cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos un curso."),
   nombre: z.string().min(3, "El nombre del proyecto es requerido."),
   descripcion: z.string().min(10, "La descripción es requerida."),
   fechas: z.object({
@@ -67,16 +67,28 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
   }, [isOpen, activeEstablishment]);
 
   const onSubmit = async (data: FormData) => {
+    if (!activeEstablishment) {
+        showError("No hay un establecimiento activo seleccionado.");
+        return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        showError("No se pudo identificar al usuario.");
+        return;
+    }
+
     setIsSubmitting(true);
     const toastId = showLoading("Creando proyecto...");
     try {
       await createProject({
-        cursoAsignaturaId: data.cursoAsignaturaId,
+        curso_asignatura_ids: data.cursoAsignaturaIds,
         nombre: data.nombre,
         descripcion: data.descripcion,
         fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
         fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
         producto_final: data.producto_final,
+        establecimiento_id: activeEstablishment.id,
+        creado_por: user.id,
       });
       dismissToast(toastId);
       showSuccess("Proyecto creado exitosamente.");
@@ -100,26 +112,6 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="cursoAsignaturaId">Curso Asociado</Label>
-            <Controller
-              name="cursoAsignaturaId"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona un curso" /></SelectTrigger>
-                  <SelectContent>
-                    {cursosAsignaturas.map(ca => (
-                      <SelectItem key={ca.id} value={ca.id}>
-                        {ca.curso.nivel.nombre} {ca.curso.nombre} - {ca.asignatura.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.cursoAsignaturaId && <p className="text-red-500 text-sm">{errors.cursoAsignaturaId.message}</p>}
-          </div>
           <div className="space-y-2">
             <Label htmlFor="nombre">Nombre del Proyecto</Label>
             <Controller name="nombre" control={control} render={({ field }) => <Input id="nombre" {...field} />} />
@@ -155,6 +147,22 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
             <Label htmlFor="producto_final">Producto Final Esperado</Label>
             <Controller name="producto_final" control={control} render={({ field }) => <Input id="producto_final" {...field} />} />
             {errors.producto_final && <p className="text-red-500 text-sm">{errors.producto_final.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cursoAsignaturaIds">Cursos Asociados</Label>
+            <Controller
+              name="cursoAsignaturaIds"
+              control={control}
+              render={({ field }) => (
+                <MultiSelect
+                  options={cursosAsignaturas.map(ca => ({ value: ca.id, label: `${ca.curso.nivel.nombre} ${ca.curso.nombre} - ${ca.asignatura.nombre}` }))}
+                  selected={field.value || []}
+                  onValueChange={field.onChange}
+                  placeholder="Selecciona uno o más cursos"
+                />
+              )}
+            />
+            {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm">{errors.cursoAsignaturaIds.message}</p>}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
