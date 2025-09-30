@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Controller, Control, useForm } from 'react-hook-form';
+import { Controller, Control, useFormState } from 'react-hook-form';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
@@ -39,7 +39,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
   
   // We get errors from the parent's useForm hook via control
-  const { formState: { errors } } = useForm({ control });
+  const { errors } = useFormState({ control });
 
   useEffect(() => {
     const loadData = async () => {
