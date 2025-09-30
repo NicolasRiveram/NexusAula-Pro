@@ -34,6 +34,7 @@ import { Toaster } from "@/components/ui/toaster";
     import StudentResponseDetailPage from "./pages/dashboard/evaluations/StudentResponseDetailPage";
     import DashboardIndex from "./pages/dashboard/DashboardIndex";
     import ManageCoursesPage from "./pages/dashboard/admin/ManageCoursesPage";
+    import ManageCalendarPage from "./pages/dashboard/admin/ManageCalendarPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -141,6 +142,7 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="configuracion" element={<SettingsPage />} />
                 {/* Admin Routes */}
                 <Route path="gestion/cursos" element={<ManageCoursesPage />} />
+                <Route path="gestion/calendario" element={<ManageCalendarPage />} />
               </Route>
             ) : (
               <Route path="*" element={<Login />} />

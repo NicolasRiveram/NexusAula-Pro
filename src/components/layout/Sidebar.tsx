@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield } from 'lucide-react';
+import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -17,6 +17,7 @@ const navItems = [
 
 const adminNavItems = [
   { to: '/dashboard/gestion/cursos', icon: Book, label: 'Cursos' },
+  { to: '/dashboard/gestion/calendario', icon: CalendarOff, label: 'Calendario Escolar' },
 ];
 
 interface SidebarProps {

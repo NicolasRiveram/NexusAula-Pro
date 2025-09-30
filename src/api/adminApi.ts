@@ -24,6 +24,13 @@ export interface Announcement {
   fecha_fin: string;
 }
 
+export interface NonSchoolDay {
+  id: string;
+  fecha: string;
+  descripcion: string;
+  tipo: string;
+}
+
 export const fetchPendingRequests = async (establecimientoId: string): Promise<PendingRequest[]> => {
   const { data, error } = await supabase.rpc('get_pending_requests', {
     p_establecimiento_id: establecimientoId,
@@ -125,4 +132,33 @@ export const updateCourse = async (courseId: string, nombre: string, nivelId: st
 export const deleteCourse = async (courseId: string) => {
     const { error } = await supabase.rpc('delete_course', { p_course_id: courseId });
     if (error) throw new Error(`Error deleting course: ${error.message}`);
+};
+
+export const fetchNonSchoolDays = async (establecimientoId: string): Promise<NonSchoolDay[]> => {
+  const { data, error } = await supabase
+    .from('dias_no_lectivos')
+    .select('id, fecha, descripcion, tipo')
+    .eq('establecimiento_id', establecimientoId)
+    .order('fecha', { ascending: true });
+  if (error) throw new Error(`Error fetching non-school days: ${error.message}`);
+  return data || [];
+};
+
+export const saveNonSchoolDay = async (
+  dayData: Omit<NonSchoolDay, 'id'>,
+  establecimientoId: string,
+  dayId?: string
+) => {
+  if (dayId) {
+    const { error } = await supabase.from('dias_no_lectivos').update(dayData).eq('id', dayId);
+    if (error) throw new Error(`Error updating non-school day: ${error.message}`);
+  } else {
+    const { error } = await supabase.from('dias_no_lectivos').insert({ ...dayData, establecimiento_id: establecimientoId });
+    if (error) throw new Error(`Error creating non-school day: ${error.message}`);
+  }
+};
+
+export const deleteNonSchoolDay = async (dayId: string) => {
+  const { error } = await supabase.from('dias_no_lectivos').delete().eq('id', dayId);
+  if (error) throw new Error(`Error deleting non-school day: ${error.message}`);
 };
