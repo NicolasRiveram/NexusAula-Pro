@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,9 +28,8 @@ serve(async (req) => {
     }
 
     const { block_content, block_type } = await req.json();
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+    
+    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const contentPrompt = block_type === 'text' 
       ? `el siguiente texto: "${block_content.text}"`
@@ -60,10 +58,19 @@ serve(async (req) => {
       - Tu respuesta DEBE ser únicamente el array JSON dentro de un bloque de código.
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const aiText = response.text();
-    
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json();
+      throw new Error(`[GoogleGenerativeAI Error]: ${res.status} ${res.statusText} - ${JSON.stringify(errorBody)}`);
+    }
+
+    const data = await res.json();
+    const aiText = data.candidates[0].content.parts[0].text;
     const aiResponseJson = cleanAndParseJson(aiText);
 
     return new Response(JSON.stringify(aiResponseJson), {
