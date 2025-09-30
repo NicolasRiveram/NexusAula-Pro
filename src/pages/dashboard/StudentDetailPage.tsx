@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Mail, User, Hash } from 'lucide-react';
-import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory } from '@/api/coursesApi';
+import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance } from '@/api/coursesApi';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { calculateGrade } from '@/utils/evaluationUtils';
+import { Progress } from '@/components/ui/progress';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const StudentDetailPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -19,6 +21,8 @@ const StudentDetailPage = () => {
   const [rubricEvaluations, setRubricEvaluations] = useState<StudentRubricEvaluation[]>([]);
   const [evaluationHistory, setEvaluationHistory] = useState<StudentEvaluationHistory[]>([]);
   const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
+  const [stats, setStats] = useState<StudentPerformanceStats | null>(null);
+  const [skillPerformance, setSkillPerformance] = useState<StudentSkillPerformance[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,12 +32,16 @@ const StudentDetailPage = () => {
         fetchStudentProfile(studentId),
         fetchEvaluationsForStudent(studentId),
         fetchStudentEnrollments(studentId),
-        fetchStudentEvaluationHistory(studentId)
-      ]).then(([studentData, rubricData, enrollmentsData, historyData]) => {
+        fetchStudentEvaluationHistory(studentId),
+        fetchStudentPerformanceStats(studentId),
+        fetchStudentSkillPerformance(studentId)
+      ]).then(([studentData, rubricData, enrollmentsData, historyData, statsData, skillData]) => {
         setStudent(studentData);
         setRubricEvaluations(rubricData);
         setEnrollments(enrollmentsData);
         setEvaluationHistory(historyData);
+        setStats(statsData);
+        setSkillPerformance(skillData);
       }).catch(err => {
         showError(`Error al cargar datos del estudiante: ${err.message}`);
       }).finally(() => {
@@ -81,6 +89,49 @@ const StudentDetailPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <Card>
+              <CardHeader>
+                  <CardTitle>Rendimiento General</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                  <div>
+                      <p className="text-sm font-medium">Promedio General</p>
+                      <p className="text-2xl font-bold">{stats?.average_score?.toFixed(1) ?? 'N/A'}%</p>
+                      <Progress value={stats?.average_score ?? 0} className="mt-1" />
+                  </div>
+                  <div>
+                      <p className="text-sm font-medium">Evaluaciones Completadas</p>
+                      <p className="text-2xl font-bold">{stats?.completed_evaluations ?? 0} / {stats?.total_evaluations ?? 0}</p>
+                  </div>
+              </CardContent>
+          </Card>
+        </div>
+        <div className="lg:col-span-2">
+          <Card>
+              <CardHeader>
+                  <CardTitle>Desempeño por Habilidad</CardTitle>
+                  <CardDescription>Promedio de logro en las habilidades evaluadas.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  {skillPerformance.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={200}>
+                          <BarChart data={skillPerformance.map(s => ({ name: s.habilidad_nombre, Logro: s.promedio_logro }))}>
+                              <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                              <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+                              <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} formatter={(value: number) => [`${value.toFixed(1)}%`, 'Logro']} />
+                              <Bar dataKey="Logro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                      </ResponsiveContainer>
+                  ) : (
+                      <p className="text-center text-muted-foreground py-10">No hay datos de habilidades para mostrar.</p>
+                  )}
+              </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <Card>
         <CardHeader>
