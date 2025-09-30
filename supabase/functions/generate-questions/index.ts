@@ -1,0 +1,80 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+function cleanAndParseJson(text: string): any {
+  const jsonMatch = text.match(/```json([\s\S]*?)```/);
+  const jsonString = jsonMatch ? jsonMatch[1].trim() : text;
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("Failed to parse JSON from AI response:", jsonString);
+    throw new Error("La respuesta de la IA no tenía un formato JSON válido.");
+  }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  try {
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!apiKey) {
+      throw new Error("La clave de API de Gemini no está configurada.");
+    }
+
+    const { block_content, block_type } = await req.json();
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const contentPrompt = block_type === 'text' 
+      ? `el siguiente texto: "${block_content.text}"`
+      : `una imagen (no puedo ver la imagen, pero asume que es relevante para generar preguntas educativas).`;
+
+    const prompt = `
+      Eres un asistente experto en crear evaluaciones educativas para Chile.
+      Basado en ${contentPrompt}, genera un array de 2 a 3 preguntas de selección múltiple en formato JSON.
+      La estructura de cada objeto en el array debe ser:
+      \`\`\`json
+      {
+        "enunciado": "string",
+        "tipo_item": "seleccion_multiple",
+        "puntaje": 5,
+        "alternativas": [
+          {"texto": "string", "es_correcta": boolean},
+          {"texto": "string", "es_correcta": boolean},
+          {"texto": "string", "es_correcta": boolean},
+          {"texto": "string", "es_correcta": boolean}
+        ]
+      }
+      \`\`\`
+      - Asegúrate de que solo UNA alternativa tenga "es_correcta" como true.
+      - El puntaje debe ser un número entero.
+      - El enunciado y las alternativas deben ser claros y concisos.
+      - Tu respuesta DEBE ser únicamente el array JSON dentro de un bloque de código.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const aiText = response.text();
+    
+    const aiResponseJson = cleanAndParseJson(aiText);
+
+    return new Response(JSON.stringify(aiResponseJson), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    console.error("Error in generate-questions:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    })
+  }
+})

@@ -107,9 +107,8 @@ export const updateRubric = async (rubricId: string, rubricData: Partial<Omit<Ru
 };
 
 export const generateRubricWithAI = async (activity: string, description: string): Promise<RubricContent> => {
-  const { data, error } = await supabase.rpc('generar_rubrica_ia', {
-    p_nombre_actividad: activity,
-    p_descripcion: description,
+  const { data, error } = await supabase.functions.invoke('generate-rubric', {
+    body: { activity, description },
   });
 
   if (error) throw new Error(`Error en la IA al generar la rúbrica: ${error.message}`);

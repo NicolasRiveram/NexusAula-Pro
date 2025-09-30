@@ -420,9 +420,11 @@ export const getPublicImageUrl = (path: string): string => {
 };
 
 export const generateQuestionsFromBlock = async (block: EvaluationContentBlock) => {
-  const { data, error } = await supabase.rpc('generar_preguntas_ia', {
-    p_block_content: block.content,
-    p_block_type: block.block_type,
+  const { data, error } = await supabase.functions.invoke('generate-questions', {
+    body: {
+      block_content: block.content,
+      block_type: block.block_type,
+    },
   });
   if (error) throw new Error(`Error al generar preguntas con IA: ${error.message}`);
   return data;
@@ -486,7 +488,18 @@ export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationIte
 };
 
 export const generatePIEAdaptation = async (itemId: string) => {
-    const { data, error } = await supabase.rpc('adaptar_pregunta_pie_ia', { p_item_id: itemId });
+    const { data: item, error: fetchError } = await supabase
+        .from('evaluacion_items')
+        .select('enunciado, item_alternativas(*)')
+        .eq('id', itemId)
+        .single();
+
+    if (fetchError) throw new Error(`Error al obtener la pregunta para adaptar: ${fetchError.message}`);
+    if (!item) throw new Error('Pregunta no encontrada.');
+
+    const { data, error } = await supabase.functions.invoke('adapt-question-pie', {
+        body: { item }
+    });
     if (error) throw new Error(`Error al generar adaptación PIE: ${error.message}`);
     return data;
 };
@@ -510,7 +523,6 @@ export const savePIEAdaptation = async (parentItemId: string, adaptationData: an
         .eq('id', parentItemId);
 
     if (updateError) {
-        // Attempt to clean up if the second part fails. Not a true transaction.
         await supabase.from('adaptaciones_pie').delete().eq('parent_item_id', parentItemId);
         throw new Error(`Error al actualizar el item, se revirtió la adaptación: ${updateError.message}`);
     }
@@ -527,15 +539,23 @@ export const updateEvaluationItem = async (itemId: string, data: { enunciado: st
 };
 
 export const increaseQuestionDifficulty = async (itemId: string) => {
-    const { data: newData, error: rpcError } = await supabase.rpc('aumentar_dificultad_pregunta_ia', { p_item_id: itemId });
-    if (rpcError) throw new Error(`Error en la IA para aumentar dificultad: ${rpcError.message}`);
+    const { data: item, error: fetchError } = await supabase
+        .from('evaluacion_items')
+        .select('enunciado, puntaje, item_alternativas(*)')
+        .eq('id', itemId)
+        .single();
 
-    const { data: itemData, error: fetchError } = await supabase.from('evaluacion_items').select('puntaje').eq('id', itemId).single();
-    if (fetchError) throw new Error(`Error al obtener puntaje original: ${fetchError.message}`);
+    if (fetchError) throw new Error(`Error al obtener la pregunta para modificar: ${fetchError.message}`);
+    if (!item) throw new Error('Pregunta no encontrada.');
+
+    const { data: newData, error: rpcError } = await supabase.functions.invoke('increase-question-difficulty', {
+        body: { item }
+    });
+    if (rpcError) throw new Error(`Error en la IA para aumentar dificultad: ${rpcError.message}`);
 
     await updateEvaluationItem(itemId, {
         enunciado: newData.enunciado,
-        puntaje: itemData.puntaje, // Mantenemos el puntaje original
+        puntaje: item.puntaje,
         alternativas: newData.alternativas,
     });
 };

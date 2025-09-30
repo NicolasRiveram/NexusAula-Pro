@@ -1,0 +1,85 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+function cleanAndParseJson(text: string): any {
+  const jsonMatch = text.match(/```json([\s\S]*?)```/);
+  const jsonString = jsonMatch ? jsonMatch[1].trim() : text;
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("Failed to parse JSON from AI response:", jsonString);
+    throw new Error("La respuesta de la IA no tenía un formato JSON válido.");
+  }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  try {
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!apiKey) {
+      throw new Error("La clave de API de Gemini no está configurada.");
+    }
+
+    const { activity, description } = await req.json();
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `
+      Eres un asistente experto en crear rúbricas de evaluación para Chile.
+      Basado en el nombre de la actividad y su descripción, genera una rúbrica en formato JSON.
+      La estructura del objeto JSON debe ser:
+      \`\`\`json
+      {
+        "criterios": [
+          {
+            "nombre": "string",
+            "habilidad": "string",
+            "descripcion": "string",
+            "niveles": [
+              {"puntaje": 5, "nombre": "Logrado", "descripcion": "string"},
+              {"puntaje": 4, "nombre": "Suficiente", "descripcion": "string"},
+              {"puntaje": 3, "nombre": "Básico", "descripcion": "string"},
+              {"puntaje": 2, "nombre": "Inicial", "descripcion": "string"},
+              {"puntaje": 1, "nombre": "No logrado", "descripcion": "string"}
+            ]
+          }
+        ]
+      }
+      \`\`\`
+      - Genera 3 criterios de evaluación relevantes.
+      - Cada criterio debe tener 5 niveles de logro con puntajes de 5 a 1.
+      - La 'habilidad' debe ser una habilidad general asociada al criterio (ej: "Pensamiento Crítico", "Comunicación Efectiva").
+      - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
+
+      Detalles de la actividad:
+      - Actividad a evaluar: ${activity}
+      - Descripción: ${description}
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const aiText = response.text();
+    
+    const aiResponseJson = cleanAndParseJson(aiText);
+
+    return new Response(JSON.stringify(aiResponseJson), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    console.error("Error in generate-rubric:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    })
+  }
+})
