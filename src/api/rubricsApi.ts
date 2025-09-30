@@ -133,42 +133,13 @@ export const saveRubricEvaluation = async (evaluationData: RubricEvaluationResul
 };
 
 export const fetchEvaluationsForStudent = async (studentId: string): Promise<StudentRubricEvaluation[]> => {
-  const { data, error } = await supabase
-    .from('rubrica_evaluaciones_estudiantes')
-    .select(`
-      id,
-      created_at,
-      puntaje_obtenido,
-      puntaje_maximo,
-      calificacion_final,
-      comentarios,
-      resultados_json,
-      rubricas!inner (
-        nombre,
-        actividad_a_evaluar,
-        contenido_json
-      ),
-      curso_asignaturas (
-        asignaturas ( nombre )
-      )
-    `)
-    .eq('estudiante_perfil_id', studentId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw new Error(`Error fetching student evaluations: ${error.message}`);
-  
-  // Auditoría y limpieza de datos: Asegura que la estructura siempre sea consistente.
-  return (data as any[]).map(ev => {
-    const asignaturaNombre = ev.curso_asignaturas?.asignaturas?.nombre;
-
-    return {
-      ...ev,
-      curso_asignatura: {
-        ...ev.curso_asignaturas,
-        asignaturas: {
-          nombre: asignaturaNombre || 'Asignatura no especificada'
-        }
-      }
-    };
+  const { data, error } = await supabase.rpc('get_student_rubric_evaluations', {
+    p_student_id: studentId,
   });
+
+  if (error) {
+    throw new Error(`Error fetching student evaluations: ${error.message}`);
+  }
+  
+  return data as StudentRubricEvaluation[];
 };
