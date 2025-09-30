@@ -31,7 +31,7 @@ serve(async (req) => {
     const { item } = await req.json();
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
     const prompt = `
       Eres un asistente experto en diseño de evaluaciones.
