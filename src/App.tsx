@@ -37,6 +37,7 @@ import { Toaster } from "@/components/ui/toaster";
     import DashboardIndex from "./pages/dashboard/DashboardIndex";
     import ManageCoursesPage from "./pages/dashboard/admin/ManageCoursesPage";
     import ManageCalendarPage from "./pages/dashboard/admin/ManageCalendarPage";
+    import StudentSchedulePage from "./pages/dashboard/student/StudentSchedulePage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -120,30 +121,36 @@ import { Toaster } from "@/components/ui/toaster";
             {session && profileComplete ? (
               <Route path="/dashboard" element={<Dashboard />}>
                 <Route index element={<DashboardIndex />} />
-                {/* Teacher Routes */}
+                {/* Teacher & Student Routes */}
                 <Route path="cursos" element={<CoursesPage />} />
                 <Route path="cursos/:cursoAsignaturaId" element={<CourseDetailPage />} />
                 <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
+                <Route path="evaluacion" element={<EvaluationPage />} />
+                <Route path="evaluacion/:evaluationId/responder" element={<EvaluationTakerPage />} />
+                <Route path="proyectos" element={<ProjectsPage />} />
+                <Route path="proyectos/:projectId" element={<ProjectDetailPage />} />
+                <Route path="configuracion" element={<SettingsPage />} />
+
+                {/* Teacher-only Routes */}
                 <Route path="horario" element={<SchedulePage />} />
                 <Route path="planificacion" element={<DidacticPlannerPage />} />
                 <Route path="planificacion/nueva" element={<NewUnitPlan />} />
                 <Route path="planificacion/:planId" element={<UnitPlanDetailPage />} />
-                <Route path="evaluacion" element={<EvaluationPage />} />
                 <Route path="evaluacion/crear" element={<EvaluationBuilderPage />} />
                 <Route path="evaluacion/editar/:evaluationId" element={<EvaluationBuilderPage />} />
                 <Route path="evaluacion/:evaluationId" element={<EvaluationDetailPage />} />
                 <Route path="evaluacion/:evaluationId/resultados" element={<EvaluationResultsPage />} />
                 <Route path="evaluacion/:evaluationId/resultados/:responseId" element={<StudentResponseDetailPage />} />
-                <Route path="evaluacion/:evaluationId/responder" element={<EvaluationTakerPage />} />
                 <Route path="rubricas" element={<RubricsPage />} />
                 <Route path="rubricas/crear" element={<RubricBuilderPage />} />
                 <Route path="rubricas/editar/:rubricId" element={<EditRubricPage />} />
                 <Route path="rubricas/:rubricId" element={<RubricDetailPage />} />
-                <Route path="proyectos" element={<ProjectsPage />} />
-                <Route path="proyectos/:projectId" element={<ProjectDetailPage />} />
                 <Route path="analiticas" element={<AnalyticsPage />} />
                 <Route path="bitacora" element={<BitacoraPage />} />
-                <Route path="configuracion" element={<SettingsPage />} />
+                
+                {/* Student-only Routes */}
+                <Route path="mi-horario" element={<StudentSchedulePage />} />
+
                 {/* Admin Routes */}
                 <Route path="gestion/cursos" element={<ManageCoursesPage />} />
                 <Route path="gestion/calendario" element={<ManageCalendarPage />} />

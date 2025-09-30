@@ -22,6 +22,16 @@ export interface StudentDashboardData {
   anuncios: { id: string; titulo: string; mensaje: string }[];
 }
 
+export interface StudentScheduleBlock {
+  id: string;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string;
+  curso_nombre: string;
+  nivel_nombre: string;
+  asignatura_nombre: string;
+}
+
 export const fetchStudentCourses = async (studentId: string, establecimientoId: string): Promise<StudentCourse[]> => {
   const { data, error } = await supabase
     .from('curso_estudiantes')
@@ -78,4 +88,38 @@ export const fetchStudentDashboardData = async (studentId: string, establecimien
     agenda: agendaData || [],
     anuncios: anunciosData || [],
   };
+};
+
+export const fetchStudentWeeklySchedule = async (studentId: string, establecimientoId: string): Promise<StudentScheduleBlock[]> => {
+  const { data, error } = await supabase
+    .from('horario_curso')
+    .select(`
+      id,
+      dia_semana,
+      hora_inicio,
+      hora_fin,
+      curso_asignaturas!inner (
+        cursos!inner (
+          nombre,
+          establecimiento_id,
+          niveles ( nombre ),
+          curso_estudiantes!inner ( estudiante_perfil_id )
+        ),
+        asignaturas ( nombre )
+      )
+    `)
+    .eq('curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+    .eq('curso_asignaturas.cursos.curso_estudiantes.estudiante_perfil_id', studentId);
+
+  if (error) throw new Error(`Error fetching student schedule: ${error.message}`);
+
+  return (data || []).map((item: any) => ({
+    id: item.id,
+    dia_semana: item.dia_semana,
+    hora_inicio: item.hora_inicio.substring(0, 5),
+    hora_fin: item.hora_fin.substring(0, 5),
+    curso_nombre: item.curso_asignaturas.cursos.nombre,
+    nivel_nombre: item.curso_asignaturas.cursos.niveles.nombre,
+    asignatura_nombre: item.curso_asignaturas.asignaturas.nombre,
+  }));
 };

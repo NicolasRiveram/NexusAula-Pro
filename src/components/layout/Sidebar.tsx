@@ -18,7 +18,7 @@ const teacherNavItems = [
 const studentNavItems = [
   { to: '/dashboard', icon: Home, label: 'Inicio' },
   { to: '/dashboard/cursos', icon: Book, label: 'Mis Cursos' },
-  { to: '/dashboard/horario', icon: Clock, label: 'Horario' },
+  { to: '/dashboard/mi-horario', icon: Clock, label: 'Horario' },
   { to: '/dashboard/evaluacion', icon: FileText, label: 'Mis Evaluaciones' },
   { to: '/dashboard/proyectos', icon: Briefcase, label: 'Mis Proyectos' },
 ];
