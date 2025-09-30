@@ -3,19 +3,22 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { fetchEvaluationDetails, fetchEvaluationResultsSummary, EvaluationDetail, EvaluationResultSummary, fetchEvaluationStatistics, EvaluationStatistics } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, fetchEvaluationResultsSummary, EvaluationDetail, EvaluationResultSummary, fetchEvaluationStatistics, EvaluationStatistics, fetchItemAnalysis, ItemAnalysisResult } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import EvaluationStatsCard from '@/components/evaluations/results/EvaluationStatsCard';
 import { calculateGrade } from '@/utils/evaluationUtils';
+import ScoreDistributionChart from '@/components/evaluations/results/ScoreDistributionChart';
+import ItemAnalysis from '@/components/evaluations/results/ItemAnalysis';
 
 const EvaluationResultsPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [results, setResults] = useState<EvaluationResultSummary[]>([]);
   const [stats, setStats] = useState<EvaluationStatistics | null>(null);
+  const [itemAnalysis, setItemAnalysis] = useState<ItemAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,11 +27,13 @@ const EvaluationResultsPage = () => {
       Promise.all([
         fetchEvaluationDetails(evaluationId),
         fetchEvaluationResultsSummary(evaluationId),
-        fetchEvaluationStatistics(evaluationId)
-      ]).then(([evalData, resultsData, statsData]) => {
+        fetchEvaluationStatistics(evaluationId),
+        fetchItemAnalysis(evaluationId)
+      ]).then(([evalData, resultsData, statsData, analysisData]) => {
         setEvaluation(evalData);
         setResults(resultsData);
         setStats(statsData);
+        setItemAnalysis(analysisData);
       }).catch(err => {
         showError(`Error al cargar los resultados: ${err.message}`);
       }).finally(() => {
@@ -68,6 +73,10 @@ const EvaluationResultsPage = () => {
       </Link>
 
       {stats && <EvaluationStatsCard stats={stats} />}
+      
+      {stats && stats.score_distribution.length > 0 && <ScoreDistributionChart stats={stats} />}
+
+      {itemAnalysis.length > 0 && <ItemAnalysis analysis={itemAnalysis} />}
 
       <Card>
         <CardHeader>

@@ -90,6 +90,25 @@ export interface StudentResponseHeader {
   evaluation_title: string;
 }
 
+export interface ItemAnalysisResult {
+  item_id: string;
+  item_enunciado: string;
+  correct_answers_count: number;
+  total_answers_count: number;
+  correct_percentage: number;
+}
+
+export const fetchItemAnalysis = async (evaluationId: string): Promise<ItemAnalysisResult[]> => {
+  const { data, error } = await supabase.rpc('get_item_analysis', {
+    p_evaluation_id: evaluationId,
+  });
+
+  if (error) {
+    throw new Error(`Error fetching item analysis: ${error.message}`);
+  }
+  return data || [];
+};
+
 
 export const fetchEvaluations = async (docenteId: string, establecimientoId: string): Promise<Evaluation[]> => {
   if (!establecimientoId) return [];
