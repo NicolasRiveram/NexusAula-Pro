@@ -51,7 +51,7 @@ export interface UnitLink {
 }
 
 export interface ProjectDetail extends Project {
-  creado_por: string;
+  creado_por: { nombre_completo: string };
   proyecto_etapas: ProjectStage[];
   proyecto_unidades_link: UnitLink[];
 }

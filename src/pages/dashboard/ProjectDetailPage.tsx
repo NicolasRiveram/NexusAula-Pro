@@ -128,7 +128,7 @@ const ProjectDetailPage = () => {
     );
   }
 
-  const isOwner = project.creado_por === currentUserId;
+  const isOwner = project.creado_por.id === currentUserId;
 
   return (
     <>
