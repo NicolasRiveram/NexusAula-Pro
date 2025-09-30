@@ -49,7 +49,7 @@ export interface StudentRubricEvaluation {
   curso_asignatura: {
     asignaturas: {
       nombre: string;
-    };
+    } | null;
   };
 }
 
@@ -156,5 +156,13 @@ export const fetchEvaluationsForStudent = async (studentId: string): Promise<Stu
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Error fetching student evaluations: ${error.message}`);
-  return data as any[];
+  
+  // Procesa los datos para garantizar que no haya nulos problemáticos
+  return (data as any[]).map(ev => ({
+    ...ev,
+    curso_asignatura: {
+      ...ev.curso_asignatura,
+      asignaturas: ev.curso_asignatura?.asignaturas ?? null // Asegura que asignaturas sea null si no existe
+    }
+  }));
 };
