@@ -23,6 +23,7 @@ export interface Project {
   proyecto_curso_asignaturas: {
     curso_asignaturas: {
       id: string;
+      docente_id: string;
       cursos: {
         nombre: string;
         niveles: {
@@ -49,6 +50,7 @@ export const fetchAllProjects = async (establecimientoId: string, nivelId?: stri
       proyecto_curso_asignaturas!inner (
         curso_asignaturas!inner (
           id,
+          docente_id,
           cursos!inner ( id, nombre, nivel_id, niveles ( nombre ) ),
           asignaturas!inner ( id, nombre )
         )
@@ -66,7 +68,6 @@ export const fetchAllProjects = async (establecimientoId: string, nivelId?: stri
   const { data, error } = await query.order('fecha_inicio', { ascending: false });
   if (error) throw new Error(`Error fetching projects: ${error.message}`);
   
-  // Deduplicate projects since a project can match multiple courses
   const uniqueProjects = Array.from(new Map(data.map(p => [p.id, p])).values());
   
   return uniqueProjects as any;
@@ -81,6 +82,7 @@ export const fetchProjectDetails = async (projectId: string): Promise<ProjectDet
       proyecto_curso_asignaturas (
         curso_asignaturas (
           id,
+          docente_id,
           cursos ( id, nombre, niveles ( nombre ) ),
           asignaturas ( id, nombre )
         )
@@ -127,10 +129,32 @@ export const createProject = async (projectData: CreateProjectData) => {
     .insert(links);
 
   if (linkError) {
-    // Rollback project creation
     await supabase.from('proyectos_abp').delete().eq('id', newProject.id);
     throw new Error(`Error linking courses to project: ${linkError.message}`);
   }
 
   return newProject.id;
+};
+
+export const linkCoursesToProject = async (projectId: string, cursoAsignaturaIds: string[]) => {
+  const links = cursoAsignaturaIds.map(id => ({
+    proyecto_id: projectId,
+    curso_asignatura_id: id,
+  }));
+
+  const { error } = await supabase
+    .from('proyecto_curso_asignaturas')
+    .insert(links);
+
+  if (error) throw new Error(`Error al unirse al proyecto: ${error.message}`);
+};
+
+export const unlinkCourseFromProject = async (projectId: string, cursoAsignaturaId: string) => {
+    const { error } = await supabase
+        .from('proyecto_curso_asignaturas')
+        .delete()
+        .eq('proyecto_id', projectId)
+        .eq('curso_asignatura_id', cursoAsignaturaId);
+
+    if (error) throw new Error(`Error al desvincular el curso: ${error.message}`);
 };
