@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 
 interface DashboardContext {
-  profile: { rol: string };
+  profile: { rol: string } | null;
 }
 
 const ProjectsPage = () => {
@@ -25,10 +25,11 @@ const ProjectsPage = () => {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const { activeEstablishment } = useEstablishment();
   const { profile } = useOutletContext<DashboardContext>();
-  const isStudent = profile.rol === 'estudiante';
+  
+  const isStudent = profile?.rol === 'estudiante';
 
   const loadProjects = async () => {
-    if (!activeEstablishment) {
+    if (!activeEstablishment || !profile) {
       setProjects([]);
       setLoading(false);
       return;
@@ -69,7 +70,15 @@ const ProjectsPage = () => {
 
   useEffect(() => {
     loadProjects();
-  }, [activeEstablishment, selectedNivel, selectedAsignatura, isStudent]);
+  }, [activeEstablishment, selectedNivel, selectedAsignatura, isStudent, profile]);
+
+  if (!profile) {
+    return (
+      <div className="container mx-auto flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <>
