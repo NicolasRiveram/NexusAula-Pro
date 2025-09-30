@@ -37,10 +37,11 @@ type FormData = z.infer<typeof schema>;
 interface CreateProjectDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onProjectCreated: () => void;
+  onProjectCreated: (newProject: { id: string; nombre: string }) => void;
+  initialData?: Partial<FormData>;
 }
 
-const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClose, onProjectCreated }) => {
+const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClose, onProjectCreated, initialData }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,6 +67,22 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
     loadData();
   }, [isOpen, activeEstablishment]);
 
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        reset(initialData);
+      } else {
+        reset({
+          nombre: '',
+          descripcion: '',
+          fechas: undefined,
+          producto_final: '',
+          cursoAsignaturaIds: [],
+        });
+      }
+    }
+  }, [isOpen, initialData, reset]);
+
   const onSubmit = async (data: FormData) => {
     if (!activeEstablishment) {
         showError("No hay un establecimiento activo seleccionado.");
@@ -80,7 +97,7 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
     setIsSubmitting(true);
     const toastId = showLoading("Creando proyecto...");
     try {
-      await createProject({
+      const newProject = await createProject({
         curso_asignatura_ids: data.cursoAsignaturaIds,
         nombre: data.nombre,
         descripcion: data.descripcion,
@@ -92,7 +109,7 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
       });
       dismissToast(toastId);
       showSuccess("Proyecto creado exitosamente.");
-      onProjectCreated();
+      onProjectCreated(newProject);
       onClose();
     } catch (error: any) {
       dismissToast(toastId);
@@ -159,6 +176,7 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
                   selected={field.value || []}
                   onValueChange={field.onChange}
                   placeholder="Selecciona uno o más cursos"
+                  disabled={!!initialData?.cursoAsignaturaIds && initialData.cursoAsignaturaIds.length > 0}
                 />
               )}
             />

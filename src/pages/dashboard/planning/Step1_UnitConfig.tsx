@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2, Sparkles } from 'lucide-react';
+import { CalendarIcon, Loader2, Sparkles, PlusCircle } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -19,6 +19,7 @@ import { MultiSelect } from '@/components/MultiSelect';
 import { showError } from '@/utils/toast';
 import { fetchRelevantProjects, SimpleProject } from '@/api/projectsApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 
 const schema = z.object({
   cursoAsignaturaIds: z.array(z.string()).min(1, "Debes seleccionar al menos un curso."),
@@ -52,8 +53,10 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
   const [selectedNivel, setSelectedNivel] = useState<string | null>(null);
   const [relevantProjects, setRelevantProjects] = useState<SimpleProject[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
+  const [isCreateProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
+  const [initialProjectData, setInitialProjectData] = useState<Partial<any>>({});
 
-  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<UnitPlanFormData>({
+  const { control, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<UnitPlanFormData>({
     resolver: zodResolver(schema),
   });
 
@@ -125,166 +128,197 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
     setValue('descripcionContenidos', suggestedContent, { shouldValidate: true });
   };
 
+  const openCreateProjectDialog = () => {
+    const currentFormData = getValues();
+    setInitialProjectData({
+        nombre: currentFormData.titulo,
+        descripcion: currentFormData.descripcionContenidos,
+        fechas: currentFormData.fechas,
+        cursoAsignaturaIds: currentFormData.cursoAsignaturaIds,
+    });
+    setCreateProjectDialogOpen(true);
+  };
+
+  const handleProjectCreated = (newProject: { id: string; nombre: string }) => {
+    setRelevantProjects(prev => [...prev, newProject]);
+    setValue('proyectoId', newProject.id, { shouldValidate: true });
+    setCreateProjectDialogOpen(false);
+  };
+
   const cursosFiltrados = selectedNivel ? cursos.filter(c => c.nivelId === selectedNivel) : [];
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-      <div>
-        <Label>1. Selecciona el Nivel</Label>
-        <select
-          onChange={(e) => handleNivelChange(e.target.value)}
-          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <option value="">Selecciona un nivel</option>
-          {Object.entries(niveles).map(([id, nombre]) => (
-            <option key={id} value={id}>{nombre}</option>
-          ))}
-        </select>
-      </div>
-
-      {selectedNivel && (
+    <>
+      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         <div>
-          <Label>2. Selecciona los Cursos para esta Planificación</Label>
+          <Label>1. Selecciona el Nivel</Label>
+          <select
+            onChange={(e) => handleNivelChange(e.target.value)}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="">Selecciona un nivel</option>
+            {Object.entries(niveles).map(([id, nombre]) => (
+              <option key={id} value={id}>{nombre}</option>
+            ))}
+          </select>
+        </div>
+
+        {selectedNivel && (
+          <div>
+            <Label>2. Selecciona los Cursos para esta Planificación</Label>
+            <Controller
+              name="cursoAsignaturaIds"
+              control={control}
+              render={({ field }) => (
+                <MultiSelect
+                  options={cursosFiltrados.map(c => ({ value: c.id, label: c.nombre }))}
+                  selected={field.value || []}
+                  onValueChange={field.onChange}
+                  placeholder="Selecciona uno o más cursos"
+                />
+              )}
+            />
+            {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm mt-1">{errors.cursoAsignaturaIds.message}</p>}
+          </div>
+        )}
+
+        <div>
+          <Label>Vincular a Proyecto ABP (Opcional)</Label>
+          <div className="flex gap-2">
+            <Controller
+                name="proyectoId"
+                control={control}
+                render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCursoAsignaturaIds || selectedCursoAsignaturaIds.length === 0 || loadingProjects}>
+                        <SelectTrigger>
+                            <SelectValue placeholder={loadingProjects ? "Cargando proyectos..." : "Selecciona un proyecto"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">No vincular a un proyecto</SelectItem>
+                            {relevantProjects.map(p => (
+                                <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+            />
+            <Button type="button" variant="outline" onClick={openCreateProjectDialog} disabled={!selectedCursoAsignaturaIds || selectedCursoAsignaturaIds.length === 0}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Crear Proyecto
+            </Button>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="titulo">3. Título de la Unidad</Label>
           <Controller
-            name="cursoAsignaturaIds"
+            name="titulo"
+            control={control}
+            render={({ field }) => <Input id="titulo" placeholder="Ej: Unidad 2: El Ecosistema y sus Interacciones" {...field} />}
+          />
+          {errors.titulo && <p className="text-red-500 text-sm mt-1">{errors.titulo.message}</p>}
+        </div>
+
+        <div>
+          <Label>4. Rango de Fechas de la Unidad</Label>
+          <Controller
+            name="fechas"
             control={control}
             render={({ field }) => (
-              <MultiSelect
-                options={cursosFiltrados.map(c => ({ value: c.id, label: c.nombre }))}
-                selected={field.value || []}
-                onValueChange={field.onChange}
-                placeholder="Selecciona uno o más cursos"
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !field.value?.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {field.value?.from ? (
+                      field.value.to ? (
+                        <>
+                          {format(field.value.from, "LLL dd, y", { locale: es })} -{" "}
+                          {format(field.value.to, "LLL dd, y", { locale: es })}
+                        </>
+                      ) : (
+                        format(field.value.from, "LLL dd, y", { locale: es })
+                      )
+                    ) : (
+                      <span>Selecciona un rango de fechas</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={field.value?.from}
+                    selected={field.value as DateRange}
+                    onSelect={field.onChange}
+                    numberOfMonths={2}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          />
+          {errors.fechas && <p className="text-red-500 text-sm mt-1">{errors.fechas?.from?.message || errors.fechas?.to?.message}</p>}
+        </div>
+
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <Label htmlFor="descripcionContenidos">5. Contenidos y Temas a Abordar</Label>
+            <Button type="button" variant="outline" size="sm" onClick={handleSuggestContent} disabled={isLoading}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Sugerir
+            </Button>
+          </div>
+          <Controller
+            name="descripcionContenidos"
+            control={control}
+            render={({ field }) => (
+              <Textarea
+                id="descripcionContenidos"
+                placeholder="Describe los temas, conceptos clave y habilidades que quieres desarrollar en esta unidad, o haz clic en 'Sugerir'."
+                rows={5}
+                {...field}
               />
             )}
           />
-          {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm mt-1">{errors.cursoAsignaturaIds.message}</p>}
+          {errors.descripcionContenidos && <p className="text-red-500 text-sm mt-1">{errors.descripcionContenidos.message}</p>}
         </div>
-      )}
 
-      <div>
-        <Label>Vincular a Proyecto ABP (Opcional)</Label>
-        <Controller
-            name="proyectoId"
+        <div>
+          <Label htmlFor="instruccionesAdicionales">6. Instrucciones Adicionales para la IA (Opcional)</Label>
+          <Controller
+            name="instruccionesAdicionales"
             control={control}
             render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCursoAsignaturaIds || selectedCursoAsignaturaIds.length === 0 || loadingProjects}>
-                    <SelectTrigger>
-                        <SelectValue placeholder={loadingProjects ? "Cargando proyectos..." : "Selecciona un proyecto"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="none">No vincular a un proyecto</SelectItem>
-                        {relevantProjects.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+              <Textarea
+                id="instruccionesAdicionales"
+                placeholder="Ej: 'Enfócate en actividades prácticas', 'Incluye una salida a terreno', 'Adapta las primeras 3 clases para estudiantes con apoyo PIE'."
+                rows={3}
+                {...field}
+              />
             )}
-        />
-      </div>
+          />
+        </div>
 
-      <div>
-        <Label htmlFor="titulo">3. Título de la Unidad</Label>
-        <Controller
-          name="titulo"
-          control={control}
-          render={({ field }) => <Input id="titulo" placeholder="Ej: Unidad 2: El Ecosistema y sus Interacciones" {...field} />}
-        />
-        {errors.titulo && <p className="text-red-500 text-sm mt-1">{errors.titulo.message}</p>}
-      </div>
-
-      <div>
-        <Label>4. Rango de Fechas de la Unidad</Label>
-        <Controller
-          name="fechas"
-          control={control}
-          render={({ field }) => (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !field.value?.from && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {field.value?.from ? (
-                    field.value.to ? (
-                      <>
-                        {format(field.value.from, "LLL dd, y", { locale: es })} -{" "}
-                        {format(field.value.to, "LLL dd, y", { locale: es })}
-                      </>
-                    ) : (
-                      format(field.value.from, "LLL dd, y", { locale: es })
-                    )
-                  ) : (
-                    <span>Selecciona un rango de fechas</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={field.value?.from}
-                  selected={field.value as DateRange}
-                  onSelect={field.onChange}
-                  numberOfMonths={2}
-                  locale={es}
-                />
-              </PopoverContent>
-            </Popover>
-          )}
-        />
-        {errors.fechas && <p className="text-red-500 text-sm mt-1">{errors.fechas?.from?.message || errors.fechas?.to?.message}</p>}
-      </div>
-
-      <div>
-        <div className="flex justify-between items-center mb-1">
-          <Label htmlFor="descripcionContenidos">5. Contenidos y Temas a Abordar</Label>
-          <Button type="button" variant="outline" size="sm" onClick={handleSuggestContent} disabled={isLoading}>
-            <Sparkles className="mr-2 h-4 w-4" />
-            Sugerir
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading ? 'Generando...' : 'Generar Sugerencias con IA'}
           </Button>
         </div>
-        <Controller
-          name="descripcionContenidos"
-          control={control}
-          render={({ field }) => (
-            <Textarea
-              id="descripcionContenidos"
-              placeholder="Describe los temas, conceptos clave y habilidades que quieres desarrollar en esta unidad, o haz clic en 'Sugerir'."
-              rows={5}
-              {...field}
-            />
-          )}
-        />
-        {errors.descripcionContenidos && <p className="text-red-500 text-sm mt-1">{errors.descripcionContenidos.message}</p>}
-      </div>
-
-      <div>
-        <Label htmlFor="instruccionesAdicionales">6. Instrucciones Adicionales para la IA (Opcional)</Label>
-        <Controller
-          name="instruccionesAdicionales"
-          control={control}
-          render={({ field }) => (
-            <Textarea
-              id="instruccionesAdicionales"
-              placeholder="Ej: 'Enfócate en actividades prácticas', 'Incluye una salida a terreno', 'Adapta las primeras 3 clases para estudiantes con apoyo PIE'."
-              rows={3}
-              {...field}
-            />
-          )}
-        />
-      </div>
-
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isLoading}>
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isLoading ? 'Generando...' : 'Generar Sugerencias con IA'}
-        </Button>
-      </div>
-    </form>
+      </form>
+      <CreateProjectDialog
+        isOpen={isCreateProjectDialogOpen}
+        onClose={() => setCreateProjectDialogOpen(false)}
+        onProjectCreated={handleProjectCreated}
+        initialData={initialProjectData}
+      />
+    </>
   );
 };
 

@@ -203,13 +203,13 @@ export interface CreateProjectData {
   curso_asignatura_ids: string[];
 }
 
-export const createProject = async (projectData: CreateProjectData) => {
+export const createProject = async (projectData: CreateProjectData): Promise<{ id: string; nombre: string; }> => {
   const { curso_asignatura_ids, ...project } = projectData;
   
   const { data: newProject, error } = await supabase
     .from('proyectos_abp')
     .insert(project)
-    .select('id')
+    .select('id, nombre')
     .single();
 
   if (error) throw new Error(`Error creating project: ${error.message}`);
@@ -228,7 +228,7 @@ export const createProject = async (projectData: CreateProjectData) => {
     throw new Error(`Error linking courses to project: ${linkError.message}`);
   }
 
-  return newProject.id;
+  return newProject;
 };
 
 export const linkCoursesToProject = async (projectId: string, cursoAsignaturaIds: string[]) => {
