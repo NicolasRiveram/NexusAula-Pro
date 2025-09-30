@@ -16,6 +16,14 @@ export interface EstablishmentUser {
   estado: string;
 }
 
+export interface Announcement {
+  id: string;
+  titulo: string;
+  mensaje: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
 export const fetchPendingRequests = async (establecimientoId: string): Promise<PendingRequest[]> => {
   const { data, error } = await supabase.rpc('get_pending_requests', {
     p_establecimiento_id: establecimientoId,
@@ -65,4 +73,41 @@ export const removeUserFromEstablishment = async (perfilId: string, establecimie
     p_establecimiento_id: establecimientoId,
   });
   if (error) throw new Error(`Error removing user: ${error.message}`);
+};
+
+export const fetchAnnouncements = async (establecimientoId: string): Promise<Announcement[]> => {
+  const { data, error } = await supabase
+    .from('anuncios')
+    .select('*')
+    .eq('establecimiento_id', establecimientoId)
+    .order('fecha_inicio', { ascending: false });
+  if (error) throw new Error(`Error fetching announcements: ${error.message}`);
+  return data || [];
+};
+
+export const saveAnnouncement = async (
+  announcementData: Omit<Announcement, 'id'>,
+  establecimientoId: string,
+  announcementId?: string
+) => {
+  if (announcementId) {
+    const { error } = await supabase
+      .from('anuncios')
+      .update(announcementData)
+      .eq('id', announcementId);
+    if (error) throw new Error(`Error updating announcement: ${error.message}`);
+  } else {
+    const { error } = await supabase
+      .from('anuncios')
+      .insert({ ...announcementData, establecimiento_id: establecimientoId });
+    if (error) throw new Error(`Error creating announcement: ${error.message}`);
+  }
+};
+
+export const deleteAnnouncement = async (announcementId: string) => {
+  const { error } = await supabase
+    .from('anuncios')
+    .delete()
+    .eq('id', announcementId);
+  if (error) throw new Error(`Error deleting announcement: ${error.message}`);
 };
