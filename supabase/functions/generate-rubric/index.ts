@@ -25,10 +25,13 @@ serve(async (req) => {
   try {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
-      throw new Error("La clave de API de Gemini no está configurada.");
+      throw new Error("La clave de API de Gemini no está configurada en los secretos del proyecto (GEMINI_API_KEY).");
     }
 
     const { activity, description } = await req.json();
+    if (!activity || !description) {
+        throw new Error("La solicitud debe incluir 'activity' y 'description'.");
+    }
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -76,7 +79,7 @@ serve(async (req) => {
       status: 200,
     })
   } catch (error) {
-    console.error("Error in generate-rubric:", error);
+    console.error("Error detallado en la función 'generate-rubric':", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
