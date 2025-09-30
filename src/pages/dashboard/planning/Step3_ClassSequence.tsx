@@ -11,7 +11,7 @@ import { es } from 'date-fns/locale';
 
 export interface ClassPlan {
   id: string;
-  fecha: string;
+  fecha: string; // This will be an empty string initially
   titulo: string;
   objetivos_clase: string;
   objetivo_estudiante: string;
@@ -48,7 +48,7 @@ const Step3ClassSequence: React.FC<Step3ClassSequenceProps> = ({ classSequence, 
         <CardHeader>
           <CardTitle>Secuencia de Clases Sugerida</CardTitle>
           <CardDescription>
-            Este es el borrador de tu unidad. Puedes editar cualquier campo antes de guardar y programar las clases.
+            Este es el borrador de tu unidad. Puedes editar cualquier campo antes de guardar y programar las clases. Las fechas se asignarán automáticamente según tu horario.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -56,9 +56,6 @@ const Step3ClassSequence: React.FC<Step3ClassSequenceProps> = ({ classSequence, 
             <div key={field.id}>
               <h3 className="text-xl font-semibold mb-4">
                 Clase {index + 1}
-                <span className="text-muted-foreground text-base font-normal ml-2">
-                  ({classSequence[index].fecha ? format(parseISO(classSequence[index].fecha), "d 'de' LLL", { locale: es }) : 'Fecha por asignar'})
-                </span>
               </h3>
               <div className="space-y-4 p-4 border rounded-md">
                 <div>

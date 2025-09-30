@@ -10,23 +10,6 @@ import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan,
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
-// --- DATOS SIMULADOS MEJORADOS ---
-const simulatedAISuggestions: AISuggestions = {
-  objetivos: ["OA-6: Explicar el movimiento de placas tectónicas.", "OA-7: Comunicar efectos de la actividad humana en océanos.", "OA-8: Analizar características de ecosistemas."],
-  proposito: "Que los estudiantes comprendan la dinámica de la Tierra y el impacto humano en los ecosistemas, desarrollando conciencia crítica.",
-  proyectoABP: {
-    titulo: "Guardianes de Nuestro Entorno",
-    descripcion: "Investigar un problema medioambiental local, analizar causas y diseñar una campaña de concienciación y solución.",
-    productoFinal: "Campaña de concienciación (video, afiches) y propuesta de solución.",
-  },
-};
-
-const simulatedClassSequence: ClassPlan[] = [
-  { id: 'temp_1', fecha: '2024-08-05', titulo: 'Introducción a los Ecosistemas', objetivos_clase: 'Identificar componentes bióticos y abióticos de un ecosistema local.', objetivo_estudiante: '¡Hoy nos convertiremos en exploradores y descubriremos los seres vivos y no vivos que componen nuestro entorno!', aporte_proyecto: 'Comprender qué es un ecosistema para poder identificar problemas medioambientales en él.', actividades_inicio: 'Lluvia de ideas sobre "¿Qué es un ecosistema?".', actividades_desarrollo: 'Definición formal. Salida al patio para identificar componentes y clasificarlos.', actividades_cierre: 'Puesta en común. Ticket de salida: "Dibuja un ser vivo y uno no vivo que encontraste hoy".', recursos: 'Imágenes, pizarra, lupas, patio escolar.', objetivo_aprendizaje_texto: 'OA 8: Analizar y describir las características de los ecosistemas.', habilidades: 'Observar, clasificar, comunicar.', vinculo_interdisciplinario: 'Artes Visuales: Dibujar el ecosistema observado.', aspectos_valoricos_actitudinales: 'Fomentar la curiosidad y el respeto por el entorno natural.' },
-  { id: 'temp_2', fecha: '2024-08-06', titulo: 'Cadenas y Redes Tróficas', objetivos_clase: 'Construir modelos de redes tróficas para representar relaciones alimentarias.', objetivo_estudiante: '¡Hoy descubriremos quién se come a quién en la naturaleza y construiremos una gran telaraña de la vida!', aporte_proyecto: 'Entender las relaciones entre especies para analizar cómo un problema afecta a todo el ecosistema.', actividades_inicio: 'Pregunta: "¿De dónde obtienen energía los seres vivos?".', actividades_desarrollo: 'Explicación de roles (productor, consumidor, descomponedor). Juego de roles con hilos para formar una red.', actividades_cierre: 'Dibujar la red formada en el cuaderno. Reflexionar: ¿Qué pasaría si desaparece un eslabón?', recursos: 'Pizarra, ovillos de lana, tarjetas con nombres de animales/plantas.', objetivo_aprendizaje_texto: 'OA 8: Analizar y describir las características de los ecosistemas, incluyendo las interacciones alimentarias.', habilidades: 'Modelar, analizar, predecir.', vinculo_interdisciplinario: 'Educación Física: Juego de roles activo.', aspectos_valoricos_actitudinales: 'Promover el trabajo colaborativo y la comprensión de la interdependencia.' },
-];
-// --- FIN DATOS SIMULADOS ---
-
 const NewUnitPlan = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -52,9 +35,18 @@ const NewUnitPlan = () => {
         setProyectoId(null);
       }
       
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simular llamada a IA
+      // Call the Edge Function to get AI suggestions
+      const { data: suggestions, error } = await supabase.functions.invoke('generate-unit-suggestions', {
+        body: { 
+          title: data.titulo, 
+          description: data.descripcionContenidos, 
+          instructions: data.instruccionesAdicionales 
+        },
+      });
+
+      if (error) throw error;
       
-      setAiSuggestions(simulatedAISuggestions);
+      setAiSuggestions(suggestions);
       showSuccess("Sugerencias de Objetivos y Proyecto generadas.");
       setStep(2);
     } catch (error: any) {
@@ -74,21 +66,22 @@ const NewUnitPlan = () => {
       await updateUnitPlanSuggestions(unitMasterId, data);
       setAiSuggestions(data);
 
-      if (proyectoId) {
-        console.log(`AI would now generate classes adapted for project ID: ${proyectoId}`);
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simular generación de clases
-      
-      // Simular que las fechas se asignan aquí
-      const startDate = new Date();
-      const datedClassSequence = simulatedClassSequence.map((cls, index) => {
-        const newDate = new Date(startDate);
-        newDate.setDate(startDate.getDate() + index);
-        return { ...cls, fecha: newDate.toISOString().split('T')[0] };
+      // Call the Edge Function to generate the class sequence
+      const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
+        body: { suggestions: data, projectContext: proyectoId },
       });
 
-      setClassSequence(datedClassSequence);
+      if (error) throw error;
+      
+      // The sequence from the function doesn't have IDs or dates, which is correct.
+      // The backend RPC will handle scheduling. We add temporary IDs for the UI key prop.
+      const sequenceWithTempIds = sequence.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
+        ...cls,
+        id: `temp_${index}`,
+        fecha: '', // The backend will assign this
+      }));
+
+      setClassSequence(sequenceWithTempIds);
       showSuccess("Secuencia de clases generada.");
       setStep(3);
     } catch (error: any) {
@@ -105,7 +98,8 @@ const NewUnitPlan = () => {
     }
     setIsLoading(true);
     try {
-      const classesToSave = data.classes.map(({ id, ...rest }) => rest);
+      // Remove temporary IDs before sending to the backend
+      const classesToSave = data.classes.map(({ id, fecha, ...rest }) => rest);
       await scheduleClassesFromUnitPlan(unitMasterId, classesToSave);
       
       if (proyectoId) {
