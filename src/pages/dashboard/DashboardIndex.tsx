@@ -2,6 +2,7 @@ import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import TeacherDashboard from './TeacherDashboard';
 import AdminDashboard from './AdminDashboard';
+import StudentDashboard from './StudentDashboard';
 import { Loader2 } from 'lucide-react';
 
 interface Profile {
@@ -25,8 +26,11 @@ const DashboardIndex = () => {
   }
 
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
+  const isStudent = profile.rol === 'estudiante';
 
-  return isAdmin ? <AdminDashboard /> : <TeacherDashboard />;
+  if (isAdmin) return <AdminDashboard />;
+  if (isStudent) return <StudentDashboard />;
+  return <TeacherDashboard />;
 };
 
 export default DashboardIndex;

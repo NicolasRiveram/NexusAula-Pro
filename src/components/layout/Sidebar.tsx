@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const navItems = [
+const teacherNavItems = [
   { to: '/dashboard', icon: Home, label: 'Inicio' },
   { to: '/dashboard/cursos', icon: Book, label: 'Mis Cursos' },
   { to: '/dashboard/horario', icon: Clock, label: 'Horario' },
@@ -13,6 +13,13 @@ const navItems = [
   { to: '/dashboard/proyectos', icon: Briefcase, label: 'Proyectos' },
   { to: '/dashboard/analiticas', icon: BarChart, label: 'Analíticas' },
   { to: '/dashboard/bitacora', icon: ClipboardList, label: 'Bitácora' },
+];
+
+const studentNavItems = [
+  { to: '/dashboard', icon: Home, label: 'Inicio' },
+  { to: '/dashboard/cursos', icon: Book, label: 'Mis Cursos' },
+  { to: '/dashboard/horario', icon: Clock, label: 'Horario' },
+  { to: '/dashboard/evaluacion', icon: FileText, label: 'Mis Evaluaciones' },
 ];
 
 const adminNavItems = [
@@ -28,6 +35,9 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
+  const isStudent = profile.rol === 'estudiante';
+
+  const navItems = isStudent ? studentNavItems : teacherNavItems;
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700">
