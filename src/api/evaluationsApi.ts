@@ -112,6 +112,51 @@ export interface StudentAnswer {
   selectedAlternativeId: string;
 }
 
+export interface ManualQuestionData {
+  enunciado: string;
+  tipo_item: 'seleccion_multiple' | 'desarrollo' | 'verdadero_falso';
+  puntaje: number;
+  orden: number;
+  alternativas?: Omit<ItemAlternative, 'id' | 'evaluacion_item_id'>[];
+}
+
+export const saveManualQuestion = async (evaluationId: string, blockId: string, questionData: ManualQuestionData) => {
+  const { alternativas, ...itemData } = questionData;
+
+  const { data: newItem, error: itemError } = await supabase
+    .from('evaluacion_items')
+    .insert({
+      ...itemData,
+      evaluacion_id: evaluationId,
+      content_block_id: blockId,
+    })
+    .select('id')
+    .single();
+
+  if (itemError) {
+    throw new Error(`Error al guardar la pregunta: ${itemError.message}`);
+  }
+
+  if (alternativas && alternativas.length > 0) {
+    const alternativesToInsert = alternativas.map(alt => ({
+      ...alt,
+      evaluacion_item_id: newItem.id,
+    }));
+
+    const { error: altError } = await supabase
+      .from('item_alternativas')
+      .insert(alternativesToInsert);
+
+    if (altError) {
+      // Rollback the item insert for consistency
+      await supabase.from('evaluacion_items').delete().eq('id', newItem.id);
+      throw new Error(`Error al guardar las alternativas: ${altError.message}`);
+    }
+  }
+
+  return newItem;
+};
+
 export const reorderContentBlocks = async (blockIds: string[]) => {
   const { error } = await supabase.rpc('reorder_content_blocks', {
     p_block_ids: blockIds,
