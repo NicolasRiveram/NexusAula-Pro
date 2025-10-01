@@ -144,7 +144,7 @@ const EvaluationBuilderPage = () => {
             </div>
           ) : (
             <form onSubmit={step === 3 ? handleSubmit(handleFinalSubmit) : handleSubmit(handleStep1Submit)}>
-              {step === 1 && <Step1GeneralInfo control={control} isSubmitting={isSubmitting} />}
+              {step === 1 && <Step1GeneralInfo onFormSubmit={handleSubmit(handleStep1Submit)} control={control} isSubmitting={isSubmitting} />}
               
               {step === 2 && evaluationId && (
                 <Step2ContentBlocks 

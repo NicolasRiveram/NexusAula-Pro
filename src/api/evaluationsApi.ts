@@ -32,8 +32,6 @@ export interface EvaluationContentBlock {
   block_type: 'text' | 'image';
   content: any;
   orden: number;
-  title: string | null;
-  visible_en_evaluacion: boolean;
 }
 
 export interface ItemAlternative {
@@ -64,8 +62,6 @@ export interface EvaluationItem {
 export interface EvaluationDetail extends Evaluation {
   descripcion: string;
   puntaje_maximo: number | null;
-  randomizar_preguntas?: boolean;
-  randomizar_alternativas?: boolean;
   evaluation_content_blocks: (EvaluationContentBlock & {
     evaluacion_items: EvaluationItem[];
   })[];
@@ -211,8 +207,6 @@ export interface CreateEvaluationData {
   descripcion?: string;
   fecha_aplicacion: string;
   cursoAsignaturaIds: string[];
-  randomizar_preguntas?: boolean;
-  randomizar_alternativas?: boolean;
 }
 
 export const createEvaluation = async (evalData: CreateEvaluationData) => {
@@ -248,10 +242,14 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
 };
 
 export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData) => {
-  const { cursoAsignaturaIds, ...updateData } = evalData;
   const { error: updateError } = await supabase
     .from('evaluaciones')
-    .update(updateData)
+    .update({
+      titulo: evalData.titulo,
+      tipo: evalData.tipo,
+      descripcion: evalData.descripcion,
+      fecha_aplicacion: evalData.fecha_aplicacion,
+    })
     .eq('id', evaluationId);
 
   if (updateError) throw new Error(`Error updating evaluation: ${updateError.message}`);
@@ -300,8 +298,6 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       descripcion,
       fecha_aplicacion,
       puntaje_maximo,
-      randomizar_preguntas,
-      randomizar_alternativas,
       evaluacion_curso_asignaturas (
         curso_asignatura_id,
         curso_asignaturas (
@@ -370,20 +366,20 @@ export const fetchContentBlocks = async (evaluationId: string): Promise<Evaluati
     .eq('evaluation_id', evaluationId)
     .order('orden');
   if (error) throw new Error(`Error al cargar los bloques de contenido: ${error.message}`);
-  return data || [];
+  return data;
 };
 
-export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content' | 'title'>[]> => {
+export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content'>[]> => {
     const { data, error } = await supabase
         .from('evaluation_content_blocks')
-        .select('block_type, content, title')
+        .select('block_type, content')
         .eq('evaluation_id', resourceId)
         .order('orden');
     if (error) throw new Error(`Error al importar contenido: ${error.message}`);
-    return data || [];
+    return data;
 };
 
-export const createContentBlock = async (evaluationId: string, blockType: 'text' | 'image', content: any, order: number, title: string | null): Promise<EvaluationContentBlock> => {
+export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number) => {
   const { data, error } = await supabase
     .from('evaluation_content_blocks')
     .insert({
@@ -391,20 +387,11 @@ export const createContentBlock = async (evaluationId: string, blockType: 'text'
       block_type: blockType,
       content: content,
       orden: order,
-      title: title,
     })
     .select()
     .single();
   if (error) throw new Error(`Error al crear el bloque de contenido: ${error.message}`);
   return data;
-};
-
-export const updateContentBlock = async (blockId: string, updates: { visible_en_evaluacion?: boolean; title?: string; }) => {
-  const { error } = await supabase
-    .from('evaluation_content_blocks')
-    .update(updates)
-    .eq('id', blockId);
-  if (error) throw new Error(`Error al actualizar el bloque de contenido: ${error.message}`);
 };
 
 export const deleteContentBlock = async (blockId: string) => {
@@ -433,12 +420,11 @@ export const getPublicImageUrl = (path: string): string => {
     return data.publicUrl;
 };
 
-export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, quantity: number) => {
+export const generateQuestionsFromBlock = async (block: EvaluationContentBlock) => {
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: {
       block_content: block.content,
       block_type: block.block_type,
-      quantity: quantity,
     },
   });
   if (error instanceof FunctionsHttpError) {
@@ -450,7 +436,7 @@ export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, 
   return data;
 };
 
-export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[], currentItemCount: number): Promise<EvaluationItem[]> => {
+export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[], currentItemCount: number) => {
   const itemsToInsert = questions.map((q, index) => ({
     evaluacion_id: evaluationId,
     content_block_id: blockId,
@@ -463,7 +449,7 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
   const { data: insertedItems, error: itemsError } = await supabase
     .from('evaluacion_items')
     .insert(itemsToInsert)
-    .select('id');
+    .select();
 
   if (itemsError) throw new Error(`Error al guardar las preguntas: ${itemsError.message}`);
   if (!insertedItems) throw new Error('No se pudieron guardar las preguntas.');
@@ -489,15 +475,7 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
     }
   }
 
-  const newItemIds = insertedItems.map(i => i.id);
-  const { data: newItemsWithDetails, error: fetchError } = await supabase
-    .from('evaluacion_items')
-    .select(`*, item_alternativas(*), adaptaciones_pie(*)`)
-    .in('id', newItemIds);
-
-  if (fetchError) throw new Error(`Failed to fetch newly created questions: ${fetchError.message}`);
-
-  return newItemsWithDetails as EvaluationItem[];
+  return insertedItems;
 };
 
 export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationItem[]> => {
