@@ -16,10 +16,11 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MultiSelect } from '@/components/MultiSelect';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import { fetchRelevantProjects, SimpleProject } from '@/api/projectsApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const schema = z.object({
   cursoAsignaturaIds: z.array(z.string()).min(1, "Debes seleccionar al menos un curso."),
@@ -39,6 +40,7 @@ interface CursoParaSeleccion {
   id: string;
   nombre: string;
   nivelId: string;
+  asignaturaId: string;
 }
 
 interface Step1UnitConfigProps {
@@ -55,6 +57,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [isCreateProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
   const [initialProjectData, setInitialProjectData] = useState<Partial<any>>({});
+  const [isSuggestingContent, setIsSuggestingContent] = useState(false);
 
   const { control, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<UnitPlanFormData>({
     resolver: zodResolver(schema),
@@ -70,7 +73,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
 
       const { data, error } = await supabase
         .from('curso_asignaturas')
-        .select('id, asignaturas(nombre), cursos!inner(nombre, niveles(id, nombre))')
+        .select('id, asignaturas(id, nombre), cursos!inner(nombre, niveles(id, nombre))')
         .eq('docente_id', user.id)
         .eq('cursos.establecimiento_id', activeEstablishment.id);
 
@@ -87,6 +90,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
             id: ca.id,
             nombre: `${ca.cursos.niveles.nombre} - ${ca.cursos.nombre} - ${ca.asignaturas.nombre}`,
             nivelId: ca.cursos.niveles.id,
+            asignaturaId: ca.asignaturas.id,
           };
         }
         return null;
@@ -122,10 +126,40 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
     setValue('cursoAsignaturaIds', []); // Resetear cursos al cambiar de nivel
   };
 
-  const handleSuggestContent = () => {
-    // Simulación de llamada a IA
-    const suggestedContent = "- Ecosistemas: componentes bióticos y abióticos.\n- Cadenas y redes tróficas: productores, consumidores y descomponedores.\n- Flujo de energía y materia en el ecosistema.\n- Impacto humano en los ecosistemas: contaminación y conservación.\n- Adaptaciones de los seres vivos a su entorno.";
-    setValue('descripcionContenidos', suggestedContent, { shouldValidate: true });
+  const handleSuggestContent = async () => {
+    const { cursoAsignaturaIds, descripcionContenidos } = getValues();
+    if (!cursoAsignaturaIds || cursoAsignaturaIds.length === 0 || !descripcionContenidos) {
+      showError("Por favor, selecciona al menos un curso y escribe un tema o descripción inicial para obtener sugerencias.");
+      return;
+    }
+    
+    const firstCurso = cursos.find(c => c.id === cursoAsignaturaIds[0]);
+    if (!firstCurso) return;
+
+    setIsSuggestingContent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('suggest-unit-content', {
+        body: { 
+          nivelId: firstCurso.nivelId, 
+          asignaturaId: firstCurso.asignaturaId, 
+          tema: descripcionContenidos 
+        },
+      });
+
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        throw new Error(errorMessage.error);
+      } else if (error) {
+        throw error;
+      }
+
+      setValue('descripcionContenidos', data.suggestions, { shouldValidate: true });
+      showSuccess("Contenidos sugeridos por la IA.");
+    } catch (error: any) {
+      showError(`Error al sugerir contenido: ${error.message}`);
+    } finally {
+      setIsSuggestingContent(false);
+    }
   };
 
   const openCreateProjectDialog = () => {
@@ -269,8 +303,8 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
         <div>
           <div className="flex justify-between items-center mb-1">
             <Label htmlFor="descripcionContenidos">5. Contenidos y Temas a Abordar</Label>
-            <Button type="button" variant="outline" size="sm" onClick={handleSuggestContent} disabled={isLoading}>
-              <Sparkles className="mr-2 h-4 w-4" />
+            <Button type="button" variant="outline" size="sm" onClick={handleSuggestContent} disabled={isLoading || isSuggestingContent}>
+              {isSuggestingContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               Sugerir
             </Button>
           </div>
@@ -306,7 +340,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isLoading || isSuggestingContent}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isLoading ? 'Generando...' : 'Generar Sugerencias con IA'}
           </Button>
