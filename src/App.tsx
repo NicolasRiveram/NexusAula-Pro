@@ -38,6 +38,7 @@ import { Toaster } from "@/components/ui/toaster";
     import ManageCoursesPage from "./pages/dashboard/admin/ManageCoursesPage";
     import ManageCalendarPage from "./pages/dashboard/admin/ManageCalendarPage";
     import StudentSchedulePage from "./pages/dashboard/student/StudentSchedulePage";
+    import MyProgressPage from "./pages/dashboard/student/MyProgressPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -150,6 +151,7 @@ import { Toaster } from "@/components/ui/toaster";
                 
                 {/* Student-only Routes */}
                 <Route path="mi-horario" element={<StudentSchedulePage />} />
+                <Route path="mi-progreso" element={<MyProgressPage />} />
 
                 {/* Admin Routes */}
                 <Route path="gestion/cursos" element={<ManageCoursesPage />} />
