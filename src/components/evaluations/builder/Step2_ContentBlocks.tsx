@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock } from '@/api/evaluationsApi';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical } from 'lucide-react';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -15,6 +15,9 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Step2ContentBlocksProps {
   evaluationId: string;
@@ -72,6 +75,17 @@ const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, isAdapti
     );
 };
 
+function SortableItem({ id, children }: { id: string, children: (props: any) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+  };
+  return children({ ref: setNodeRef, style, attributes, listeners });
+}
+
 const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep }) => {
   const [blocks, setBlocks] = useState<EvaluationContentBlock[]>([]);
   const [questionsByBlock, setQuestionsByBlock] = useState<Record<string, EvaluationItem[]>>({});
@@ -85,6 +99,13 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [isUseResourceDialogOpen, setUseResourceDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EvaluationItem | null>(null);
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const toggleBlockExpansion = (blockId: string) => {
     setExpandedBlocks(prev => ({ ...prev, [blockId]: !prev[blockId] }));
@@ -118,6 +139,26 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   useEffect(() => {
     loadBlocksAndQuestions();
   }, [loadBlocksAndQuestions]);
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+        setBlocks((items) => {
+            const oldIndex = items.findIndex((item) => item.id === active.id);
+            const newIndex = items.findIndex((item) => item.id === over.id);
+            const newOrder = arrayMove(items, oldIndex, newIndex);
+            
+            const blockIds = newOrder.map(b => b.id);
+            
+            reorderContentBlocks(blockIds).catch(err => {
+                showError(`Error al reordenar: ${err.message}`);
+                loadBlocksAndQuestions(); 
+            });
+
+            return newOrder;
+        });
+    }
+  };
 
   const handleTitleChange = async (blockId: string, newTitle: string) => {
     setBlocks(prevBlocks => 
@@ -270,81 +311,92 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       {loading ? (
         <div className="flex justify-center items-center h-24"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : blocks.length > 0 ? (
-        <div className="space-y-6">
-          {blocks.map(block => (
-            <div key={block.id}>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between cursor-pointer" onClick={() => toggleBlockExpansion(block.id)}>
-                  <div className="flex items-center flex-grow gap-3">
-                    {block.block_type === 'text' ? <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : <ImageIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
-                    <div className="flex-grow">
-                      <Input
-                        defaultValue={block.title || ''}
-                        placeholder={`Título del Bloque ${block.orden}`}
-                        className="text-base font-semibold border-none focus-visible:ring-1 focus-visible:ring-ring p-0 h-auto bg-transparent"
-                        onClick={(e) => e.stopPropagation()}
-                        onBlur={(e) => {
-                            if (e.target.value !== (block.title || '')) {
-                                handleTitleChange(block.id, e.target.value);
-                            }
-                        }}
-                      />
-                      <CardDescription>
-                        {questionsByBlock[block.id]?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                        <Switch
-                            id={`visibility-${block.id}`}
-                            checked={block.visible_en_evaluacion}
-                            onCheckedChange={(checked) => handleVisibilityChange(block.id, checked)}
-                        />
-                        <Label htmlFor={`visibility-${block.id}`} className="text-xs text-muted-foreground">Visible</Label>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteBlock(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
-                  </div>
-                </CardHeader>
-                {!expandedBlocks[block.id] && (
-                    <CardContent>
-                        {block.block_type === 'text' ? (
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">{block.content.text}</p>
-                        ) : (
-                            <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Bloque ${block.orden}`} className="rounded-md max-h-24 object-contain" />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-6">
+              {blocks.map(block => (
+                <SortableItem key={block.id} id={block.id}>
+                  {({ ref, style, attributes, listeners }) => (
+                    <div ref={ref} style={style}>
+                      <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                          <div className="flex items-center flex-grow gap-3">
+                            <div {...attributes} {...listeners} className="cursor-grab touch-none p-2 -ml-2">
+                              <GripVertical className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            {block.block_type === 'text' ? <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : <ImageIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                            <div className="flex-grow" onClick={() => toggleBlockExpansion(block.id)}>
+                              <Input
+                                defaultValue={block.title || ''}
+                                placeholder={`Título del Bloque ${block.orden}`}
+                                className="text-base font-semibold border-none focus-visible:ring-1 focus-visible:ring-ring p-0 h-auto bg-transparent"
+                                onClick={(e) => e.stopPropagation()}
+                                onBlur={(e) => {
+                                    if (e.target.value !== (block.title || '')) {
+                                        handleTitleChange(block.id, e.target.value);
+                                    }
+                                }}
+                              />
+                              <CardDescription>
+                                {questionsByBlock[block.id]?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                                <Switch
+                                    id={`visibility-${block.id}`}
+                                    checked={block.visible_en_evaluacion}
+                                    onCheckedChange={(checked) => handleVisibilityChange(block.id, checked)}
+                                />
+                                <Label htmlFor={`visibility-${block.id}`} className="text-xs text-muted-foreground">Visible</Label>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteBlock(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
+                          </div>
+                        </CardHeader>
+                        {!expandedBlocks[block.id] && (
+                            <CardContent>
+                                {block.block_type === 'text' ? (
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">{block.content.text}</p>
+                                ) : (
+                                    <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Bloque ${block.orden}`} className="rounded-md max-h-24 object-contain" />
+                                )}
+                            </CardContent>
                         )}
-                    </CardContent>
-                )}
-              </Card>
-              {expandedBlocks[block.id] && (
-                <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
-                  <div className="flex justify-end">
-                    <Button onClick={() => handleGenerateQuestions(block)} disabled={generatingForBlock === block.id}>
-                      {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                      Generar Preguntas
-                    </Button>
-                  </div>
-                  {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 ? (
-                    questionsByBlock[block.id].map(item => (
-                      <QuestionItem 
-                          key={item.id} 
-                          item={item} 
-                          onAdaptPIE={handleAdaptPIE}
-                          onEdit={setEditingItem}
-                          onIncreaseDifficulty={handleIncreaseDifficulty}
-                          isAdapting={adaptingItemId === item.id}
-                          isIncreasingDifficulty={increasingDifficultyId === item.id}
-                      />
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center">Aún no hay preguntas para este bloque.</p>
+                      </Card>
+                      {expandedBlocks[block.id] && (
+                        <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
+                          <div className="flex justify-end">
+                            <Button onClick={() => handleGenerateQuestions(block)} disabled={generatingForBlock === block.id}>
+                              {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                              Generar Preguntas
+                            </Button>
+                          </div>
+                          {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 ? (
+                            questionsByBlock[block.id].map(item => (
+                              <QuestionItem 
+                                  key={item.id} 
+                                  item={item} 
+                                  onAdaptPIE={handleAdaptPIE}
+                                  onEdit={setEditingItem}
+                                  onIncreaseDifficulty={handleIncreaseDifficulty}
+                                  isAdapting={adaptingItemId === item.id}
+                                  isIncreasingDifficulty={increasingDifficultyId === item.id}
+                              />
+                            ))
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center">Aún no hay preguntas para este bloque.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
+                </SortableItem>
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <h3 className="text-xl font-semibold">Sin contenido</h3>

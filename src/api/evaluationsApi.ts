@@ -112,6 +112,13 @@ export interface StudentAnswer {
   selectedAlternativeId: string;
 }
 
+export const reorderContentBlocks = async (blockIds: string[]) => {
+  const { error } = await supabase.rpc('reorder_content_blocks', {
+    p_block_ids: blockIds,
+  });
+  if (error) throw new Error(`Error al reordenar los bloques: ${error.message}`);
+};
+
 export const fetchItemAnalysis = async (evaluationId: string): Promise<ItemAnalysisResult[]> => {
   const { data, error } = await supabase.rpc('get_item_analysis', {
     p_evaluation_id: evaluationId,
