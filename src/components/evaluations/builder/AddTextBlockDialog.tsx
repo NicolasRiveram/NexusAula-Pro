@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { createContentBlock } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const schema = z.object({
+  title: z.string().optional(),
   text: z.string().min(10, "El contenido debe tener al menos 10 caracteres."),
 });
 
@@ -30,14 +32,14 @@ const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose
 
   React.useEffect(() => {
     if (!isOpen) {
-      reset({ text: '' });
+      reset({ text: '', title: '' });
     }
   }, [isOpen, reset]);
 
   const onSubmit = async (data: FormData) => {
     const toastId = showLoading("Añadiendo bloque...");
     try {
-      await createContentBlock(evaluationId, 'text', { text: data.text }, currentOrder);
+      await createContentBlock(evaluationId, 'text', { text: data.text }, currentOrder, data.title);
       dismissToast(toastId);
       showSuccess("Bloque de texto añadido.");
       onBlockCreated();
@@ -58,6 +60,14 @@ const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <div>
+            <Label htmlFor="title">Título del Bloque (Opcional)</Label>
+            <Controller
+              name="title"
+              control={control}
+              render={({ field }) => <Input id="title" placeholder="Ej: Texto sobre la fotosíntesis" {...field} />}
+            />
+          </div>
           <div>
             <Label htmlFor="text">Contenido del Bloque</Label>
             <Controller

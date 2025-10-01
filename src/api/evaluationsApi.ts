@@ -32,6 +32,7 @@ export interface EvaluationContentBlock {
   block_type: 'text' | 'image';
   content: any;
   orden: number;
+  title: string | null;
 }
 
 export interface ItemAlternative {
@@ -369,17 +370,17 @@ export const fetchContentBlocks = async (evaluationId: string): Promise<Evaluati
   return data;
 };
 
-export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content'>[]> => {
+export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content' | 'title'>[]> => {
     const { data, error } = await supabase
         .from('evaluation_content_blocks')
-        .select('block_type, content')
+        .select('block_type, content, title')
         .eq('evaluation_id', resourceId)
         .order('orden');
     if (error) throw new Error(`Error al importar contenido: ${error.message}`);
-    return data;
+    return data as any;
 };
 
-export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number) => {
+export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number, title?: string) => {
   const { data, error } = await supabase
     .from('evaluation_content_blocks')
     .insert({
@@ -387,11 +388,20 @@ export const createContentBlock = async (evaluationId: string, blockType: string
       block_type: blockType,
       content: content,
       orden: order,
+      title: title || `Bloque ${order}`,
     })
     .select()
     .single();
   if (error) throw new Error(`Error al crear el bloque de contenido: ${error.message}`);
   return data;
+};
+
+export const updateContentBlock = async (blockId: string, updates: { title?: string | null }) => {
+  const { error } = await supabase
+    .from('evaluation_content_blocks')
+    .update(updates)
+    .eq('id', blockId);
+  if (error) throw new Error(`Error al actualizar el bloque de contenido: ${error.message}`);
 };
 
 export const deleteContentBlock = async (blockId: string) => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const schema = z.object({
+  title: z.string().optional(),
   image: z
     .any()
     .refine((files) => files?.length == 1, "Debes seleccionar una imagen.")
@@ -35,7 +36,7 @@ interface AddImageBlockDialogProps {
 
 const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClose, onBlockCreated, evaluationId, currentOrder }) => {
   const [preview, setPreview] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, watch } = useForm<FormData>({
+  const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -58,7 +59,7 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
       dismissToast(toastId);
       
       const blockToastId = showLoading("Añadiendo bloque...");
-      await createContentBlock(evaluationId, 'image', { imageUrl: imagePath }, currentOrder);
+      await createContentBlock(evaluationId, 'image', { imageUrl: imagePath }, currentOrder, data.title);
       dismissToast(blockToastId);
 
       showSuccess("Bloque de imagen añadido.");
@@ -86,6 +87,14 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <div>
+            <Label htmlFor="title">Título del Bloque (Opcional)</Label>
+            <Controller
+              name="title"
+              control={control}
+              render={({ field }) => <Input id="title" placeholder="Ej: Esquema del ciclo del agua" {...field} />}
+            />
+          </div>
           <div>
             <Label htmlFor="image">Archivo de Imagen</Label>
             <Input id="image" type="file" accept="image/*" {...register("image")} />

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport } from '@/api/evaluationsApi';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -12,6 +12,7 @@ import UseDidacticPlanDialog from './UseDidacticPlanDialog';
 import UseExistingResourceDialog from './UseExistingResourceDialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 interface Step2ContentBlocksProps {
   evaluationId: string;
@@ -116,6 +117,18 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     loadBlocksAndQuestions();
   }, [loadBlocksAndQuestions]);
 
+  const handleTitleChange = async (blockId: string, newTitle: string) => {
+    setBlocks(prevBlocks => 
+        prevBlocks.map(b => b.id === blockId ? { ...b, title: newTitle } : b)
+    );
+    try {
+        await updateContentBlock(blockId, { title: newTitle });
+    } catch (error: any) {
+        showError(`Error al guardar el título: ${error.message}`);
+        loadBlocksAndQuestions(); 
+    }
+  };
+
   const handleDeleteBlock = async (blockId: string) => {
     try {
       await deleteContentBlock(blockId);
@@ -187,7 +200,8 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         evaluationId,
         'text',
         { text: contentText },
-        blocks.length + 1
+        blocks.length + 1,
+        `Desde Plan: ${plan.titulo}`
       );
       showSuccess("Bloque de contenido creado desde el plan didáctico.");
       loadBlocksAndQuestions();
@@ -213,7 +227,8 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
           evaluationId,
           block.block_type,
           block.content,
-          blocks.length + index + 1
+          blocks.length + index + 1,
+          block.title || undefined
         )
       );
       await Promise.all(createBlockPromises);
@@ -243,12 +258,22 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         <div className="space-y-6">
           {blocks.map(block => (
             <div key={block.id}>
-              <Card className="cursor-pointer" onClick={() => toggleBlockExpansion(block.id)}>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div className="flex items-center">
-                    {block.block_type === 'text' ? <FileText className="mr-3 h-5 w-5 text-muted-foreground" /> : <ImageIcon className="mr-3 h-5 w-5 text-muted-foreground" />}
-                    <div>
-                      <CardTitle className="text-base">Bloque de {block.block_type === 'text' ? 'Texto' : 'Imagen'} (Orden: {block.orden})</CardTitle>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between cursor-pointer" onClick={() => toggleBlockExpansion(block.id)}>
+                  <div className="flex items-center flex-grow gap-3">
+                    {block.block_type === 'text' ? <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : <ImageIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                    <div className="flex-grow">
+                      <Input
+                        defaultValue={block.title || ''}
+                        placeholder={`Título del Bloque ${block.orden}`}
+                        className="text-base font-semibold border-none focus-visible:ring-1 focus-visible:ring-ring p-0 h-auto bg-transparent"
+                        onClick={(e) => e.stopPropagation()}
+                        onBlur={(e) => {
+                            if (e.target.value !== (block.title || '')) {
+                                handleTitleChange(block.id, e.target.value);
+                            }
+                        }}
+                      />
                       <CardDescription>
                         {questionsByBlock[block.id]?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
                       </CardDescription>
