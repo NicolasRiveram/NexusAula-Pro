@@ -107,9 +107,16 @@ export const updateRubric = async (rubricId: string, rubricData: Partial<Omit<Ru
   if (error) throw new Error(`Error al actualizar la rúbrica: ${error.message}`);
 };
 
-export const generateRubricWithAI = async (activity: string, description: string): Promise<RubricContent> => {
+export const generateRubricWithAI = async (params: {
+  activity: string;
+  description: string;
+  nivelNombre: string;
+  asignaturaNombre: string;
+  cantidadCategorias: number;
+  objetivos: string;
+}): Promise<RubricContent> => {
   const { data, error } = await supabase.functions.invoke('generate-rubric', {
-    body: { activity, description },
+    body: params,
   });
 
   if (error instanceof FunctionsHttpError) {

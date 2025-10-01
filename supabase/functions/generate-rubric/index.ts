@@ -27,16 +27,17 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada en los secretos del proyecto (GEMINI_API_KEY).");
     }
 
-    const { activity, description } = await req.json();
-    if (!activity || !description) {
-        throw new Error("La solicitud debe incluir 'activity' y 'description'.");
+    const { activity, description, nivelNombre, asignaturaNombre, cantidadCategorias, objetivos } = await req.json();
+    if (!activity || !description || !nivelNombre || !asignaturaNombre || !cantidadCategorias) {
+        throw new Error("Faltan parámetros requeridos en la solicitud.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
       Eres un asistente experto en crear rúbricas de evaluación para Chile.
-      Basado en el nombre de la actividad y su descripción, genera una rúbrica en formato JSON.
+      Basado en la información proporcionada, genera una rúbrica en formato JSON.
+      
       La estructura del objeto JSON debe ser:
       \`\`\`json
       {
@@ -56,14 +57,19 @@ serve(async (req) => {
         ]
       }
       \`\`\`
-      - Genera 3 criterios de evaluación relevantes.
+      - Genera exactamente ${cantidadCategorias} criterios de evaluación relevantes.
       - Cada criterio debe tener 5 niveles de logro con puntajes de 5 a 1.
+      - Los descriptores de desempeño para cada nivel deben ser objetivamente muy diferentes para evidenciar diferencias graduales.
+      - En la descripción de cada nivel, **pon en negrita (usando markdown bold \`**\`) el elemento diferenciador clave** en comparación con los otros niveles.
       - La 'habilidad' debe ser una habilidad general asociada al criterio (ej: "Pensamiento Crítico", "Comunicación Efectiva").
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
 
       Detalles de la actividad:
+      - Nivel Educativo: ${nivelNombre}
+      - Asignatura: ${asignaturaNombre}
       - Actividad a evaluar: ${activity}
-      - Descripción: ${description}
+      - Descripción de la actividad: ${description}
+      - Objetivos de Aprendizaje a considerar: ${objetivos || 'No especificados'}
     `;
 
     const res = await fetch(API_URL, {

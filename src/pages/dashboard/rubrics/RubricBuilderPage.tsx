@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,11 +13,18 @@ import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { createRubric, generateRubricWithAI, saveGeneratedRubricContent, RubricContent } from '@/api/rubricsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
+import { fetchNiveles, fetchAsignaturas, Nivel, Asignatura } from '@/api/coursesApi';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
 
 const step1Schema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
   actividad_a_evaluar: z.string().min(3, "La actividad es requerida."),
   descripcion: z.string().min(10, "La descripción debe ser más detallada."),
+  nivelId: z.string().uuid("Debes seleccionar un nivel educativo."),
+  asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
+  cantidadCategorias: z.coerce.number().min(2, "Debe haber al menos 2 categorías.").max(7, "No puedes tener más de 7 categorías."),
+  objetivosSugeridos: z.string().optional(),
 });
 
 type Step1FormData = z.infer<typeof step1Schema>;
@@ -27,14 +34,54 @@ const RubricBuilderPage = () => {
   const { activeEstablishment } = useEstablishment();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuggestingOAs, setIsSuggestingOAs] = useState(false);
   const [rubricId, setRubricId] = useState<string | null>(null);
+  const [niveles, setNiveles] = useState<Nivel[]>([]);
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
 
-  const { control: step1Control, handleSubmit: handleStep1Submit, formState: { errors: step1Errors } } = useForm<Step1FormData>({
+  const { control: step1Control, handleSubmit: handleStep1Submit, formState: { errors: step1Errors }, getValues, setValue } = useForm<Step1FormData>({
     resolver: zodResolver(step1Schema),
+    defaultValues: {
+      cantidadCategorias: 3,
+    },
   });
 
   const { control: step2Control, handleSubmit: handleStep2Submit, reset: resetStep2 } = useForm<{ criterios: RubricContent['criterios'] }>();
   const { fields } = useFieldArray({ control: step2Control, name: "criterios" });
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [nivelesData, asignaturasData] = await Promise.all([fetchNiveles(), fetchAsignaturas()]);
+        setNiveles(nivelesData);
+        setAsignaturas(asignaturasData);
+      } catch (err: any) {
+        showError(`Error al cargar datos iniciales: ${err.message}`);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleSuggestOAs = async () => {
+    const { nivelId, asignaturaId, descripcion } = getValues();
+    if (!nivelId || !asignaturaId || !descripcion) {
+      showError("Por favor, selecciona nivel, asignatura y escribe una descripción para sugerir OAs.");
+      return;
+    }
+    setIsSuggestingOAs(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
+        body: { nivelId, asignaturaId, tema: descripcion },
+      });
+      if (error) throw error;
+      setValue('objetivosSugeridos', data.suggestions);
+      showSuccess("Objetivos de aprendizaje sugeridos.");
+    } catch (error: any) {
+      showError(`Error al sugerir OAs: ${error.message}`);
+    } finally {
+      setIsSuggestingOAs(false);
+    }
+  };
 
   const onStep1Submit = async (data: Step1FormData) => {
     if (!activeEstablishment) {
@@ -46,7 +93,17 @@ const RubricBuilderPage = () => {
       const newRubricId = await createRubric(data.nombre, data.actividad_a_evaluar, data.descripcion, activeEstablishment.id);
       setRubricId(newRubricId);
 
-      const aiContent = await generateRubricWithAI(data.actividad_a_evaluar, data.descripcion);
+      const nivelNombre = niveles.find(n => n.id === data.nivelId)?.nombre || '';
+      const asignaturaNombre = asignaturas.find(a => a.id === data.asignaturaId)?.nombre || '';
+
+      const aiContent = await generateRubricWithAI({
+        activity: data.actividad_a_evaluar,
+        description: data.descripcion,
+        nivelNombre,
+        asignaturaNombre,
+        cantidadCategorias: data.cantidadCategorias,
+        objetivos: data.objetivosSugeridos || 'No especificados',
+      });
       resetStep2({ criterios: aiContent.criterios });
       
       showSuccess("Rúbrica generada por IA. Ahora puedes revisarla y guardarla.");
@@ -89,6 +146,28 @@ const RubricBuilderPage = () => {
         <CardContent>
           {step === 1 && (
             <form onSubmit={handleStep1Submit(onStep1Submit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="nivelId">Nivel Educativo</Label>
+                  <Controller name="nivelId" control={step1Control} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                      <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )} />
+                  {step1Errors.nivelId && <p className="text-red-500 text-sm mt-1">{step1Errors.nivelId.message}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="asignaturaId">Asignatura</Label>
+                  <Controller name="asignaturaId" control={step1Control} render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+                      <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )} />
+                  {step1Errors.asignaturaId && <p className="text-red-500 text-sm mt-1">{step1Errors.asignaturaId.message}</p>}
+                </div>
+              </div>
               <div>
                 <Label htmlFor="nombre">Nombre de la Evaluación</Label>
                 <Controller name="nombre" control={step1Control} render={({ field }) => <Input id="nombre" {...field} />} />
@@ -103,6 +182,21 @@ const RubricBuilderPage = () => {
                 <Label htmlFor="descripcion">Descripción de la Actividad y Contenidos</Label>
                 <Controller name="descripcion" control={step1Control} render={({ field }) => <Textarea id="descripcion" rows={5} {...field} />} />
                 {step1Errors.descripcion && <p className="text-red-500 text-sm mt-1">{step1Errors.descripcion.message}</p>}
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <Label htmlFor="objetivosSugeridos">Objetivos de Aprendizaje</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs}>
+                    {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Sugerir OAs
+                  </Button>
+                </div>
+                <Controller name="objetivosSugeridos" control={step1Control} render={({ field }) => <Textarea id="objetivosSugeridos" rows={4} {...field} />} />
+              </div>
+              <div>
+                <Label htmlFor="cantidadCategorias">Cantidad de Criterios/Categorías</Label>
+                <Controller name="cantidadCategorias" control={step1Control} render={({ field }) => <Input id="cantidadCategorias" type="number" min="2" max="7" {...field} />} />
+                {step1Errors.cantidadCategorias && <p className="text-red-500 text-sm mt-1">{step1Errors.cantidadCategorias.message}</p>}
               </div>
               <div className="flex justify-end">
                 <Button type="submit" disabled={isLoading}>
