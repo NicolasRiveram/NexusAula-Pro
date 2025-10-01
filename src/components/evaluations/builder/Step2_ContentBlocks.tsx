@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, EyeOff } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock } from '@/api/evaluationsApi';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus } from 'lucide-react';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -22,7 +19,55 @@ interface Step2ContentBlocksProps {
   onNextStep: () => void;
 }
 
-// ... (El componente QuestionItem se mantiene igual, no es necesario reescribirlo)
+const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, isAdapting, isIncreasingDifficulty }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, onEdit: (item: EvaluationItem) => void, onIncreaseDifficulty: (itemId: string) => void, isAdapting: boolean, isIncreasingDifficulty: boolean }) => {
+    const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
+
+    return (
+        <div className="p-3 border rounded-md bg-background">
+            <p className="text-sm font-medium">{item.orden}. {item.enunciado}</p>
+            {item.tipo_item === 'seleccion_multiple' && (
+                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
+                        <li key={alt.id} className={cn(alt.es_correcta && "font-semibold text-primary")}>
+                            {String.fromCharCode(97 + index)}) {alt.texto}
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {adaptation && (
+                <div className="mt-3 p-3 border rounded-md bg-blue-50 dark:bg-blue-900/20">
+                    <h5 className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center mb-2">
+                        <BrainCircuit className="h-4 w-4 mr-2" /> VERSIÓN ADAPTADA (PIE)
+                    </h5>
+                    <p className="text-sm font-medium" dangerouslySetInnerHTML={{ __html: adaptation.enunciado_adaptado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                    {item.tipo_item === 'seleccion_multiple' && (
+                        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            {adaptation.alternativas_adaptadas.map((alt, index) => (
+                                <li key={index} className={cn(alt.es_correcta && "font-semibold text-primary")}>
+                                    {String.fromCharCode(97 + index)}) {alt.texto}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 mt-2">
+                <Badge variant="outline" className="capitalize">{item.tipo_item.replace('_', ' ')}</Badge>
+                <Button variant="ghost" size="sm" onClick={() => onEdit(item)}><Edit className="h-3 w-3 mr-1" /> Editar</Button>
+                <Button variant="ghost" size="sm" onClick={() => onIncreaseDifficulty(item.id)} disabled={isIncreasingDifficulty}>
+                    {isIncreasingDifficulty ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ChevronUp className="h-3 w-3 mr-1" />}
+                    Subir Dificultad
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie} className={cn(item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600")}>
+                    {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
+                    {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
+                </Button>
+            </div>
+        </div>
+    );
+};
 
 const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep }) => {
   const [blocks, setBlocks] = useState<EvaluationContentBlock[]>([]);
@@ -37,7 +82,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [isUseResourceDialogOpen, setUseResourceDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EvaluationItem | null>(null);
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
-  const [questionQuantities, setQuestionQuantities] = useState<Record<string, number>>({});
 
   const toggleBlockExpansion = (blockId: string) => {
     setExpandedBlocks(prev => ({ ...prev, [blockId]: !prev[blockId] }));
@@ -83,14 +127,9 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   };
 
   const handleGenerateQuestions = async (block: EvaluationContentBlock) => {
-    const quantity = questionQuantities[block.id] || 2;
-    if (quantity < 1 || quantity > 10) {
-        showError("Por favor, ingresa un número de preguntas entre 1 y 10.");
-        return;
-    }
     setGeneratingForBlock(block.id);
     try {
-        const generatedQuestions = await generateQuestionsFromBlock(block, quantity);
+        const generatedQuestions = await generateQuestionsFromBlock(block);
         const totalItemsInEvaluation = Object.values(questionsByBlock).flat().length;
         await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions, totalItemsInEvaluation);
         showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
@@ -102,20 +141,43 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
-  const handleVisibilityChange = async (block: EvaluationContentBlock, newVisibility: boolean) => {
-    const originalVisibility = block.visible_en_evaluacion;
-    // Optimistic UI update
-    setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, visible_en_evaluacion: newVisibility } : b));
+  const handleAdaptPIE = async (itemId: string) => {
+    setAdaptingItemId(itemId);
     try {
-        await updateContentBlock(block.id, { visible_en_evaluacion: newVisibility });
+        const adaptationData = await generatePIEAdaptation(itemId);
+        await savePIEAdaptation(itemId, adaptationData);
+        showSuccess("Pregunta adaptada para PIE exitosamente.");
+        loadBlocksAndQuestions();
     } catch (error: any) {
-        showError(`Error al actualizar la visibilidad: ${error.message}`);
-        // Revert on error
-        setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, visible_en_evaluacion: originalVisibility } : b));
+        showError(`Error al adaptar la pregunta: ${error.message}`);
+    } finally {
+        setAdaptingItemId(null);
     }
   };
 
-  // ... (otras funciones de manejo como handleAdaptPIE, handleEditSave, etc. se mantienen igual)
+  const handleEditSave = async (item: EvaluationItem, data: any) => {
+    try {
+        await updateEvaluationItem(item.id, data);
+        showSuccess("Pregunta actualizada.");
+        setEditingItem(null);
+        loadBlocksAndQuestions();
+    } catch (error: any) {
+        showError(`Error al guardar: ${error.message}`);
+    }
+  };
+
+  const handleIncreaseDifficulty = async (itemId: string) => {
+    setIncreasingDifficultyId(itemId);
+    try {
+        await increaseQuestionDifficulty(itemId);
+        showSuccess("Dificultad de la pregunta aumentada.");
+        loadBlocksAndQuestions();
+    } catch (error: any) {
+        showError(`Error al aumentar dificultad: ${error.message}`);
+    } finally {
+        setIncreasingDifficultyId(null);
+    }
+  };
 
   const handlePlanSelected = async (plan: UnitPlan) => {
     const toastId = showLoading("Creando bloque desde el plan...");
@@ -125,8 +187,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         evaluationId,
         'text',
         { text: contentText },
-        blocks.length + 1,
-        `Unidad: ${plan.titulo}`
+        blocks.length + 1
       );
       showSuccess("Bloque de contenido creado desde el plan didáctico.");
       loadBlocksAndQuestions();
@@ -152,8 +213,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
           evaluationId,
           block.block_type,
           block.content,
-          blocks.length + index + 1,
-          block.title
+          blocks.length + index + 1
         )
       );
       await Promise.all(createBlockPromises);
@@ -183,12 +243,12 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         <div className="space-y-6">
           {blocks.map(block => (
             <div key={block.id}>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between cursor-pointer" onClick={() => toggleBlockExpansion(block.id)}>
+              <Card className="cursor-pointer" onClick={() => toggleBlockExpansion(block.id)}>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <div className="flex items-center">
                     {block.block_type === 'text' ? <FileText className="mr-3 h-5 w-5 text-muted-foreground" /> : <ImageIcon className="mr-3 h-5 w-5 text-muted-foreground" />}
                     <div>
-                      <CardTitle className="text-base">{block.title || `Bloque de ${block.block_type === 'text' ? 'Texto' : 'Imagen'} #${block.orden}`}</CardTitle>
+                      <CardTitle className="text-base">Bloque de {block.block_type === 'text' ? 'Texto' : 'Imagen'} (Orden: {block.orden})</CardTitle>
                       <CardDescription>
                         {questionsByBlock[block.id]?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
                       </CardDescription>
@@ -199,55 +259,38 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                     <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
                   </div>
                 </CardHeader>
+                {!expandedBlocks[block.id] && (
+                    <CardContent>
+                        {block.block_type === 'text' ? (
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">{block.content.text}</p>
+                        ) : (
+                            <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Bloque ${block.orden}`} className="rounded-md max-h-24 object-contain" />
+                        )}
+                    </CardContent>
+                )}
               </Card>
               {expandedBlocks[block.id] && (
                 <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
-                  <div className="p-4 border rounded-md bg-muted/30 space-y-4">
-                    {block.block_type === 'text' ? (
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{block.content.text}</p>
-                    ) : (
-                        <div>
-                            <img src={getPublicImageUrl(block.content.imageUrl)} alt={block.title || `Bloque ${block.orden}`} className="rounded-md max-h-60 object-contain mx-auto" />
-                            {block.content.context && <p className="text-xs text-muted-foreground italic mt-2 text-center">Contexto: {block.content.context}</p>}
-                        </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id={`visible-${block.id}`}
-                                checked={block.visible_en_evaluacion}
-                                onCheckedChange={(checked) => handleVisibilityChange(block, checked)}
-                            />
-                            <Label htmlFor={`visible-${block.id}`} className="text-xs text-muted-foreground flex items-center">
-                                {block.visible_en_evaluacion ? 'Visible para estudiantes' : <><EyeOff className="h-3 w-3 mr-1"/> Oculto para estudiantes</>}
-                            </Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor={`quantity-${block.id}`} className="text-sm">N° de preguntas:</Label>
-                            <Input
-                                id={`quantity-${block.id}`}
-                                type="number"
-                                min="1"
-                                max="10"
-                                className="w-16 h-8"
-                                value={questionQuantities[block.id] || 2}
-                                onChange={(e) => setQuestionQuantities(prev => ({ ...prev, [block.id]: parseInt(e.target.value, 10) }))}
-                            />
-                            <Button onClick={() => handleGenerateQuestions(block)} disabled={generatingForBlock === block.id} size="sm">
-                                {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                                <span className="ml-2">Generar</span>
-                            </Button>
-                        </div>
-                    </div>
+                  <div className="flex justify-end">
+                    <Button onClick={() => handleGenerateQuestions(block)} disabled={generatingForBlock === block.id}>
+                      {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                      Generar Preguntas
+                    </Button>
                   </div>
                   {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 ? (
                     questionsByBlock[block.id].map(item => (
-                      <div key={item.id}> {/* Reemplaza QuestionItem para simplificar */}
-                        <p>{item.enunciado}</p>
-                      </div>
+                      <QuestionItem 
+                          key={item.id} 
+                          item={item} 
+                          onAdaptPIE={handleAdaptPIE}
+                          onEdit={setEditingItem}
+                          onIncreaseDifficulty={handleIncreaseDifficulty}
+                          isAdapting={adaptingItemId === item.id}
+                          isIncreasingDifficulty={increasingDifficultyId === item.id}
+                      />
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center pt-4">Aún no hay preguntas para este bloque.</p>
+                    <p className="text-sm text-muted-foreground text-center">Aún no hay preguntas para este bloque.</p>
                   )}
                 </div>
               )}
@@ -262,14 +305,14 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       )}
 
       <div className="flex justify-end pt-4">
-        <Button onClick={onNextStep} disabled={blocks.length === 0}>Continuar a Configuración Final</Button>
+        <Button onClick={onNextStep} disabled={blocks.length === 0}>Continuar a Revisión Final</Button>
       </div>
 
       <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
       <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
-      <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={() => {}} item={editingItem} />
+      <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
     </div>
   );
 };
