@@ -91,53 +91,46 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     setExpandedBlocks(prev => ({ ...prev, [blockId]: !prev[blockId] }));
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const blockData = await fetchContentBlocks(evaluationId);
-            setBlocks(blockData);
-            
-            const questionsPromises = blockData.map(block => fetchItemsForBlock(block.id));
-            const questionsResults = await Promise.all(questionsPromises);
-            
-            const questionsMap: Record<string, EvaluationItem[]> = {};
-            const initialExpansionState: Record<string, boolean> = {};
-            blockData.forEach((block, index) => {
-                questionsMap[block.id] = questionsResults[index];
-                initialExpansionState[block.id] = true;
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+        const blockData = await fetchContentBlocks(evaluationId);
+        setBlocks(blockData);
+        
+        const questionsPromises = blockData.map(block => fetchItemsForBlock(block.id));
+        const questionsResults = await Promise.all(questionsPromises);
+        
+        const questionsMap: Record<string, EvaluationItem[]> = {};
+        blockData.forEach((block, index) => {
+            questionsMap[block.id] = questionsResults[index];
+        });
+        setQuestionsByBlock(questionsMap);
+        setExpandedBlocks(prev => {
+            const newState = { ...prev };
+            blockData.forEach(block => {
+                if (newState[block.id] === undefined) {
+                    newState[block.id] = true;
+                }
             });
-            setQuestionsByBlock(questionsMap);
-            setExpandedBlocks(initialExpansionState);
+            return newState;
+        });
 
-        } catch (error: any) {
-            showError(`Error al cargar bloques y preguntas: ${error.message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    if (evaluationId) {
-        loadData();
+    } catch (error: any) {
+        showError(`Error al cargar bloques y preguntas: ${error.message}`);
+    } finally {
+        setLoading(false);
     }
   }, [evaluationId]);
 
-  const handleBlockCreated = (newBlock: EvaluationContentBlock) => {
-    setBlocks(prev => [...prev, newBlock]);
-    setQuestionsByBlock(prev => ({ ...prev, [newBlock.id]: [] }));
-    setExpandedBlocks(prev => ({ ...prev, [newBlock.id]: true }));
-  };
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleDeleteBlock = async (blockId: string) => {
     try {
       await deleteContentBlock(blockId);
       showSuccess("Bloque eliminado.");
-      setBlocks(prev => prev.filter(b => b.id !== blockId));
-      setQuestionsByBlock(prev => {
-        const newQuestions = { ...prev };
-        delete newQuestions[blockId];
-        return newQuestions;
-      });
+      loadData();
     } catch (error: any) {
       showError(`Error al eliminar el bloque: ${error.message}`);
     }
@@ -153,12 +146,9 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     try {
         const generatedQuestions = await generateQuestionsFromBlock(block, quantity);
         const totalItemsInEvaluation = Object.values(questionsByBlock).flat().length;
-        const newItems = await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions, totalItemsInEvaluation);
-        setQuestionsByBlock(prev => ({
-            ...prev,
-            [block.id]: [...(prev[block.id] || []), ...newItems]
-        }));
-        showSuccess(`Se generaron ${newItems.length} preguntas para el bloque.`);
+        await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions, totalItemsInEvaluation);
+        showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
+        loadData();
     } catch (error: any) {
         showError(error.message);
     } finally {
@@ -181,15 +171,15 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     const toastId = showLoading("Creando bloque desde el plan...");
     try {
       const contentText = `Contenido de la unidad: ${plan.titulo}\n\n${plan.descripcion_contenidos}`;
-      const newBlock = await createContentBlock(
+      await createContentBlock(
         evaluationId,
         'text',
         { text: contentText },
         blocks.length + 1,
         `Unidad: ${plan.titulo}`
       );
-      handleBlockCreated(newBlock);
       showSuccess("Bloque de contenido creado desde el plan didáctico.");
+      loadData();
     } catch (error: any) {
       showError(`Error al crear el bloque: ${error.message}`);
     } finally {
@@ -216,13 +206,9 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
           block.title
         )
       );
-      const newBlocks = await Promise.all(createBlockPromises);
-
-      setBlocks(prev => [...prev, ...newBlocks]);
-      const newQuestionsMap = newBlocks.reduce((acc, b) => ({ ...acc, [b.id]: [] }), {});
-      setQuestionsByBlock(prev => ({ ...prev, ...newQuestionsMap }));
-
-      showSuccess(`Se importaron ${newBlocks.length} bloques de contenido.`);
+      await Promise.all(createBlockPromises);
+      showSuccess(`Se importaron ${blocksToImport.length} bloques de contenido.`);
+      loadData();
     } catch (error: any) {
       showError(`Error al importar el recurso: ${error.message}`);
     } finally {
@@ -236,9 +222,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         await updateEvaluationItem(item.id, data);
         showSuccess("Pregunta actualizada.");
         setEditingItem(null);
-        // Targeted reload for just this block's questions
-        const newQuestions = await fetchItemsForBlock(item.content_block_id);
-        setQuestionsByBlock(prev => ({ ...prev, [item.content_block_id]: newQuestions }));
+        loadData();
     } catch (error: any) {
         showError(error.message);
     } finally {
@@ -252,8 +236,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         const adaptation = await generatePIEAdaptation(item.id);
         await savePIEAdaptation(item.id, adaptation);
         showSuccess("Adaptación PIE generada y guardada.");
-        const newQuestions = await fetchItemsForBlock(item.content_block_id);
-        setQuestionsByBlock(prev => ({ ...prev, [item.content_block_id]: newQuestions }));
+        loadData();
     } catch (error: any) {
         showError(error.message);
     } finally {
@@ -266,8 +249,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     try {
         await increaseQuestionDifficulty(item.id);
         showSuccess("La pregunta ha sido actualizada con mayor dificultad.");
-        const newQuestions = await fetchItemsForBlock(item.content_block_id);
-        setQuestionsByBlock(prev => ({ ...prev, [item.content_block_id]: newQuestions }));
+        loadData();
     } catch (error: any) {
         showError(error.message);
     } finally {
@@ -381,8 +363,8 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         <Button onClick={onNextStep} disabled={blocks.length === 0}>Continuar a Configuración Final</Button>
       </div>
 
-      <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={handleBlockCreated} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
-      <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={handleBlockCreated} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
+      <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={loadData} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
+      <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={loadData} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
       <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
       <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
