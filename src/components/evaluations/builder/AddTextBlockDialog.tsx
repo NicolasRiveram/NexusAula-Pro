@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { createContentBlock } from '@/api/evaluationsApi';
+import { createContentBlock, EvaluationContentBlock } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const schema = z.object({
@@ -20,7 +20,7 @@ type FormData = z.infer<typeof schema>;
 interface AddTextBlockDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBlockCreated: () => void;
+  onBlockCreated: (newBlock: EvaluationContentBlock) => void;
   evaluationId: string;
   currentOrder: number;
 }
@@ -39,10 +39,10 @@ const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose
   const onSubmit = async (data: FormData) => {
     const toastId = showLoading("Añadiendo bloque...");
     try {
-      await createContentBlock(evaluationId, 'text', { text: data.text }, currentOrder, data.title || null);
+      const newBlock = await createContentBlock(evaluationId, 'text', { text: data.text }, currentOrder, data.title || null);
       dismissToast(toastId);
       showSuccess("Bloque de texto añadido.");
-      onBlockCreated();
+      onBlockCreated(newBlock);
       onClose();
     } catch (error: any) {
       dismissToast(toastId);

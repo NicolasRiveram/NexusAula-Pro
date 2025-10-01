@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createContentBlock, uploadEvaluationImage } from '@/api/evaluationsApi';
+import { createContentBlock, uploadEvaluationImage, EvaluationContentBlock } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -31,7 +31,7 @@ type FormData = z.infer<typeof schema>;
 interface AddImageBlockDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBlockCreated: () => void;
+  onBlockCreated: (newBlock: EvaluationContentBlock) => void;
   evaluationId: string;
   currentOrder: number;
 }
@@ -61,7 +61,7 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
       dismissToast(toastId);
       
       const blockToastId = showLoading("Añadiendo bloque...");
-      await createContentBlock(
+      const newBlock = await createContentBlock(
         evaluationId,
         'image',
         { imageUrl: imagePath, context: data.context || null },
@@ -71,7 +71,7 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
       dismissToast(blockToastId);
 
       showSuccess("Bloque de imagen añadido.");
-      onBlockCreated();
+      onBlockCreated(newBlock);
       onClose();
     } catch (error: any) {
       dismissToast(toastId);
