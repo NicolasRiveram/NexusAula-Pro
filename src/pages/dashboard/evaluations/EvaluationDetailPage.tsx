@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl } from '@/api/evaluations';
+import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';

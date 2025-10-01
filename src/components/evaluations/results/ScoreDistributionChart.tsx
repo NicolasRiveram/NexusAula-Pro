@@ -1,7 +1,7 @@
 import React from 'react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { EvaluationStatistics } from '@/api/evaluations';
+import { EvaluationStatistics } from '@/api/evaluationsApi';
 
 interface ScoreDistributionChartProps {
   stats: EvaluationStatistics;

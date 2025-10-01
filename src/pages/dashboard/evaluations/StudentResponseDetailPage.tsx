@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, fetchStudentAndEvaluationInfo, StudentResponseHeader, fetchStudentResponseDetails, StudentResponseItem } from '@/api/evaluations';
+import { fetchEvaluationDetails, EvaluationDetail, fetchStudentAndEvaluationInfo, StudentResponseHeader, fetchStudentResponseDetails, StudentResponseItem } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';

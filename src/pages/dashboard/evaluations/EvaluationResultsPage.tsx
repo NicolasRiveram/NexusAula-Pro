@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { fetchEvaluationDetails, fetchEvaluationResultsSummary, EvaluationDetail, EvaluationResultSummary, fetchEvaluationStatistics, EvaluationStatistics, fetchItemAnalysis, ItemAnalysisResult } from '@/api/evaluations';
+import { fetchEvaluationDetails, fetchEvaluationResultsSummary, EvaluationDetail, EvaluationResultSummary, fetchEvaluationStatistics, EvaluationStatistics, fetchItemAnalysis, ItemAnalysisResult } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';

@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { createContentBlock, uploadEvaluationImage } from '@/api/evaluations';
+import { createContentBlock, uploadEvaluationImage } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const schema = z.object({
-  title: z.string().optional(),
-  context: z.string().optional(),
   image: z
     .any()
     .refine((files) => files?.length == 1, "Debes seleccionar una imagen.")
@@ -38,7 +35,7 @@ interface AddImageBlockDialogProps {
 
 const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClose, onBlockCreated, evaluationId, currentOrder }) => {
   const [preview, setPreview] = useState<string | null>(null);
-  const { register, control, handleSubmit, formState: { errors, isSubmitting }, reset, watch } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -61,13 +58,7 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
       dismissToast(toastId);
       
       const blockToastId = showLoading("Añadiendo bloque...");
-      await createContentBlock(
-        evaluationId,
-        'image',
-        { imageUrl: imagePath, context: data.context || null },
-        currentOrder,
-        data.title || null
-      );
+      await createContentBlock(evaluationId, 'image', { imageUrl: imagePath }, currentOrder);
       dismissToast(blockToastId);
 
       showSuccess("Bloque de imagen añadido.");
@@ -91,18 +82,10 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
         <DialogHeader>
           <DialogTitle>Añadir Bloque de Imagen</DialogTitle>
           <DialogDescription>
-            Sube una imagen y añade contexto para generar preguntas relevantes.
+            Sube una imagen que servirá de base para generar preguntas.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
-          <div>
-            <Label htmlFor="title">Título del Bloque (Opcional)</Label>
-            <Controller
-              name="title"
-              control={control}
-              render={({ field }) => <Input id="title" placeholder="Ej: Imagen 1 - Ciclo del Agua" {...field} />}
-            />
-          </div>
           <div>
             <Label htmlFor="image">Archivo de Imagen</Label>
             <Input id="image" type="file" accept="image/*" {...register("image")} />
@@ -111,17 +94,9 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
           {preview && (
             <div className="mt-4">
               <Label>Vista Previa</Label>
-              <img src={preview} alt="Vista previa de la imagen" className="mt-2 rounded-md max-h-40 w-full object-contain" />
+              <img src={preview} alt="Vista previa de la imagen" className="mt-2 rounded-md max-h-60 w-full object-contain" />
             </div>
           )}
-          <div>
-            <Label htmlFor="context">Contexto para la IA (Opcional)</Label>
-            <Controller
-              name="context"
-              control={control}
-              render={({ field }) => <Textarea id="context" rows={3} placeholder="Describe qué se debe observar en la imagen para guiar a la IA. Ej: 'Observa las fases del ciclo del agua y sus nombres.'" {...field} />}
-            />
-          </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={handleClose}>Cancelar</Button>
             <Button type="submit" disabled={isSubmitting}>
