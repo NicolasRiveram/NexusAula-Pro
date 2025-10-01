@@ -29,16 +29,14 @@ export const schema = z.object({
 export type EvaluationStep1Data = z.infer<typeof schema>;
 
 interface Step1GeneralInfoProps {
-  onFormSubmit: (e: React.BaseSyntheticEvent) => Promise<void>;
   control: Control<EvaluationStep1Data>;
   isSubmitting: boolean;
 }
 
-const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, control, isSubmitting }) => {
+const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ control, isSubmitting }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
   
-  // We get errors from the parent's useForm hook via control
   const { errors } = useFormState({ control });
 
   useEffect(() => {
@@ -59,7 +57,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
   }, [activeEstablishment]);
 
   return (
-    <form onSubmit={onFormSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="titulo">Título de la Evaluación</Label>
@@ -127,7 +125,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
           {isSubmitting ? 'Guardando...' : 'Guardar y Continuar'}
         </Button>
       </div>
-    </form>
+    </div>
   );
 };
 
