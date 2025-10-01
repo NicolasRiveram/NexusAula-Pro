@@ -56,6 +56,8 @@ export interface EvaluationItem {
   puntaje: number;
   orden: number;
   content_block_id: string;
+  habilidad_evaluada: string | null;
+  nivel_comprension: string | null;
   item_alternativas: ItemAlternative[];
   tiene_adaptacion_pie: boolean;
   adaptaciones_pie: PIEAdaptation[]; // Supabase returns this as an array
@@ -117,6 +119,8 @@ export interface ManualQuestionData {
   tipo_item: 'seleccion_multiple' | 'desarrollo' | 'verdadero_falso';
   puntaje: number;
   orden: number;
+  habilidad_evaluada?: string;
+  nivel_comprension?: string;
   alternativas?: Omit<ItemAlternative, 'id' | 'evaluacion_item_id'>[];
 }
 
@@ -507,6 +511,8 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
     tipo_item: q.tipo_item,
     puntaje: q.puntaje,
     orden: currentItemCount + index + 1,
+    habilidad_evaluada: q.habilidad_evaluada,
+    nivel_comprension: q.nivel_comprension,
   }));
 
   const { data: insertedItems, error: itemsError } = await supabase
@@ -545,7 +551,7 @@ export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationIte
     const { data, error } = await supabase
         .from('evaluacion_items')
         .select(`
-            id, enunciado, tipo_item, puntaje, orden, content_block_id, tiene_adaptacion_pie,
+            id, enunciado, tipo_item, puntaje, orden, content_block_id, tiene_adaptacion_pie, habilidad_evaluada, nivel_comprension,
             item_alternativas ( id, texto, es_correcta, orden ),
             adaptaciones_pie ( id, enunciado_adaptado, alternativas_adaptadas )
         `)

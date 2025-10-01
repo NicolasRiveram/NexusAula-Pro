@@ -44,6 +44,8 @@ serve(async (req) => {
         "enunciado": "string",
         "tipo_item": "seleccion_multiple",
         "puntaje": 5,
+        "habilidad_evaluada": "string",
+        "nivel_comprension": "string",
         "alternativas": [
           {"texto": "string", "es_correcta": boolean},
           {"texto": "string", "es_correcta": boolean},
@@ -55,6 +57,8 @@ serve(async (req) => {
       - Asegúrate de que solo UNA alternativa tenga "es_correcta" como true.
       - El puntaje debe ser un número entero.
       - El enunciado y las alternativas deben ser claros y concisos.
+      - Para "habilidad_evaluada", identifica una habilidad curricular específica (ej: "Comprensión Lectora", "Análisis de Fuentes", "Resolución de Problemas").
+      - Para "nivel_comprension", usa uno de los niveles de la Taxonomía de Bloom: "Recordar", "Comprender", "Aplicar", "Analizar", "Evaluar", "Crear".
       - Tu respuesta DEBE ser únicamente el array JSON dentro de un bloque de código.
     `;
 

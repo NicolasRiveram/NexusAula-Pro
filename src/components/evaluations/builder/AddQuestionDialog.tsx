@@ -21,6 +21,8 @@ const schema = z.object({
   tipo_item: z.enum(['seleccion_multiple', 'verdadero_falso', 'desarrollo']),
   enunciado: z.string().min(10, "El enunciado es muy corto."),
   puntaje: z.coerce.number().min(0, "El puntaje no puede ser negativo."),
+  habilidad_evaluada: z.string().min(3, "La habilidad es requerida."),
+  nivel_comprension: z.string().min(1, "El nivel de comprensión es requerido."),
   alternativas: z.array(alternativeSchema).optional(),
   correctAlternative: z.string().optional(),
 }).superRefine((data, ctx) => {
@@ -66,6 +68,8 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, 
       tipo_item: questionType,
       enunciado: '',
       puntaje: 1,
+      habilidad_evaluada: '',
+      nivel_comprension: undefined,
       alternativas: questionType === 'seleccion_multiple' ? [{ texto: '' }, { texto: '' }] : [],
       correctAlternative: undefined,
     });
@@ -79,6 +83,8 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, 
         tipo_item: data.tipo_item,
         puntaje: data.puntaje,
         orden: currentOrder,
+        habilidad_evaluada: data.habilidad_evaluada,
+        nivel_comprension: data.nivel_comprension,
       };
 
       if (data.tipo_item === 'seleccion_multiple' && data.alternativas) {
@@ -129,10 +135,34 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, 
             <Controller name="enunciado" control={control} render={({ field }) => <Textarea id="enunciado" rows={3} {...field} />} />
             {errors.enunciado && <p className="text-red-500 text-sm mt-1">{errors.enunciado.message}</p>}
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="puntaje">Puntaje</Label>
+              <Controller name="puntaje" control={control} render={({ field }) => <Input id="puntaje" type="number" {...field} />} />
+              {errors.puntaje && <p className="text-red-500 text-sm mt-1">{errors.puntaje.message}</p>}
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="habilidad_evaluada">Habilidad Evaluada</Label>
+              <Controller name="habilidad_evaluada" control={control} render={({ field }) => <Input id="habilidad_evaluada" placeholder="Ej: Comprensión Lectora" {...field} />} />
+              {errors.habilidad_evaluada && <p className="text-red-500 text-sm mt-1">{errors.habilidad_evaluada.message}</p>}
+            </div>
+          </div>
           <div>
-            <Label htmlFor="puntaje">Puntaje</Label>
-            <Controller name="puntaje" control={control} render={({ field }) => <Input id="puntaje" type="number" {...field} />} />
-            {errors.puntaje && <p className="text-red-500 text-sm mt-1">{errors.puntaje.message}</p>}
+            <Label htmlFor="nivel_comprension">Nivel de Comprensión (Bloom)</Label>
+            <Controller name="nivel_comprension" control={control} render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Recordar">Recordar</SelectItem>
+                  <SelectItem value="Comprender">Comprender</SelectItem>
+                  <SelectItem value="Aplicar">Aplicar</SelectItem>
+                  <SelectItem value="Analizar">Analizar</SelectItem>
+                  <SelectItem value="Evaluar">Evaluar</SelectItem>
+                  <SelectItem value="Crear">Crear</SelectItem>
+                </SelectContent>
+              </Select>
+            )} />
+            {errors.nivel_comprension && <p className="text-red-500 text-sm mt-1">{errors.nivel_comprension.message}</p>}
           </div>
 
           {questionType === 'seleccion_multiple' && (

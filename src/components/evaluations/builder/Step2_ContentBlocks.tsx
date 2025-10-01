@@ -74,21 +74,27 @@ const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, isAdapti
                 </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 mt-2">
-                <Badge variant="outline" className="capitalize">{item.tipo_item.replace(/_/g, ' ')}</Badge>
-                {item.tipo_item === 'seleccion_multiple' && (
-                    <>
-                        <Button variant="ghost" size="sm" onClick={() => onEdit(item)}><Edit className="h-3 w-3 mr-1" /> Editar</Button>
-                        <Button variant="ghost" size="sm" onClick={() => onIncreaseDifficulty(item.id)} disabled={isIncreasingDifficulty}>
-                            {isIncreasingDifficulty ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ChevronUp className="h-3 w-3 mr-1" />}
-                            Subir Dificultad
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie} className={cn(item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600")}>
-                            {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
-                            {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
-                        </Button>
-                    </>
-                )}
+            <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-2">
+                    {item.habilidad_evaluada && <Badge variant="secondary">{item.habilidad_evaluada}</Badge>}
+                    {item.nivel_comprension && <Badge variant="outline">{item.nivel_comprension}</Badge>}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="capitalize">{item.tipo_item.replace(/_/g, ' ')}</Badge>
+                    {item.tipo_item === 'seleccion_multiple' && (
+                        <>
+                            <Button variant="ghost" size="sm" onClick={() => onEdit(item)}><Edit className="h-3 w-3 mr-1" /> Editar</Button>
+                            <Button variant="ghost" size="sm" onClick={() => onIncreaseDifficulty(item.id)} disabled={isIncreasingDifficulty}>
+                                {isIncreasingDifficulty ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ChevronUp className="h-3 w-3 mr-1" />}
+                                Subir Dificultad
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie} className={cn(item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600")}>
+                                {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
+                                {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
+                            </Button>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
