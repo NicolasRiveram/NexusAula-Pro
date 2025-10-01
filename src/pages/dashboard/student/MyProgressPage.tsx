@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { fetchStudentEvaluationHistory, fetchStudentPerformanceStats, fetchStudentSkillPerformance } from '@/api/coursesApi';
-import { fetchEvaluationsForStudent } from '@/api/rubricsApi';
+import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -31,28 +31,24 @@ const MyProgressPage = () => {
     queryKey: ['studentPerformanceStats', studentId],
     queryFn: () => fetchStudentPerformanceStats(studentId!),
     enabled: !!studentId,
-    onError: (err: any) => showError(`Error al cargar estadísticas: ${err.message}`),
   });
 
   const { data: skillPerformance, isLoading: isLoadingSkills } = useQuery({
     queryKey: ['studentSkillPerformance', studentId],
     queryFn: () => fetchStudentSkillPerformance(studentId!),
     enabled: !!studentId,
-    onError: (err: any) => showError(`Error al cargar desempeño por habilidad: ${err.message}`),
   });
 
   const { data: evaluationHistory, isLoading: isLoadingHistory } = useQuery({
     queryKey: ['studentEvaluationHistory', studentId],
     queryFn: () => fetchStudentEvaluationHistory(studentId!),
     enabled: !!studentId,
-    onError: (err: any) => showError(`Error al cargar historial de pruebas: ${err.message}`),
   });
 
   const { data: rubricEvaluations, isLoading: isLoadingRubrics } = useQuery({
     queryKey: ['studentRubricEvaluations', studentId],
     queryFn: () => fetchEvaluationsForStudent(studentId!),
     enabled: !!studentId,
-    onError: (err: any) => showError(`Error al cargar historial de rúbricas: ${err.message}`),
   });
 
   const isLoading = isLoadingStats || isLoadingSkills || isLoadingHistory || isLoadingRubrics;
