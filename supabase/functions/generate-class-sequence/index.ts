@@ -29,7 +29,7 @@ serve(async (req) => {
 
     const { suggestions, projectContext } = await req.json();
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
       Eres un asistente experto en planificación de clases y didáctica para la educación chilena.

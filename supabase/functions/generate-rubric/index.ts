@@ -32,7 +32,7 @@ serve(async (req) => {
         throw new Error("La solicitud debe incluir 'activity' y 'description'.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
       Eres un asistente experto en crear rúbricas de evaluación para Chile.
@@ -56,7 +56,7 @@ serve(async (req) => {
         ]
       }
       \`\`\`
-      - Genera 5 criterios de evaluación relevantes.
+      - Genera 3 criterios de evaluación relevantes.
       - Cada criterio debe tener 5 niveles de logro con puntajes de 5 a 1.
       - La 'habilidad' debe ser una habilidad general asociada al criterio (ej: "Pensamiento Crítico", "Comunicación Efectiva").
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
