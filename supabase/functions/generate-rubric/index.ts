@@ -56,7 +56,7 @@ serve(async (req) => {
         ]
       }
       \`\`\`
-      - Genera 3 criterios de evaluación relevantes.
+      - Genera 5 criterios de evaluación relevantes.
       - Cada criterio debe tener 5 niveles de logro con puntajes de 5 a 1.
       - La 'habilidad' debe ser una habilidad general asociada al criterio (ej: "Pensamiento Crítico", "Comunicación Efectiva").
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
