@@ -91,34 +91,36 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     setExpandedBlocks(prev => ({ ...prev, [blockId]: !prev[blockId] }));
   };
 
-  const loadBlocksAndQuestions = useCallback(async () => {
-    setLoading(true);
-    try {
-      const blockData = await fetchContentBlocks(evaluationId);
-      setBlocks(blockData);
-      
-      const questionsPromises = blockData.map(block => fetchItemsForBlock(block.id));
-      const questionsResults = await Promise.all(questionsPromises);
-      
-      const questionsMap: Record<string, EvaluationItem[]> = {};
-      const initialExpansionState: Record<string, boolean> = {};
-      blockData.forEach((block, index) => {
-        questionsMap[block.id] = questionsResults[index];
-        initialExpansionState[block.id] = true;
-      });
-      setQuestionsByBlock(questionsMap);
-      setExpandedBlocks(initialExpansionState);
+  useEffect(() => {
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const blockData = await fetchContentBlocks(evaluationId);
+            setBlocks(blockData);
+            
+            const questionsPromises = blockData.map(block => fetchItemsForBlock(block.id));
+            const questionsResults = await Promise.all(questionsPromises);
+            
+            const questionsMap: Record<string, EvaluationItem[]> = {};
+            const initialExpansionState: Record<string, boolean> = {};
+            blockData.forEach((block, index) => {
+                questionsMap[block.id] = questionsResults[index];
+                initialExpansionState[block.id] = true;
+            });
+            setQuestionsByBlock(questionsMap);
+            setExpandedBlocks(initialExpansionState);
 
-    } catch (error: any) {
-      showError(`Error al cargar bloques y preguntas: ${error.message}`);
-    } finally {
-      setLoading(false);
+        } catch (error: any) {
+            showError(`Error al cargar bloques y preguntas: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    if (evaluationId) {
+        loadData();
     }
   }, [evaluationId]);
-
-  useEffect(() => {
-    loadBlocksAndQuestions();
-  }, [loadBlocksAndQuestions]);
 
   const handleBlockCreated = (newBlock: EvaluationContentBlock) => {
     setBlocks(prev => [...prev, newBlock]);
