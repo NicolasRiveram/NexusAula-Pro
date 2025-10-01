@@ -87,8 +87,51 @@ export interface UpdateClassPayload {
   aspectos_valoricos_actitudinales?: string;
 }
 
+export interface UpdateUnitPlanData {
+  titulo: string;
+  descripcion_contenidos: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  cursoAsignaturaIds: string[];
+}
+
 
 // --- Funciones de API ---
+
+export const updateUnitPlanDetails = async (unitMasterId: string, data: UpdateUnitPlanData) => {
+  // 1. Update the main unit details
+  const { error: updateError } = await supabase
+    .from('unidades_maestras')
+    .update({
+      titulo: data.titulo,
+      descripcion_contenidos: data.descripcion_contenidos,
+      fecha_inicio: data.fecha_inicio,
+      fecha_fin: data.fecha_fin,
+    })
+    .eq('id', unitMasterId);
+
+  if (updateError) throw new Error(`Error updating unit plan: ${updateError.message}`);
+
+  // 2. Handle course links (delete all, then re-insert)
+  const { error: deleteError } = await supabase
+    .from('unidad_maestra_curso_asignatura_link')
+    .delete()
+    .eq('unidad_maestra_id', unitMasterId);
+
+  if (deleteError) throw new Error(`Error clearing old course links: ${deleteError.message}`);
+
+  const newLinks = data.cursoAsignaturaIds.map(id => ({
+    unidad_maestra_id: unitMasterId,
+    curso_asignatura_id: id,
+  }));
+
+  if (newLinks.length > 0) {
+    const { error: insertError } = await supabase
+      .from('unidad_maestra_curso_asignatura_link')
+      .insert(newLinks);
+    if (insertError) throw new Error(`Error inserting new course links: ${insertError.message}`);
+  }
+};
 
 export const linkNewUnitsToProject = async (unidadMaestraId: string, proyectoId: string) => {
   // 1. Find all planificaciones_clase with unidad_maestra_id
@@ -239,6 +282,7 @@ export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDeta
       sugerencias_ia,
       unidad_maestra_curso_asignatura_link (
         curso_asignaturas (
+          id,
           cursos!inner ( establecimiento_id, nombre, niveles ( nombre ) ),
           asignaturas ( nombre )
         )

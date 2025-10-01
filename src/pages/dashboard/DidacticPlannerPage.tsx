@@ -80,7 +80,7 @@ const DidacticPlannerPage = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild><Link to={`/dashboard/planificacion/${plan.id}`} className="flex items-center w-full"><Eye className="mr-2 h-4 w-4" /> Ver Detalles</Link></DropdownMenuItem>
-                      <DropdownMenuItem disabled><Pencil className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link to={`/dashboard/planificacion/editar/${plan.id}`} className="flex items-center w-full"><Pencil className="mr-2 h-4 w-4" /> Editar</Link></DropdownMenuItem>
                       <DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
