@@ -34,7 +34,7 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
     const prompt = `
       Eres un asistente experto en el currículum educativo chileno.

@@ -29,7 +29,7 @@ serve(async (req) => {
 
     const { block_content, block_type } = await req.json();
     
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
     const contentPrompt = block_type === 'text' 
       ? `el siguiente texto: "${block_content.text}"`
