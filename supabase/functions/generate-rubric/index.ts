@@ -32,7 +32,7 @@ serve(async (req) => {
         throw new Error("Faltan parámetros requeridos en la solicitud.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
       Eres un asistente experto en crear rúbricas de evaluación para Chile.
