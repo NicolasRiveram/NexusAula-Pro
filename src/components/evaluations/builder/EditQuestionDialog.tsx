@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Trash2 } from 'lucide-react';
-import { EvaluationItem } from '@/api/evaluationsApi';
+import { EvaluationItem } from '@/api/evaluations';
 
 const alternativeSchema = z.object({
   texto: z.string().min(1, "El texto no puede estar vacío."),

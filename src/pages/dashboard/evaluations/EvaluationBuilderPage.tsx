@@ -8,7 +8,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import Step1GeneralInfo, { EvaluationStep1Data, schema as step1Schema } from '@/components/evaluations/builder/Step1_GeneralInfo';
 import Step2ContentBlocks from '@/components/evaluations/builder/Step2_ContentBlocks';
 import Step3FinalConfig from '@/components/evaluations/builder/Step3_FinalConfig';
-import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData } from '@/api/evaluationsApi';
+import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData } from '@/api/evaluations';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import * as z from 'zod';

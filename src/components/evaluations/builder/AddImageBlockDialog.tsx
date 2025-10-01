@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createContentBlock, uploadEvaluationImage } from '@/api/evaluationsApi';
+import { createContentBlock, uploadEvaluationImage } from '@/api/evaluations';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB

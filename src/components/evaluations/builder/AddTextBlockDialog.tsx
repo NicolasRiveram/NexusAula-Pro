@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { createContentBlock } from '@/api/evaluationsApi';
+import { createContentBlock } from '@/api/evaluations';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const schema = z.object({

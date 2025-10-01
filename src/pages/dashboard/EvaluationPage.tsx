@@ -5,7 +5,7 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, CheckCircle, Send } from 'lucide-react';
-import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation } from '@/api/evaluationsApi';
+import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation } from '@/api/evaluations';
 import { showError } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';

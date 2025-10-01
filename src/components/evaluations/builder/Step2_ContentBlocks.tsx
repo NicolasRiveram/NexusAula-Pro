@@ -5,7 +5,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, EyeOff } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock } from '@/api/evaluationsApi';
+import { 
+  fetchContentBlocks, 
+  deleteContentBlock, 
+  createContentBlock, 
+  generateQuestionsFromBlock, 
+  saveGeneratedQuestions, 
+  fetchItemsForBlock, 
+  generatePIEAdaptation, 
+  savePIEAdaptation, 
+  updateEvaluationItem, 
+  increaseQuestionDifficulty, 
+  getPublicImageUrl, 
+  fetchEvaluationContentForImport, 
+  updateContentBlock,
+  EvaluationContentBlock,
+  EvaluationItem
+} from '@/api/evaluations';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { EvaluationStatistics } from '@/api/evaluationsApi';
+import { EvaluationStatistics } from '@/api/evaluations';
 
 interface EvaluationStatsCardProps {
   stats: EvaluationStatistics;
