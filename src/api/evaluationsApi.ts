@@ -246,10 +246,11 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
 };
 
 export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData) => {
-  const { cursoAsignaturaIds, ...updateData } = evalData;
+  const { cursoAsignaturaIds, ...updatePayload } = evalData;
+
   const { error: updateError } = await supabase
     .from('evaluaciones')
-    .update(updateData)
+    .update(updatePayload)
     .eq('id', evaluationId);
 
   if (updateError) throw new Error(`Error updating evaluation: ${updateError.message}`);
@@ -376,7 +377,7 @@ export const fetchEvaluationContentForImport = async (resourceId: string): Promi
         .eq('evaluation_id', resourceId)
         .order('orden');
     if (error) throw new Error(`Error al importar contenido: ${error.message}`);
-    return data || [];
+    return data;
 };
 
 export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number, title: string | null) => {
@@ -395,10 +396,10 @@ export const createContentBlock = async (evaluationId: string, blockType: string
   return data;
 };
 
-export const updateContentBlock = async (blockId: string, updateData: Partial<EvaluationContentBlock>) => {
+export const updateContentBlock = async (blockId: string, updates: { visible_en_evaluacion?: boolean; title?: string; }) => {
   const { error } = await supabase
     .from('evaluation_content_blocks')
-    .update(updateData)
+    .update(updates)
     .eq('id', blockId);
   if (error) throw new Error(`Error al actualizar el bloque de contenido: ${error.message}`);
 };
