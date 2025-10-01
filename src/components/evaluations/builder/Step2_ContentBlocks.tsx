@@ -22,7 +22,49 @@ interface Step2ContentBlocksProps {
   onNextStep: () => void;
 }
 
-// ... (El componente QuestionItem se mantiene igual, no es necesario reescribirlo)
+const QuestionItem: React.FC<{
+  item: EvaluationItem;
+  onEdit: (item: EvaluationItem) => void;
+  onAdapt: (itemId: string) => void;
+  onIncreaseDifficulty: (itemId: string) => void;
+  isAdapting: boolean;
+  isIncreasingDifficulty: boolean;
+}> = ({ item, onEdit, onAdapt, onIncreaseDifficulty, isAdapting, isIncreasingDifficulty }) => {
+  return (
+    <div className="p-3 border rounded-md bg-background relative group">
+      <div className="flex justify-between items-start">
+        <p className="text-sm pr-12">{item.orden}. {item.enunciado}</p>
+        <Badge variant="secondary">{item.puntaje} pts.</Badge>
+      </div>
+      {item.tipo_item === 'seleccion_multiple' && (
+        <ul className="mt-2 space-y-1 text-xs pl-4 text-muted-foreground">
+          {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
+            <li key={alt.id} className={cn("flex items-center", alt.es_correcta && "font-semibold text-foreground")}>
+              <span className="mr-2">{String.fromCharCode(97 + index)})</span>
+              <span>{alt.texto}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {item.tiene_adaptacion_pie && (
+        <div className="mt-2 p-2 border-l-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20">
+          <p className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center">
+            <BrainCircuit className="h-3 w-3 mr-1" /> Adaptación PIE generada
+          </p>
+        </div>
+      )}
+      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(item)}><Edit className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onAdapt(item.id)} disabled={isAdapting}>
+          {isAdapting ? <Loader2 className="h-4 w-4 animate-spin" /> : <BrainCircuit className="h-4 w-4" />}
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onIncreaseDifficulty(item.id)} disabled={isIncreasingDifficulty}>
+          {isIncreasingDifficulty ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronUp className="h-4 w-4" />}
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep }) => {
   const [blocks, setBlocks] = useState<EvaluationContentBlock[]>([]);
@@ -115,7 +157,43 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
-  // ... (otras funciones de manejo como handleAdaptPIE, handleEditSave, etc. se mantienen igual)
+  const handleAdaptPIE = async (itemId: string) => {
+    setAdaptingItemId(itemId);
+    try {
+      const adaptation = await generatePIEAdaptation(itemId);
+      await savePIEAdaptation(itemId, adaptation);
+      showSuccess("Adaptación PIE generada y guardada.");
+      loadBlocksAndQuestions();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setAdaptingItemId(null);
+    }
+  };
+
+  const handleIncreaseDifficulty = async (itemId: string) => {
+    setIncreasingDifficultyId(itemId);
+    try {
+      await increaseQuestionDifficulty(itemId);
+      showSuccess("La pregunta ha sido actualizada con mayor dificultad.");
+      loadBlocksAndQuestions();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIncreasingDifficultyId(null);
+    }
+  };
+
+  const handleEditSave = async (item: EvaluationItem, data: any) => {
+    try {
+      await updateEvaluationItem(item.id, data);
+      showSuccess("Pregunta actualizada.");
+      setEditingItem(null);
+      loadBlocksAndQuestions();
+    } catch (error: any) {
+      showError(`Error al guardar: ${error.message}`);
+    }
+  };
 
   const handlePlanSelected = async (plan: UnitPlan) => {
     const toastId = showLoading("Creando bloque desde el plan...");
@@ -242,9 +320,15 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                   </div>
                   {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 ? (
                     questionsByBlock[block.id].map(item => (
-                      <div key={item.id}> {/* Reemplaza QuestionItem para simplificar */}
-                        <p>{item.enunciado}</p>
-                      </div>
+                      <QuestionItem
+                        key={item.id}
+                        item={item}
+                        onEdit={setEditingItem}
+                        onAdapt={handleAdaptPIE}
+                        onIncreaseDifficulty={handleIncreaseDifficulty}
+                        isAdapting={adaptingItemId === item.id}
+                        isIncreasingDifficulty={increasingDifficultyId === item.id}
+                      />
                     ))
                   ) : (
                     <p className="text-sm text-muted-foreground text-center pt-4">Aún no hay preguntas para este bloque.</p>
@@ -269,7 +353,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
       <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
       <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
-      <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={() => {}} item={editingItem} />
+      <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
     </div>
   );
 };

@@ -32,6 +32,8 @@ export interface EvaluationContentBlock {
   block_type: 'text' | 'image';
   content: any;
   orden: number;
+  title: string | null;
+  visible_en_evaluacion: boolean;
 }
 
 export interface ItemAlternative {
@@ -207,6 +209,8 @@ export interface CreateEvaluationData {
   descripcion?: string;
   fecha_aplicacion: string;
   cursoAsignaturaIds: string[];
+  randomizar_preguntas?: boolean;
+  randomizar_alternativas?: boolean;
 }
 
 export const createEvaluation = async (evalData: CreateEvaluationData) => {
@@ -249,6 +253,8 @@ export const updateEvaluation = async (evaluationId: string, evalData: CreateEva
       tipo: evalData.tipo,
       descripcion: evalData.descripcion,
       fecha_aplicacion: evalData.fecha_aplicacion,
+      randomizar_preguntas: evalData.randomizar_preguntas,
+      randomizar_alternativas: evalData.randomizar_alternativas,
     })
     .eq('id', evaluationId);
 
@@ -369,17 +375,17 @@ export const fetchContentBlocks = async (evaluationId: string): Promise<Evaluati
   return data;
 };
 
-export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content'>[]> => {
+export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content' | 'title'>[]> => {
     const { data, error } = await supabase
         .from('evaluation_content_blocks')
-        .select('block_type, content')
+        .select('block_type, content, title')
         .eq('evaluation_id', resourceId)
         .order('orden');
     if (error) throw new Error(`Error al importar contenido: ${error.message}`);
     return data;
 };
 
-export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number) => {
+export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number, title: string | null) => {
   const { data, error } = await supabase
     .from('evaluation_content_blocks')
     .insert({
@@ -387,11 +393,20 @@ export const createContentBlock = async (evaluationId: string, blockType: string
       block_type: blockType,
       content: content,
       orden: order,
+      title: title,
     })
     .select()
     .single();
   if (error) throw new Error(`Error al crear el bloque de contenido: ${error.message}`);
   return data;
+};
+
+export const updateContentBlock = async (blockId: string, updates: Partial<EvaluationContentBlock>) => {
+  const { error } = await supabase
+    .from('evaluation_content_blocks')
+    .update(updates)
+    .eq('id', blockId);
+  if (error) throw new Error(`Error updating content block: ${error.message}`);
 };
 
 export const deleteContentBlock = async (blockId: string) => {
@@ -420,11 +435,12 @@ export const getPublicImageUrl = (path: string): string => {
     return data.publicUrl;
 };
 
-export const generateQuestionsFromBlock = async (block: EvaluationContentBlock) => {
+export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, quantity: number) => {
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: {
       block_content: block.content,
       block_type: block.block_type,
+      quantity: quantity,
     },
   });
   if (error instanceof FunctionsHttpError) {
