@@ -404,7 +404,7 @@ export const createContentBlock = async (evaluationId: string, blockType: string
   return data;
 };
 
-export const updateContentBlock = async (blockId: string, updates: { title?: string | null; visible_en_evaluacion?: boolean }) => {
+export const updateContentBlock = async (blockId: string, updates: Partial<Pick<EvaluationContentBlock, 'title' | 'content' | 'visible_en_evaluacion'>>) => {
   const { error } = await supabase
     .from('evaluation_content_blocks')
     .update(updates)

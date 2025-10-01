@@ -98,6 +98,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [isUsePlanDialogOpen, setUsePlanDialogOpen] = useState(false);
   const [isUseResourceDialogOpen, setUseResourceDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EvaluationItem | null>(null);
+  const [editingBlock, setEditingBlock] = useState<EvaluationContentBlock | null>(null);
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
 
   const sensors = useSensors(
@@ -298,6 +299,15 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
+  const handleEditBlock = (block: EvaluationContentBlock) => {
+    setEditingBlock(block);
+    if (block.block_type === 'text') {
+      setAddTextDialogOpen(true);
+    } else if (block.block_type === 'image') {
+      setAddImageDialogOpen(true);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
@@ -351,6 +361,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                                 />
                                 <Label htmlFor={`visibility-${block.id}`} className="text-xs text-muted-foreground">Visible</Label>
                             </div>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditBlock(block); }}><Edit className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteBlock(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                             <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
                           </div>
@@ -408,8 +419,8 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         <Button onClick={onNextStep} disabled={blocks.length === 0}>Continuar a Revisión Final</Button>
       </div>
 
-      <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => setAddTextDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
-      <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => setAddImageDialogOpen(false)} onBlockCreated={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} />
+      <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => { setAddTextDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
+      <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => { setAddImageDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
       <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
       <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
       <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />

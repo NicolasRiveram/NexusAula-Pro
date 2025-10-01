@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { createContentBlock } from '@/api/evaluationsApi';
+import { createContentBlock, updateContentBlock, EvaluationContentBlock } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const schema = z.object({
@@ -20,33 +20,49 @@ type FormData = z.infer<typeof schema>;
 interface AddTextBlockDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBlockCreated: () => void;
+  onSave: () => void;
   evaluationId: string;
   currentOrder: number;
+  blockToEdit?: EvaluationContentBlock | null;
 }
 
-const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose, onBlockCreated, evaluationId, currentOrder }) => {
+const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose, onSave, evaluationId, currentOrder, blockToEdit }) => {
+  const isEditMode = !!blockToEdit;
   const { control, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   React.useEffect(() => {
-    if (!isOpen) {
-      reset({ text: '', title: '' });
+    if (isOpen) {
+      if (isEditMode && blockToEdit) {
+        reset({
+          title: blockToEdit.title || '',
+          text: blockToEdit.content.text || '',
+        });
+      } else {
+        reset({ text: '', title: '' });
+      }
     }
-  }, [isOpen, reset]);
+  }, [isOpen, isEditMode, blockToEdit, reset]);
 
   const onSubmit = async (data: FormData) => {
-    const toastId = showLoading("Añadiendo bloque...");
+    const toastId = showLoading(isEditMode ? "Actualizando bloque..." : "Añadiendo bloque...");
     try {
-      await createContentBlock(evaluationId, 'text', { text: data.text }, currentOrder, data.title);
-      dismissToast(toastId);
-      showSuccess("Bloque de texto añadido.");
-      onBlockCreated();
+      if (isEditMode && blockToEdit) {
+        await updateContentBlock(blockToEdit.id, {
+          title: data.title,
+          content: { text: data.text },
+        });
+        showSuccess("Bloque de texto actualizado.");
+      } else {
+        await createContentBlock(evaluationId, 'text', { text: data.text }, currentOrder, data.title);
+        showSuccess("Bloque de texto añadido.");
+      }
+      onSave();
       onClose();
     } catch (error: any) {
       dismissToast(toastId);
-      showError(`Error al añadir bloque: ${error.message}`);
+      showError(`Error: ${error.message}`);
     }
   };
 
@@ -54,9 +70,9 @@ const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Añadir Bloque de Temario/Texto</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Editar' : 'Añadir'} Bloque de Temario/Texto</DialogTitle>
           <DialogDescription>
-            Escribe o pega el contenido, temario o texto que servirá de base para generar las preguntas.
+            {isEditMode ? 'Modifica el contenido del bloque.' : 'Escribe o pega el contenido que servirá de base para generar las preguntas.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -80,7 +96,7 @@ const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Añadiendo...' : 'Añadir Bloque'}
+              {isSubmitting ? 'Guardando...' : 'Guardar Bloque'}
             </Button>
           </DialogFooter>
         </form>

@@ -6,38 +6,40 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createContentBlock, uploadEvaluationImage } from '@/api/evaluationsApi';
+import { createContentBlock, uploadEvaluationImage, EvaluationContentBlock, getPublicImageUrl, updateContentBlock } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-const schema = z.object({
+const createSchema = (isEditMode: boolean) => z.object({
   title: z.string().optional(),
   image: z
     .any()
-    .refine((files) => files?.length == 1, "Debes seleccionar una imagen.")
-    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `El tamaño máximo es 5MB.`)
+    .refine((files) => isEditMode || (files && files.length === 1), "Debes seleccionar una imagen.")
+    .refine((files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE, `El tamaño máximo es 5MB.`)
     .refine(
-      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      (files) => !files || files.length === 0 || ACCEPTED_IMAGE_TYPES.includes(files[0].type),
       "Solo se aceptan formatos .jpg, .jpeg, .png y .webp."
     ),
 });
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.infer<ReturnType<typeof createSchema>>;
 
 interface AddImageBlockDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBlockCreated: () => void;
+  onSave: () => void;
   evaluationId: string;
   currentOrder: number;
+  blockToEdit?: EvaluationContentBlock | null;
 }
 
-const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClose, onBlockCreated, evaluationId, currentOrder }) => {
+const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClose, onSave, evaluationId, currentOrder, blockToEdit }) => {
+  const isEditMode = !!blockToEdit;
   const [preview, setPreview] = useState<string | null>(null);
   const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, watch } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(createSchema(isEditMode)),
   });
 
   const imageFile = watch("image");
@@ -48,22 +50,48 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
       return () => URL.revokeObjectURL(objectUrl);
+    } else if (!isEditMode) {
+      setPreview(null);
     }
-    setPreview(null);
-  }, [imageFile]);
+  }, [imageFile, isEditMode]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (isEditMode && blockToEdit) {
+        reset({ title: blockToEdit.title || '' });
+        setPreview(getPublicImageUrl(blockToEdit.content.imageUrl));
+      } else {
+        reset({ title: '', image: undefined });
+        setPreview(null);
+      }
+    }
+  }, [isOpen, isEditMode, blockToEdit, reset]);
 
   const onSubmit = async (data: FormData) => {
-    const toastId = showLoading("Subiendo imagen...");
+    const toastId = showLoading(isEditMode ? "Actualizando bloque..." : "Añadiendo bloque...");
     try {
-      const imagePath = await uploadEvaluationImage(evaluationId, data.image[0]);
-      dismissToast(toastId);
-      
-      const blockToastId = showLoading("Añadiendo bloque...");
-      await createContentBlock(evaluationId, 'image', { imageUrl: imagePath }, currentOrder, data.title);
-      dismissToast(blockToastId);
-
-      showSuccess("Bloque de imagen añadido.");
-      onBlockCreated();
+      if (isEditMode && blockToEdit) {
+        let imageUrl = blockToEdit.content.imageUrl;
+        if (data.image && data.image.length > 0) {
+          dismissToast(toastId);
+          const uploadToastId = showLoading("Subiendo nueva imagen...");
+          imageUrl = await uploadEvaluationImage(evaluationId, data.image[0]);
+          dismissToast(uploadToastId);
+        }
+        await updateContentBlock(blockToEdit.id, {
+          title: data.title,
+          content: { imageUrl },
+        });
+        showSuccess("Bloque de imagen actualizado.");
+      } else {
+        const imageUrl = await uploadEvaluationImage(evaluationId, data.image[0]);
+        dismissToast(toastId);
+        const blockToastId = showLoading("Añadiendo bloque...");
+        await createContentBlock(evaluationId, 'image', { imageUrl }, currentOrder, data.title);
+        dismissToast(blockToastId);
+        showSuccess("Bloque de imagen añadido.");
+      }
+      onSave();
       onClose();
     } catch (error: any) {
       dismissToast(toastId);
@@ -81,9 +109,9 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Añadir Bloque de Imagen</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Editar' : 'Añadir'} Bloque de Imagen</DialogTitle>
           <DialogDescription>
-            Sube una imagen que servirá de base para generar preguntas.
+            {isEditMode ? 'Puedes cambiar el título o subir una nueva imagen para reemplazar la actual.' : 'Sube una imagen que servirá de base para generar preguntas.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -96,7 +124,7 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
             />
           </div>
           <div>
-            <Label htmlFor="image">Archivo de Imagen</Label>
+            <Label htmlFor="image">{isEditMode ? 'Reemplazar Imagen (Opcional)' : 'Archivo de Imagen'}</Label>
             <Input id="image" type="file" accept="image/*" {...register("image")} />
             {errors.image && <p className="text-red-500 text-sm mt-1">{errors.image.message as string}</p>}
           </div>
@@ -109,7 +137,7 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={handleClose}>Cancelar</Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Añadiendo...' : 'Añadir Bloque'}
+              {isSubmitting ? 'Guardando...' : 'Guardar Bloque'}
             </Button>
           </DialogFooter>
         </form>
