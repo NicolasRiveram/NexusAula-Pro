@@ -64,6 +64,8 @@ export interface EvaluationItem {
 export interface EvaluationDetail extends Evaluation {
   descripcion: string;
   puntaje_maximo: number | null;
+  randomizar_preguntas?: boolean;
+  randomizar_alternativas?: boolean;
   evaluation_content_blocks: (EvaluationContentBlock & {
     evaluacion_items: EvaluationItem[];
   })[];
@@ -246,11 +248,10 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
 };
 
 export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData) => {
-  const { cursoAsignaturaIds, ...updatePayload } = evalData;
-
+  const { cursoAsignaturaIds, ...updateData } = evalData;
   const { error: updateError } = await supabase
     .from('evaluaciones')
-    .update(updatePayload)
+    .update(updateData)
     .eq('id', evaluationId);
 
   if (updateError) throw new Error(`Error updating evaluation: ${updateError.message}`);
@@ -299,6 +300,8 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       descripcion,
       fecha_aplicacion,
       puntaje_maximo,
+      randomizar_preguntas,
+      randomizar_alternativas,
       evaluacion_curso_asignaturas (
         curso_asignatura_id,
         curso_asignaturas (
@@ -367,7 +370,7 @@ export const fetchContentBlocks = async (evaluationId: string): Promise<Evaluati
     .eq('evaluation_id', evaluationId)
     .order('orden');
   if (error) throw new Error(`Error al cargar los bloques de contenido: ${error.message}`);
-  return data;
+  return data || [];
 };
 
 export const fetchEvaluationContentForImport = async (resourceId: string): Promise<Pick<EvaluationContentBlock, 'block_type' | 'content' | 'title'>[]> => {
@@ -377,10 +380,10 @@ export const fetchEvaluationContentForImport = async (resourceId: string): Promi
         .eq('evaluation_id', resourceId)
         .order('orden');
     if (error) throw new Error(`Error al importar contenido: ${error.message}`);
-    return data;
+    return data || [];
 };
 
-export const createContentBlock = async (evaluationId: string, blockType: string, content: any, order: number, title: string | null) => {
+export const createContentBlock = async (evaluationId: string, blockType: 'text' | 'image', content: any, order: number, title: string | null): Promise<EvaluationContentBlock> => {
   const { data, error } = await supabase
     .from('evaluation_content_blocks')
     .insert({
@@ -447,7 +450,7 @@ export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, 
   return data;
 };
 
-export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[], currentItemCount: number) => {
+export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[], currentItemCount: number): Promise<EvaluationItem[]> => {
   const itemsToInsert = questions.map((q, index) => ({
     evaluacion_id: evaluationId,
     content_block_id: blockId,
@@ -460,7 +463,7 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
   const { data: insertedItems, error: itemsError } = await supabase
     .from('evaluacion_items')
     .insert(itemsToInsert)
-    .select();
+    .select('id');
 
   if (itemsError) throw new Error(`Error al guardar las preguntas: ${itemsError.message}`);
   if (!insertedItems) throw new Error('No se pudieron guardar las preguntas.');
@@ -486,7 +489,15 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
     }
   }
 
-  return insertedItems;
+  const newItemIds = insertedItems.map(i => i.id);
+  const { data: newItemsWithDetails, error: fetchError } = await supabase
+    .from('evaluacion_items')
+    .select(`*, item_alternativas(*), adaptaciones_pie(*)`)
+    .in('id', newItemIds);
+
+  if (fetchError) throw new Error(`Failed to fetch newly created questions: ${fetchError.message}`);
+
+  return newItemsWithDetails as EvaluationItem[];
 };
 
 export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationItem[]> => {
