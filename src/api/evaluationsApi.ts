@@ -124,6 +124,20 @@ export interface ManualQuestionData {
   alternativas?: Omit<ItemAlternative, 'id' | 'evaluacion_item_id'>[];
 }
 
+export interface Skill {
+  id: string;
+  nombre: string;
+}
+
+export const fetchSkills = async (): Promise<Skill[]> => {
+  const { data, error } = await supabase
+    .from('habilidades')
+    .select('id, nombre')
+    .order('nombre');
+  if (error) throw new Error(`Error fetching skills: ${error.message}`);
+  return data;
+};
+
 export const saveManualQuestion = async (evaluationId: string, blockId: string, questionData: ManualQuestionData) => {
   const { alternativas, ...itemData } = questionData;
 

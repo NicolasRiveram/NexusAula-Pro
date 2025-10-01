@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Trash2 } from 'lucide-react';
-import { saveManualQuestion, ManualQuestionData } from '@/api/evaluationsApi';
+import { saveManualQuestion, ManualQuestionData, fetchSkills, Skill } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const alternativeSchema = z.object({
@@ -54,6 +54,7 @@ interface AddQuestionDialogProps {
 
 const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, onSave, evaluationId, blockId, currentOrder }) => {
   const [questionType, setQuestionType] = useState<'seleccion_multiple' | 'verdadero_falso' | 'desarrollo'>('seleccion_multiple');
+  const [skills, setSkills] = useState<Skill[]>([]);
   
   const { control, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,11 +65,19 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, 
   const correctAlternativeIndex = watch('correctAlternative');
 
   useEffect(() => {
+    if (isOpen) {
+        fetchSkills()
+            .then(setSkills)
+            .catch(err => showError(`Error al cargar habilidades: ${err.message}`));
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     reset({
       tipo_item: questionType,
       enunciado: '',
       puntaje: 1,
-      habilidad_evaluada: '',
+      habilidad_evaluada: undefined,
       nivel_comprension: undefined,
       alternativas: questionType === 'seleccion_multiple' ? [{ texto: '' }, { texto: '' }] : [],
       correctAlternative: undefined,
@@ -143,7 +152,20 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, 
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="habilidad_evaluada">Habilidad Evaluada</Label>
-              <Controller name="habilidad_evaluada" control={control} render={({ field }) => <Input id="habilidad_evaluada" placeholder="Ej: Comprensión Lectora" {...field} />} />
+              <Controller
+                name="habilidad_evaluada"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger><SelectValue placeholder="Selecciona una habilidad" /></SelectTrigger>
+                    <SelectContent>
+                      {skills.map(skill => (
+                        <SelectItem key={skill.id} value={skill.nombre}>{skill.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.habilidad_evaluada && <p className="text-red-500 text-sm mt-1">{errors.habilidad_evaluada.message}</p>}
             </div>
           </div>
