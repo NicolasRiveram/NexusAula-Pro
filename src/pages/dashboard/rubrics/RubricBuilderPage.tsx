@@ -13,7 +13,7 @@ import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { createRubric, generateRubricWithAI, saveGeneratedRubricContent, RubricContent } from '@/api/rubricsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
-import { fetchNiveles, fetchAsignaturas, Nivel, Asignatura } from '@/api/coursesApi';
+import { fetchNiveles, fetchDocenteAsignaturas, Nivel, Asignatura } from '@/api/coursesApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -51,8 +51,17 @@ const RubricBuilderPage = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        showError("No se pudo identificar al usuario.");
+        return;
+      }
+
       try {
-        const [nivelesData, asignaturasData] = await Promise.all([fetchNiveles(), fetchAsignaturas()]);
+        const [nivelesData, asignaturasData] = await Promise.all([
+          fetchNiveles(),
+          fetchDocenteAsignaturas(user.id)
+        ]);
         setNiveles(nivelesData);
         setAsignaturas(asignaturasData);
       } catch (err: any) {
