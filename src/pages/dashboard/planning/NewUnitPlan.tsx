@@ -10,19 +10,24 @@ import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan,
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import { useEstablishment } from '@/contexts/EstablishmentContext';
+import { format } from 'date-fns';
 
 const NewUnitPlan = () => {
   const navigate = useNavigate();
+  const { activeEstablishment } = useEstablishment();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   
   const [unitMasterId, setUnitMasterId] = useState<string | null>(null);
   const [proyectoId, setProyectoId] = useState<string | null>(null);
+  const [unitPlanData, setUnitPlanData] = useState<UnitPlanFormData | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
   const [classSequence, setClassSequence] = useState<ClassPlan[] | null>(null);
 
   const handleStep1Submit = async (data: UnitPlanFormData) => {
     setIsLoading(true);
+    setUnitPlanData(data);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado.");
@@ -36,7 +41,6 @@ const NewUnitPlan = () => {
         setProyectoId(null);
       }
       
-      // Call the Edge Function to get AI suggestions
       const { data: suggestions, error } = await supabase.functions.invoke('generate-unit-suggestions', {
         body: { 
           title: data.titulo, 
@@ -63,8 +67,8 @@ const NewUnitPlan = () => {
   };
 
   const handleStep2Confirm = async (data: AISuggestions) => {
-    if (!unitMasterId) {
-      showError("No se encontró el ID de la unidad maestra.");
+    if (!unitMasterId || !unitPlanData || !activeEstablishment) {
+      showError("Faltan datos de la unidad o del establecimiento.");
       return;
     }
     setIsLoading(true);
@@ -72,9 +76,25 @@ const NewUnitPlan = () => {
       await updateUnitPlanSuggestions(unitMasterId, data);
       setAiSuggestions(data);
 
-      // Call the Edge Function to generate the class sequence
+      const { data: classCount, error: countError } = await supabase.rpc('calculate_class_slots', {
+        p_start_date: format(unitPlanData.fechas.from, 'yyyy-MM-dd'),
+        p_end_date: format(unitPlanData.fechas.to, 'yyyy-MM-dd'),
+        p_curso_asignatura_ids: unitPlanData.cursoAsignaturaIds,
+        p_establecimiento_id: activeEstablishment.id,
+      });
+
+      if (countError) throw countError;
+
+      if (!classCount || classCount <= 0) {
+        showError("No se encontraron bloques de horario disponibles para los cursos y fechas seleccionados. Por favor, revisa tu horario o el rango de fechas y vuelve a intentarlo.");
+        setIsLoading(false);
+        return;
+      }
+
+      showSuccess(`Se planificarán ${classCount} clases según tu horario.`);
+
       const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
-        body: { suggestions: data, projectContext: proyectoId },
+        body: { suggestions: data, projectContext: proyectoId, classCount },
       });
 
       if (error instanceof FunctionsHttpError) {
@@ -84,12 +104,10 @@ const NewUnitPlan = () => {
         throw error;
       }
       
-      // The sequence from the function doesn't have IDs or dates, which is correct.
-      // The backend RPC will handle scheduling. We add temporary IDs for the UI key prop.
       const sequenceWithTempIds = sequence.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
         ...cls,
         id: `temp_${index}`,
-        fecha: '', // The backend will assign this
+        fecha: '',
       }));
 
       setClassSequence(sequenceWithTempIds);
@@ -109,7 +127,6 @@ const NewUnitPlan = () => {
     }
     setIsLoading(true);
     try {
-      // Remove temporary IDs before sending to the backend
       const classesToSave = data.classes.map(({ id, fecha, ...rest }) => rest);
       await scheduleClassesFromUnitPlan(unitMasterId, classesToSave);
       

@@ -27,13 +27,16 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada en los secretos del proyecto.");
     }
 
-    const { suggestions, projectContext } = await req.json();
+    const { suggestions, projectContext, classCount } = await req.json();
+    if (!classCount || classCount <= 0) {
+      throw new Error("El número de clases (classCount) debe ser un entero positivo.");
+    }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
       Eres un asistente experto en planificación de clases y didáctica para la educación chilena.
-      Basado en las sugerencias de la unidad (objetivos, propósito, proyecto), genera una secuencia de 3 clases detalladas.
+      Basado en las sugerencias de la unidad (objetivos, propósito, proyecto), genera una secuencia de ${classCount} clases detalladas.
       Tu respuesta DEBE ser un array de objetos JSON, con la siguiente estructura para cada objeto:
       \`\`\`json
       {
