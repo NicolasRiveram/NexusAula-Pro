@@ -99,7 +99,8 @@ const EvaluationDetailPage = () => {
             <div key={block.id}>
               <div className="flex items-center text-lg font-semibold mb-4">
                 {block.block_type === 'text' ? <FileText className="mr-3 h-5 w-5" /> : <ImageIcon className="mr-3 h-5 w-5" />}
-                <h3>Sección {block.orden}: {block.block_type === 'text' ? 'Texto' : 'Imagen'}</h3>
+                <h3>{block.title || `Sección ${block.orden}`}</h3>
+                {!block.visible_en_evaluacion && <Badge variant="outline" className="ml-3">Oculto para estudiantes</Badge>}
               </div>
               <div className="p-4 border rounded-md bg-muted/30">
                 {block.block_type === 'text' ? (

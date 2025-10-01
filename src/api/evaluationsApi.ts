@@ -33,6 +33,7 @@ export interface EvaluationContentBlock {
   content: any;
   orden: number;
   title: string | null;
+  visible_en_evaluacion: boolean;
 }
 
 export interface ItemAlternative {
@@ -396,7 +397,7 @@ export const createContentBlock = async (evaluationId: string, blockType: string
   return data;
 };
 
-export const updateContentBlock = async (blockId: string, updates: { title?: string | null }) => {
+export const updateContentBlock = async (blockId: string, updates: { title?: string | null; visible_en_evaluacion?: boolean }) => {
   const { error } = await supabase
     .from('evaluation_content_blocks')
     .update(updates)

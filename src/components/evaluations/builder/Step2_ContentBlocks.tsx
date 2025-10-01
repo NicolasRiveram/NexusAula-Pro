@@ -13,6 +13,8 @@ import UseExistingResourceDialog from './UseExistingResourceDialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface Step2ContentBlocksProps {
   evaluationId: string;
@@ -125,6 +127,19 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         await updateContentBlock(blockId, { title: newTitle });
     } catch (error: any) {
         showError(`Error al guardar el título: ${error.message}`);
+        loadBlocksAndQuestions(); 
+    }
+  };
+
+  const handleVisibilityChange = async (blockId: string, newVisibility: boolean) => {
+    setBlocks(prevBlocks => 
+        prevBlocks.map(b => b.id === blockId ? { ...b, visible_en_evaluacion: newVisibility } : b)
+    );
+    try {
+        await updateContentBlock(blockId, { visible_en_evaluacion: newVisibility });
+        showSuccess("Visibilidad del bloque actualizada.");
+    } catch (error: any) {
+        showError(`Error al actualizar la visibilidad: ${error.message}`);
         loadBlocksAndQuestions(); 
     }
   };
@@ -280,6 +295,14 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                        <Switch
+                            id={`visibility-${block.id}`}
+                            checked={block.visible_en_evaluacion}
+                            onCheckedChange={(checked) => handleVisibilityChange(block.id, checked)}
+                        />
+                        <Label htmlFor={`visibility-${block.id}`} className="text-xs text-muted-foreground">Visible</Label>
+                    </div>
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteBlock(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
                   </div>

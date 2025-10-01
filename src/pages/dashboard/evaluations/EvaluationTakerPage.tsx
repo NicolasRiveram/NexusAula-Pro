@@ -108,10 +108,12 @@ const EvaluationTakerPage = () => {
         {evaluation.evaluation_content_blocks.map(block => (
           <Card key={block.id}>
             <CardContent className="pt-6 space-y-6">
-              {block.block_type === 'text' ? (
-                <p className="text-base whitespace-pre-wrap p-4 bg-muted/50 rounded-md">{block.content.text}</p>
-              ) : (
-                <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido ${block.orden}`} className="rounded-md max-w-full mx-auto" />
+              {block.visible_en_evaluacion && (
+                block.block_type === 'text' ? (
+                  <p className="text-base whitespace-pre-wrap p-4 bg-muted/50 rounded-md">{block.content.text}</p>
+                ) : (
+                  <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido ${block.orden}`} className="rounded-md max-w-full mx-auto" />
+                )
               )}
 
               {block.evaluacion_items.map(item => (
