@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { formatEvaluationType } from '@/utils/evaluationUtils';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 const EvaluationDetailPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
