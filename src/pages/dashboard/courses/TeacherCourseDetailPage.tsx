@@ -5,10 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Pencil } from 'lucide-react';
+import { Pencil, Download } from 'lucide-react';
 import { showError } from '@/utils/toast';
 import EditStudentDialog from '@/components/courses/EditStudentDialog';
 import CourseScheduleManager from '@/components/courses/CourseScheduleManager';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const CourseDetailPage = () => {
   const { cursoAsignaturaId } = useParams<{ cursoAsignaturaId: string }>();
@@ -37,6 +39,39 @@ const CourseDetailPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleDownloadCredentials = () => {
+    if (!cursoInfo || estudiantes.length === 0) {
+      showError("No hay estudiantes en este curso para generar credenciales.");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text(`Credenciales de Acceso - ${cursoInfo.curso.nivel.nombre} ${cursoInfo.curso.nombre}`, 14, 22);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text("A continuación se listan los datos de acceso para los estudiantes.", 14, 30);
+    doc.text("La contraseña temporal es el RUT del estudiante, sin puntos ni guion.", 14, 36);
+
+    const tableData = estudiantes.map(est => [
+      est.nombre_completo,
+      est.email || 'No asignado',
+      est.rut ? est.rut.replace(/[.-]/g, '') : 'SIN RUT',
+    ]);
+
+    (doc as any).autoTable({
+      startY: 45,
+      head: [['Nombre Completo', 'Email de Acceso', 'Contraseña Temporal']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [34, 49, 63] },
+    });
+
+    doc.save(`credenciales-${cursoInfo.curso.nivel.nombre}-${cursoInfo.curso.nombre}.pdf`);
+  };
 
   const handleEditClick = (estudiante: Estudiante) => {
     setSelectedStudent(estudiante);
@@ -86,10 +121,18 @@ const CourseDetailPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Estudiantes</CardTitle>
-          <CardDescription>
-            Listado de todos los estudiantes inscritos en este curso. Haz clic en un estudiante para ver su perfil detallado.
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Lista de Estudiantes</CardTitle>
+              <CardDescription>
+                Listado de todos los estudiantes inscritos en este curso.
+              </CardDescription>
+            </div>
+            <Button onClick={handleDownloadCredentials}>
+              <Download className="mr-2 h-4 w-4" />
+              Descargar Credenciales
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>

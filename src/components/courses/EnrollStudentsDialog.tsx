@@ -69,7 +69,7 @@ const EnrollStudentsDialog: React.FC<EnrollStudentsDialogProps> = ({ isOpen, onC
         successMessage += `\n- ${inscritos} estudiantes existentes inscritos.`;
         if (yaInscritos > 0) successMessage += `\n- ${yaInscritos} ya estaban en el curso.`;
         
-        showSuccess(successMessage);
+        showSuccess(successMessage + "\n\nPuedes descargar las credenciales desde la página de detalles del curso.");
 
         if (errores.length > 0) {
           let errorMessage = `Se encontraron ${errores.length} errores:`;

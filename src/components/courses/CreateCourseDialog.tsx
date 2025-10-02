@@ -72,10 +72,9 @@ const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose
 
         if (estudiantes.length > 0) {
           const studentToastId = showLoading(`Inscribiendo ${estudiantes.length} estudiantes...`);
-          const result = await inscribirYCrearEstudiantes(nuevoCursoId, estudiantes);
+          await inscribirYCrearEstudiantes(nuevoCursoId, estudiantes);
           dismissToast(studentToastId);
-          showSuccess("Proceso de inscripción de estudiantes completado.");
-          console.log("Resultado de inscripción:", result);
+          showSuccess("Proceso de inscripción completado. Puedes descargar las credenciales desde la página de detalles del curso.");
         }
       }
 
