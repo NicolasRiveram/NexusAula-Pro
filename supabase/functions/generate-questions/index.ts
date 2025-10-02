@@ -31,9 +31,16 @@ serve(async (req) => {
     
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-    const contentPrompt = block_type === 'text' 
-      ? `el siguiente texto: "${block_content.text}"`
-      : `una imagen (no puedo ver la imagen, pero asume que es relevante para generar preguntas educativas).`;
+    let contentPrompt;
+    if (block_type === 'text') {
+      contentPrompt = `el siguiente texto: "${block_content.text}"`;
+    } else if (block_type === 'image') {
+      contentPrompt = `una imagen (no puedo ver la imagen, pero asume que es relevante para generar preguntas educativas).`;
+    } else if (block_type === 'syllabus') {
+      contentPrompt = `los siguientes temas o conceptos: "${block_content.text}". Las preguntas deben ser conceptuales sobre estos temas, no preguntas literales sobre el texto proporcionado.`;
+    } else {
+      contentPrompt = `el siguiente texto: "${block_content.text}"`;
+    }
 
     const prompt = `
       Eres un asistente experto en crear evaluaciones educativas para Chile.
