@@ -129,6 +129,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [editingBlock, setEditingBlock] = useState<EvaluationContentBlock | null>(null);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -225,10 +226,10 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
-  const handleGenerateQuestions = async (block: EvaluationContentBlock) => {
+  const handleGenerateQuestions = async (block: EvaluationContentBlock, count: number) => {
     setGeneratingForBlock(block.id);
     try {
-        const generatedQuestions = await generateQuestionsFromBlock(block);
+        const generatedQuestions = await generateQuestionsFromBlock(block, count);
         const totalItemsInEvaluation = Object.values(questionsByBlock).flat().length;
         await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions, totalItemsInEvaluation);
         showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
@@ -415,14 +416,24 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                       </Card>
                       {expandedBlocks[block.id] && (
                         <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end items-center gap-2">
                             <Button variant="outline" size="sm" onClick={() => handleAddManualQuestion(block.id)}>
                                 <PlusCircle className="h-4 w-4 mr-2" /> Añadir Pregunta Manual
                             </Button>
-                            <Button onClick={() => handleGenerateQuestions(block)} disabled={generatingForBlock === block.id}>
-                              {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                              Generar Preguntas
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    max="5"
+                                    value={questionCounts[block.id] || 3}
+                                    onChange={(e) => setQuestionCounts(prev => ({ ...prev, [block.id]: parseInt(e.target.value, 10) || 3 }))}
+                                    className="w-16 h-9"
+                                />
+                                <Button onClick={() => handleGenerateQuestions(block, questionCounts[block.id] || 3)} disabled={generatingForBlock === block.id}>
+                                  {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                                  Generar
+                                </Button>
+                            </div>
                           </div>
                           {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 ? (
                             questionsByBlock[block.id].map(item => (

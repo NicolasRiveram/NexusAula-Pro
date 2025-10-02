@@ -29,7 +29,7 @@ export interface StudentEvaluation extends Omit<Evaluation, 'curso_asignaturas'>
 export interface EvaluationContentBlock {
   id: string;
   evaluation_id: string;
-  block_type: 'text' | 'image';
+  block_type: 'text' | 'image' | 'syllabus';
   content: any;
   orden: number;
   title: string | null;
@@ -540,11 +540,12 @@ export const getPublicImageUrl = (path: string): string => {
     return data.publicUrl;
 };
 
-export const generateQuestionsFromBlock = async (block: EvaluationContentBlock) => {
+export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, questionCount: number) => {
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: {
       block_content: block.content,
       block_type: block.block_type,
+      questionCount: questionCount,
     },
   });
   if (error instanceof FunctionsHttpError) {
