@@ -6,7 +6,7 @@ function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md rounded-lg shadow-md p-8 bg-white">
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Registro</h2>
+        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Nexusaula</h2>
         <Auth
           supabaseClient={supabase}
           providers={[]} // Solo email/contraseña por ahora
