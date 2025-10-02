@@ -32,7 +32,7 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
         <div className="student-info-item"><label>Fecha:</label><div className="line"></div></div>
         <div className="student-info-item"><label>Docente:</label><span>{teacherName}</span></div>
         <div className="student-info-item"><label>Puntaje Total:</label><span>{totalScore} pts.</span></div>
-        <div className="student-info-item"><label>Puntaje Aprobación (4,0):</label><span>{passingScore.toFixed(1)} pts.</span></div>
+        <div className="student-info-item"><label>Puntaje Aprobación (4,0):</label><span>{(passingScore || 0).toFixed(1)} pts.</span></div>
       </section>
 
       {evaluation.aspectos_a_evaluar_ia && (

@@ -51,6 +51,11 @@ const EvaluationDetailPage = () => {
     }
   }, [evaluationId]);
 
+  const totalPuntaje = (evaluation?.evaluation_content_blocks || []).reduce((total, block) => {
+    const blockTotal = (block.evaluacion_items || []).reduce((subTotal, item) => subTotal + (item.puntaje || 0), 0);
+    return total + blockTotal;
+  }, 0);
+
   const handlePrintClick = () => {
     setPrintModalOpen(true);
   };
@@ -67,9 +72,6 @@ const EvaluationDetailPage = () => {
         return;
       }
       
-      const totalPuntaje = (evaluation.evaluation_content_blocks || []).reduce((total, block) => {
-        return total + block.evaluacion_items.reduce((blockTotal, item) => blockTotal + item.puntaje, 0);
-      }, 0);
       const passingScore = totalPuntaje * 0.6;
 
       printComponent(
@@ -111,10 +113,6 @@ const EvaluationDetailPage = () => {
       </div>
     );
   }
-
-  const totalPuntaje = (evaluation.evaluation_content_blocks || []).reduce((total, block) => {
-    return total + block.evaluacion_items.reduce((blockTotal, item) => blockTotal + item.puntaje, 0);
-  }, 0);
 
   const hasScannableQuestions = (evaluation.evaluation_content_blocks || []).some(b => b.evaluacion_items.some(i => i.tipo_item === 'seleccion_multiple'));
 
