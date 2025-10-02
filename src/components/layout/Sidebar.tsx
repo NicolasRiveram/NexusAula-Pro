@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff } from 'lucide-react';
+import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const teacherNavItems = [
@@ -29,6 +29,10 @@ const adminNavItems = [
   { to: '/dashboard/gestion/calendario', icon: CalendarOff, label: 'Calendario Escolar' },
 ];
 
+const superAdminNavItems = [
+    { to: '/dashboard', icon: Building, label: 'Establecimientos' },
+];
+
 interface SidebarProps {
   profile: {
     rol: string;
@@ -36,6 +40,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
+  const isSuperAdmin = profile.rol === 'super_administrador';
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
   const isStudent = profile.rol === 'estudiante';
 
@@ -47,33 +52,18 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
         <h1 className="text-2xl font-bold text-primary">NexusAula</h1>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.to}
-            end={item.to === '/dashboard'}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
-                isActive ? 'bg-primary text-white dark:bg-primary dark:text-white' : ''
-              )
-            }
-          >
-            <item.icon className="w-5 h-5 mr-3" />
-            {item.label}
-          </NavLink>
-        ))}
-        {isAdmin && (
+        {isSuperAdmin ? (
           <>
-            <div className="px-4 pt-6 pb-2">
+            <div className="px-4 pt-2 pb-2">
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
-                <Shield className="w-4 h-4 mr-2" /> Gestión
+                <Shield className="w-4 h-4 mr-2" /> Super Admin
               </h2>
             </div>
-            {adminNavItems.map((item) => (
+            {superAdminNavItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.to}
+                end={item.to === '/dashboard'}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
@@ -85,6 +75,49 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
                 {item.label}
               </NavLink>
             ))}
+          </>
+        ) : (
+          <>
+            {navItems.map((item) => (
+              <NavLink
+                key={item.label}
+                to={item.to}
+                end={item.to === '/dashboard'}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
+                    isActive ? 'bg-primary text-white dark:bg-primary dark:text-white' : ''
+                  )
+                }
+              >
+                <item.icon className="w-5 h-5 mr-3" />
+                {item.label}
+              </NavLink>
+            ))}
+            {isAdmin && (
+              <>
+                <div className="px-4 pt-6 pb-2">
+                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
+                    <Shield className="w-4 h-4 mr-2" /> Gestión
+                  </h2>
+                </div>
+                {adminNavItems.map((item) => (
+                  <NavLink
+                    key={item.label}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
+                        isActive ? 'bg-primary text-white dark:bg-primary dark:text-white' : ''
+                      )
+                    }
+                  >
+                    <item.icon className="w-5 h-5 mr-3" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </>
+            )}
           </>
         )}
       </nav>
