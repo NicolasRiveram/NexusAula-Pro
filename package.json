@@ -8,8 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "rebuild-fix": "echo 'Forcing rebuild'"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
