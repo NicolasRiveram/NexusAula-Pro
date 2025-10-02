@@ -29,6 +29,50 @@ export interface Asignatura {
 
 export type AsignaturaData = Omit<Asignatura, 'id'>;
 
+export interface GlobalUser {
+  id: string;
+  nombre_completo: string;
+  email: string;
+  rol: string;
+  establecimientos: {
+    nombre: string;
+    rol_en_establecimiento: string;
+  }[];
+}
+
+export const fetchAllUsers = async (): Promise<GlobalUser[]> => {
+  const { data, error } = await supabase
+    .from('perfiles')
+    .select(`
+      id,
+      nombre_completo,
+      email,
+      rol,
+      perfil_establecimientos (
+        rol_en_establecimiento,
+        establecimientos ( nombre )
+      )
+    `)
+    .order('nombre_completo');
+
+  if (error) throw new Error(`Error fetching users: ${error.message}`);
+  
+  return (data || []).map((user: any) => ({
+    ...user,
+    establecimientos: (user.perfil_establecimientos || []).map((pe: any) => ({
+      nombre: pe.establecimientos?.nombre || 'Establecimiento no encontrado',
+      rol_en_establecimiento: pe.rol_en_establecimiento,
+    })),
+  }));
+};
+
+export const updateUserGlobalRole = async (userId: string, newRole: string) => {
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ rol: newRole })
+    .eq('id', userId);
+  if (error) throw new Error(`Error updating user role: ${error.message}`);
+};
 
 export const fetchAllEstablishments = async (): Promise<Establishment[]> => {
   const { data, error } = await supabase

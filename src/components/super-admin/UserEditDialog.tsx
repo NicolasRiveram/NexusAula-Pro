@@ -1,0 +1,89 @@
+import React, { useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { updateUserGlobalRole, GlobalUser } from '@/api/superAdminApi';
+import { showError, showSuccess } from '@/utils/toast';
+
+const schema = z.object({
+  rol: z.string().min(1, "Debes seleccionar un rol."),
+});
+
+type FormData = z.infer<typeof schema>;
+
+interface UserEditDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  user: GlobalUser | null;
+  onUserUpdated: () => void;
+}
+
+const UserEditDialog: React.FC<UserEditDialogProps> = ({ isOpen, onClose, user, onUserUpdated }) => {
+  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+
+  useEffect(() => {
+    if (user) {
+      reset({ rol: user.rol });
+    }
+  }, [user, reset]);
+
+  const onSubmit = async (data: FormData) => {
+    if (!user) return;
+    try {
+      await updateUserGlobalRole(user.id, data.rol);
+      showSuccess(`El rol de ${user.nombre_completo} ha sido actualizado.`);
+      onUserUpdated();
+      onClose();
+    } catch (error: any) {
+      showError(error.message);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Rol Global de Usuario</DialogTitle>
+          <DialogDescription>
+            Cambia el rol de <span className="font-semibold">{user?.nombre_completo}</span> en toda la plataforma.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <div>
+            <Label htmlFor="rol">Nuevo Rol Global</Label>
+            <Controller
+              name="rol"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona un rol" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="estudiante">Estudiante</SelectItem>
+                    <SelectItem value="docente">Docente</SelectItem>
+                    <SelectItem value="coordinador">Coordinador</SelectItem>
+                    <SelectItem value="super_administrador">Super Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.rol && <p className="text-red-500 text-sm mt-1">{errors.rol.message}</p>}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default UserEditDialog;
