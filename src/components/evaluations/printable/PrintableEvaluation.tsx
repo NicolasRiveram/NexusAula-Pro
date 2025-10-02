@@ -56,7 +56,7 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
           <div key={block.id} className="question-block">
             {block.visible_en_evaluacion && (
               <div className="content-block">
-                {block.block_type === 'text' ? (
+                {block.block_type === 'text' || block.block_type === 'syllabus' ? (
                   <p>{block.content.text}</p>
                 ) : (
                   <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido ${block.orden}`} />

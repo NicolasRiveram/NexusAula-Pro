@@ -557,6 +557,7 @@ export const uploadEvaluationImage = async (evaluationId: string, file: File): P
 };
 
 export const getPublicImageUrl = (path: string): string => {
+    if (!path) return '';
     const { data } = supabase.storage.from('evaluation_images').getPublicUrl(path);
     return data.publicUrl;
 };
