@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -51,6 +51,8 @@ const EvaluationDetailPage = () => {
     return total + block.evaluacion_items.reduce((blockTotal, item) => blockTotal + item.puntaje, 0);
   }, 0);
 
+  const hasScannableQuestions = evaluation.evaluation_content_blocks.some(b => b.evaluacion_items.some(i => i.tipo_item === 'seleccion_multiple'));
+
   return (
     <div className="container mx-auto space-y-6">
       <Link to="/dashboard/evaluacion" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
@@ -75,10 +77,15 @@ const EvaluationDetailPage = () => {
                 ))}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-end">
               <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Descargar</Button>
               <Button onClick={() => navigate(`/dashboard/evaluacion/editar/${evaluation.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
               <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}><BarChart className="mr-2 h-4 w-4" /> Ver Resultados</Button>
+              {hasScannableQuestions && (
+                <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)} variant="secondary">
+                  <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
