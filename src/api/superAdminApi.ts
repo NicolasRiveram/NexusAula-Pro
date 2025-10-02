@@ -34,6 +34,7 @@ export interface GlobalUser {
   nombre_completo: string;
   email: string;
   rol: string;
+  subscription_plan: string;
   establecimientos: {
     id: string;
     nombre: string;
@@ -49,6 +50,7 @@ export const fetchAllUsers = async (): Promise<GlobalUser[]> => {
       nombre_completo,
       email,
       rol,
+      subscription_plan,
       perfil_establecimientos (
         rol_en_establecimiento,
         establecimientos ( id, nombre )
@@ -76,6 +78,14 @@ export const updateUserGlobalRole = async (userId: string, newRole: string) => {
     .update({ rol: newRole })
     .eq('id', userId);
   if (error) throw new Error(`Error updating user role: ${error.message}`);
+};
+
+export const updateUserSubscriptionPlan = async (userId: string, newPlan: string) => {
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ subscription_plan: newPlan })
+    .eq('id', userId);
+  if (error) throw new Error(`Error updating user subscription: ${error.message}`);
 };
 
 export const fetchAllEstablishments = async (): Promise<Establishment[]> => {

@@ -3,19 +3,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit } from 'lucide-react';
+import { MoreHorizontal, Edit, Star } from 'lucide-react';
 import { fetchAllUsers, GlobalUser, fetchAllEstablishments, Establishment } from '@/api/superAdminApi';
 import { showError } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import UserEditDialog from './UserEditDialog';
+import SubscriptionEditDialog from './SubscriptionEditDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 const UsersManagement = () => {
   const [users, setUsers] = useState<GlobalUser[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [selectedEstablishment, setSelectedEstablishment] = useState<string>('all');
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isUserDialogOpen, setUserDialogOpen] = useState(false);
+  const [isSubDialogOpen, setSubDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<GlobalUser | null>(null);
 
   const loadData = async () => {
@@ -42,9 +45,14 @@ const UsersManagement = () => {
     return users.filter(user => user.establecimientos.some(est => est.id === selectedEstablishment));
   }, [users, selectedEstablishment]);
 
-  const handleEdit = (user: GlobalUser) => {
+  const handleEditRole = (user: GlobalUser) => {
     setSelectedUser(user);
-    setDialogOpen(true);
+    setUserDialogOpen(true);
+  };
+
+  const handleEditSub = (user: GlobalUser) => {
+    setSelectedUser(user);
+    setSubDialogOpen(true);
   };
 
   return (
@@ -81,6 +89,7 @@ const UsersManagement = () => {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol Global</TableHead>
+                  <TableHead>Suscripción</TableHead>
                   <TableHead>Establecimientos</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -92,9 +101,14 @@ const UsersManagement = () => {
                     <TableCell>{user.email}</TableCell>
                     <TableCell className="capitalize">{user.rol.replace(/_/g, ' ')}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
+                      <Badge variant={user.subscription_plan === 'pro' ? 'default' : 'secondary'} className="capitalize">
+                        {user.subscription_plan}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-xs">
                         {user.establecimientos.map((est, index) => (
-                          <Badge key={index} variant="secondary">{est.nombre}</Badge>
+                          <Badge key={index} variant="outline">{est.nombre}</Badge>
                         ))}
                       </div>
                     </TableCell>
@@ -102,7 +116,8 @@ const UsersManagement = () => {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(user)}><Edit className="mr-2 h-4 w-4" /> Editar Rol Global</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditRole(user)}><Edit className="mr-2 h-4 w-4" /> Editar Rol Global</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditSub(user)}><Star className="mr-2 h-4 w-4" /> Cambiar Suscripción</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -114,8 +129,14 @@ const UsersManagement = () => {
         </CardContent>
       </Card>
       <UserEditDialog
-        isOpen={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
+        isOpen={isUserDialogOpen}
+        onClose={() => setUserDialogOpen(false)}
+        onSaved={loadData}
+        user={selectedUser}
+      />
+      <SubscriptionEditDialog
+        isOpen={isSubDialogOpen}
+        onClose={() => setSubDialogOpen(false)}
         onSaved={loadData}
         user={selectedUser}
       />
