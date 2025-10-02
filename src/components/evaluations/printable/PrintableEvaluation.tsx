@@ -52,7 +52,7 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
       )}
 
       <main>
-        {evaluation.evaluation_content_blocks.map(block => (
+        {(evaluation.evaluation_content_blocks || []).map(block => (
           <div key={block.id} className="question-block">
             {block.visible_en_evaluacion && (
               <div className="content-block">

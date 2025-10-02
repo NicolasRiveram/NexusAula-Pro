@@ -48,11 +48,11 @@ const EvaluationDetailPage = () => {
     );
   }
 
-  const totalPuntaje = evaluation.evaluation_content_blocks.reduce((total, block) => {
+  const totalPuntaje = (evaluation.evaluation_content_blocks || []).reduce((total, block) => {
     return total + block.evaluacion_items.reduce((blockTotal, item) => blockTotal + item.puntaje, 0);
   }, 0);
 
-  const hasScannableQuestions = evaluation.evaluation_content_blocks.some(b => b.evaluacion_items.some(i => i.tipo_item === 'seleccion_multiple'));
+  const hasScannableQuestions = (evaluation.evaluation_content_blocks || []).some(b => b.evaluacion_items.some(i => i.tipo_item === 'seleccion_multiple'));
 
   return (
     <div className="container mx-auto space-y-6">
@@ -103,7 +103,7 @@ const EvaluationDetailPage = () => {
           <CardDescription>Puntaje Total: {totalPuntaje} puntos</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          {evaluation.evaluation_content_blocks.map(block => (
+          {(evaluation.evaluation_content_blocks || []).map(block => (
             <div key={block.id}>
               <div className="flex items-center text-lg font-semibold mb-4">
                 {block.block_type === 'text' ? <FileText className="mr-3 h-5 w-5" /> : <ImageIcon className="mr-3 h-5 w-5" />}

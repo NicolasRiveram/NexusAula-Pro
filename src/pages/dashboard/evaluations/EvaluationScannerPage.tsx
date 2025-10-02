@@ -9,6 +9,7 @@ import { ArrowLeft, Camera, CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse } from '@/api/evaluationsApi';
 import { seededShuffle } from '@/utils/shuffleUtils';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
+import { cn } from '@/lib/utils';
 
 const EvaluationScannerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -105,7 +106,7 @@ const EvaluationScannerPage = () => {
     setLastScannedId(qrData);
 
     try {
-      const allQuestions = evaluation!.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
+      const allQuestions = (evaluation!.evaluation_content_blocks || []).flatMap(b => b.evaluacion_items);
       const answers: { itemId: string; selectedAlternativeId: string }[] = [];
 
       // This is a simplified OMR logic assuming a fixed layout relative to the QR code.
