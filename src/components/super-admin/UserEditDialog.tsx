@@ -19,10 +19,10 @@ interface UserEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
   user: GlobalUser | null;
-  onUserUpdated: () => void;
+  onSaved: () => void;
 }
 
-const UserEditDialog: React.FC<UserEditDialogProps> = ({ isOpen, onClose, user, onUserUpdated }) => {
+const UserEditDialog: React.FC<UserEditDialogProps> = ({ isOpen, onClose, user, onSaved }) => {
   const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -38,7 +38,7 @@ const UserEditDialog: React.FC<UserEditDialogProps> = ({ isOpen, onClose, user, 
     try {
       await updateUserGlobalRole(user.id, data.rol);
       showSuccess(`El rol de ${user.nombre_completo} ha sido actualizado.`);
-      onUserUpdated();
+      onSaved();
       onClose();
     } catch (error: any) {
       showError(error.message);

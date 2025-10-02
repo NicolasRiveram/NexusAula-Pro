@@ -19,10 +19,10 @@ interface SubscriptionEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
   user: GlobalUser | null;
-  onUserUpdated: () => void;
+  onSaved: () => void;
 }
 
-const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen, onClose, user, onUserUpdated }) => {
+const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen, onClose, user, onSaved }) => {
   const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -38,7 +38,7 @@ const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen,
     try {
       await updateUserSubscriptionPlan(user.id, data.subscription_plan);
       showSuccess(`La suscripción de ${user.nombre_completo} ha sido actualizada.`);
-      onUserUpdated();
+      onSaved();
       onClose();
     } catch (error: any) {
       showError(error.message);
