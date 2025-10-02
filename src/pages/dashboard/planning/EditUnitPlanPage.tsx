@@ -89,9 +89,11 @@ const EditUnitPlanPage = () => {
     setIsSaving(true);
     try {
       await updateUnitPlanDetails(planId, {
-        ...data,
+        titulo: data.titulo,
+        descripcion_contenidos: data.descripcionContenidos,
         fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
         fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
+        cursoAsignaturaIds: data.cursoAsignaturaIds,
       });
       showSuccess("Plan de unidad actualizado. Nota: Los cambios de fecha o curso pueden requerir reprogramar las clases manualmente.");
       loadData();

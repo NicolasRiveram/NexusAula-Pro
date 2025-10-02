@@ -27,14 +27,12 @@ const SettingsPage = () => {
     if (user) {
       setUserId(user.id);
       try {
-        const promises = [fetchUserProfile(user.id)];
+        const profileData = await fetchUserProfile(user.id);
+        setProfile(profileData);
+
         if (userRoleProfile?.rol !== 'estudiante') {
-          promises.push(fetchUserPedagogicalProfile(user.id));
-        }
-        const [profileData, pedagogicalData] = await Promise.all(promises);
-        setProfile(profileData as UserProfile);
-        if (pedagogicalData) {
-          setPedagogicalProfile(pedagogicalData as UserPedagogicalProfile);
+          const pedagogicalData = await fetchUserPedagogicalProfile(user.id);
+          setPedagogicalProfile(pedagogicalData);
         }
       } catch (error: any) {
         showError(error.message);

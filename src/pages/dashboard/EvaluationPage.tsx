@@ -114,12 +114,42 @@ const EvaluationPage = () => {
         setPrintModalOpen(false);
         return;
       }
+
+      let teacherName = 'Docente no especificado';
+      if (evaluationDetails.creado_por) {
+        const { data: profileData } = await supabase
+          .from('perfiles')
+          .select('nombre_completo')
+          .eq('id', evaluationDetails.creado_por)
+          .single();
+        if (profileData && profileData.nombre_completo) {
+          teacherName = profileData.nombre_completo;
+        }
+      }
+
+      const totalScore = (evaluationDetails.evaluation_content_blocks || []).reduce((total, block) => {
+        const blockTotal = (block.evaluacion_items || []).reduce((subTotal, item) => subTotal + (item.puntaje || 0), 0);
+        return total + blockTotal;
+      }, 0);
+
+      const formatTeacherNameForPrint = (fullName: string | null): string => {
+        if (!fullName || fullName.trim() === '') return '';
+        const parts = fullName.trim().split(/\s+/);
+        if (parts.length <= 1) return fullName;
+        if (parts.length === 2) return fullName;
+        const firstName = parts[0];
+        const paternalLastName = parts[parts.length - 2];
+        return `${firstName} ${paternalLastName}`;
+      };
+      const formattedTeacherName = formatTeacherNameForPrint(teacherName);
       
       printComponent(
         <PrintableEvaluation 
           evaluation={evaluationDetails} 
           establishment={activeEstablishment}
           fontSize={fontSize}
+          teacherName={formattedTeacherName}
+          totalScore={totalScore}
         />,
         `Evaluación: ${evaluationDetails.titulo}`
       );
