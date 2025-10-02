@@ -51,6 +51,7 @@ const SettingsPage = () => {
 
   const isAdmin = userRoleProfile?.rol === 'administrador_establecimiento' || userRoleProfile?.rol === 'coordinador';
   const isStudent = userRoleProfile?.rol === 'estudiante';
+  const canManageEstablishment = isAdmin || userRoleProfile?.rol === 'docente';
 
   if (loading) {
     return (
@@ -71,7 +72,7 @@ const SettingsPage = () => {
         <TabsList>
           <TabsTrigger value="profile">Perfil</TabsTrigger>
           {!isStudent && <TabsTrigger value="pedagogical">Preferencias Pedagógicas</TabsTrigger>}
-          {isAdmin && <TabsTrigger value="establishment">Establecimiento</TabsTrigger>}
+          {canManageEstablishment && <TabsTrigger value="establishment">Establecimiento</TabsTrigger>}
           <TabsTrigger value="subscription">Suscripción</TabsTrigger>
         </TabsList>
         <TabsContent value="profile" className="mt-6">
@@ -84,7 +85,7 @@ const SettingsPage = () => {
             )}
           </TabsContent>
         )}
-        {isAdmin && (
+        {canManageEstablishment && (
           <TabsContent value="establishment" className="mt-6">
             <EstablishmentSettingsForm />
           </TabsContent>
