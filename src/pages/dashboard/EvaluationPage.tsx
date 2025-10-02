@@ -4,8 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
@@ -203,7 +203,6 @@ const EvaluationPage = () => {
   };
 
   const renderTeacherView = () => {
-    // ... (existing renderTeacherView code, but with updated DropdownMenuItem)
     const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
       const groups: Record<string, Evaluation[]> = {};
       evals.forEach(evaluation => {
@@ -267,14 +266,22 @@ const EvaluationPage = () => {
                             <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
                               <Eye className="mr-2 h-4 w-4" /> Ver / Editar Contenido
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
+                              <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
                               <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
                               <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled>
-                              <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta
+                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
+                              <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem disabled className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
