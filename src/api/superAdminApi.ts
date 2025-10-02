@@ -35,6 +35,7 @@ export interface GlobalUser {
   email: string;
   rol: string;
   establecimientos: {
+    id: string;
     nombre: string;
     rol_en_establecimiento: string;
   }[];
@@ -50,7 +51,7 @@ export const fetchAllUsers = async (): Promise<GlobalUser[]> => {
       rol,
       perfil_establecimientos (
         rol_en_establecimiento,
-        establecimientos ( nombre )
+        establecimientos ( id, nombre )
       )
     `)
     .order('nombre_completo');
@@ -59,9 +60,12 @@ export const fetchAllUsers = async (): Promise<GlobalUser[]> => {
   
   return (data || []).map((user: any) => ({
     ...user,
-    establecimientos: (user.perfil_establecimientos || []).map((pe: any) => ({
-      nombre: pe.establecimientos?.nombre || 'Establecimiento no encontrado',
-      rol_en_establecimiento: pe.rol_en_establecimiento,
+    establecimientos: (user.perfil_establecimientos || [])
+      .filter((pe: any) => pe.establecimientos)
+      .map((pe: any) => ({
+        id: pe.establecimientos.id,
+        nombre: pe.establecimientos.nombre,
+        rol_en_establecimiento: pe.rol_en_establecimiento,
     })),
   }));
 };

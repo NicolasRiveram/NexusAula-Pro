@@ -1,25 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Edit } from 'lucide-react';
-import { fetchAllUsers, GlobalUser } from '@/api/superAdminApi';
+import { fetchAllUsers, GlobalUser, fetchAllEstablishments, Establishment } from '@/api/superAdminApi';
 import { showError } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import UserEditDialog from './UserEditDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const UsersManagement = () => {
   const [users, setUsers] = useState<GlobalUser[]>([]);
+  const [establishments, setEstablishments] = useState<Establishment[]>([]);
+  const [selectedEstablishment, setSelectedEstablishment] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<GlobalUser | null>(null);
 
-  const loadUsers = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const data = await fetchAllUsers();
-      setUsers(data);
+      const [usersData, establishmentsData] = await Promise.all([fetchAllUsers(), fetchAllEstablishments()]);
+      setUsers(usersData);
+      setEstablishments(establishmentsData);
     } catch (error: any) {
       showError(error.message);
     } finally {
@@ -28,8 +32,15 @@ const UsersManagement = () => {
   };
 
   useEffect(() => {
-    loadUsers();
+    loadData();
   }, []);
+
+  const filteredUsers = useMemo(() => {
+    if (selectedEstablishment === 'all') {
+      return users;
+    }
+    return users.filter(user => user.establecimientos.some(est => est.id === selectedEstablishment));
+  }, [users, selectedEstablishment]);
 
   const handleEdit = (user: GlobalUser) => {
     setSelectedUser(user);
@@ -40,8 +51,25 @@ const UsersManagement = () => {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Gestión de Usuarios Globales</CardTitle>
-          <CardDescription>Administra todos los usuarios de la plataforma.</CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Gestión de Usuarios Globales</CardTitle>
+              <CardDescription>Administra todos los usuarios de la plataforma.</CardDescription>
+            </div>
+            <div className="w-64">
+              <Select value={selectedEstablishment} onValueChange={setSelectedEstablishment}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por establecimiento..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los establecimientos</SelectItem>
+                  {establishments.map(est => (
+                    <SelectItem key={est.id} value={est.id}>{est.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -58,7 +86,7 @@ const UsersManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.nombre_completo}</TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -88,7 +116,7 @@ const UsersManagement = () => {
       <UserEditDialog
         isOpen={isDialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSaved={loadUsers}
+        onSaved={loadData}
         user={selectedUser}
       />
     </>
