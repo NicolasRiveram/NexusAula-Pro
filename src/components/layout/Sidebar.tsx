@@ -2,6 +2,8 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useEstablishment } from '@/contexts/EstablishmentContext';
+import { getLogoPublicUrl } from '@/api/settingsApi';
 
 const teacherNavItems = [
   { to: '/dashboard', icon: Home, label: 'Inicio' },
@@ -36,15 +38,21 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
+  const { activeEstablishment } = useEstablishment();
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
   const isStudent = profile.rol === 'estudiante';
 
   const navItems = isStudent ? studentNavItems : teacherNavItems;
+  const logoUrl = activeEstablishment?.logo_url ? getLogoPublicUrl(activeEstablishment.logo_url) : null;
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700">
-      <div className="h-16 flex items-center justify-center border-b dark:border-gray-700">
-        <h1 className="text-2xl font-bold text-primary">NexusAula</h1>
+      <div className="h-16 flex items-center justify-center border-b dark:border-gray-700 px-4">
+        {logoUrl ? (
+          <img src={logoUrl} alt={activeEstablishment?.nombre} className="max-h-10 object-contain" />
+        ) : (
+          <h1 className="text-2xl font-bold text-primary">NexusAula</h1>
+        )}
       </div>
       <nav className="flex-1 px-4 py-6 space-y-2">
         {navItems.map((item) => (

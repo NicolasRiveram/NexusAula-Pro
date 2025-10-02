@@ -11,6 +11,39 @@ export interface UserPedagogicalProfile {
   niveles: Nivel[];
 }
 
+export const getLogoPublicUrl = (path: string): string => {
+    if (!path) return '';
+    const { data } = supabase.storage.from('establishment_logos').getPublicUrl(path);
+    return data.publicUrl;
+};
+
+export const uploadEstablishmentLogo = async (establishmentId: string, file: File): Promise<string> => {
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `logo_${Date.now()}.${fileExtension}`;
+    const filePath = `${establishmentId}/${fileName}`;
+
+    const { data, error } = await supabase.storage
+        .from('establishment_logos')
+        .upload(filePath, file);
+
+    if (error) {
+        throw new Error(`Error al subir el logo: ${error.message}`);
+    }
+
+    return data.path;
+};
+
+export const updateEstablishmentDetails = async (establishmentId: string, updates: { logo_url?: string }) => {
+    const { error } = await supabase
+        .from('establecimientos')
+        .update(updates)
+        .eq('id', establishmentId);
+    
+    if (error) {
+        throw new Error(`Error al actualizar el establecimiento: ${error.message}`);
+    }
+};
+
 export const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
   const { data, error } = await supabase
     .from('perfiles')

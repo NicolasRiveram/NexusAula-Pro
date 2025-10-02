@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchUserProfile, fetchUserPedagogicalProfile, UserProfile, UserPedagogicalProfile } from '@/api/settingsApi';
@@ -6,12 +7,19 @@ import { showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import ProfileSettingsForm from '@/components/settings/ProfileSettingsForm';
 import SubjectsAndLevelsForm from '@/components/settings/SubjectsAndLevelsForm';
+import EstablishmentSettingsForm from '@/components/settings/EstablishmentSettingsForm';
+import SubscriptionManager from '@/components/settings/SubscriptionSettingsCard';
+
+interface DashboardContext {
+  profile: { rol: string };
+}
 
 const SettingsPage = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [pedagogicalProfile, setPedagogicalProfile] = useState<UserPedagogicalProfile | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { profile: userRoleProfile } = useOutletContext<DashboardContext>();
 
   const loadData = async () => {
     setLoading(true);
@@ -19,12 +27,15 @@ const SettingsPage = () => {
     if (user) {
       setUserId(user.id);
       try {
-        const [profileData, pedagogicalData] = await Promise.all([
-          fetchUserProfile(user.id),
-          fetchUserPedagogicalProfile(user.id),
-        ]);
-        setProfile(profileData);
-        setPedagogicalProfile(pedagogicalData);
+        const promises = [fetchUserProfile(user.id)];
+        if (userRoleProfile?.rol !== 'estudiante') {
+          promises.push(fetchUserPedagogicalProfile(user.id));
+        }
+        const [profileData, pedagogicalData] = await Promise.all(promises);
+        setProfile(profileData as UserProfile);
+        if (pedagogicalData) {
+          setPedagogicalProfile(pedagogicalData as UserPedagogicalProfile);
+        }
       } catch (error: any) {
         showError(error.message);
       }
@@ -33,8 +44,13 @@ const SettingsPage = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (userRoleProfile) {
+      loadData();
+    }
+  }, [userRoleProfile]);
+
+  const isAdmin = userRoleProfile?.rol === 'administrador_establecimiento' || userRoleProfile?.rol === 'coordinador';
+  const isStudent = userRoleProfile?.rol === 'estudiante';
 
   if (loading) {
     return (
@@ -54,15 +70,27 @@ const SettingsPage = () => {
       <Tabs defaultValue="profile" className="w-full">
         <TabsList>
           <TabsTrigger value="profile">Perfil</TabsTrigger>
-          <TabsTrigger value="pedagogical">Preferencias Pedagógicas</TabsTrigger>
+          {!isStudent && <TabsTrigger value="pedagogical">Preferencias Pedagógicas</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="establishment">Establecimiento</TabsTrigger>}
+          <TabsTrigger value="subscription">Suscripción</TabsTrigger>
         </TabsList>
         <TabsContent value="profile" className="mt-6">
           <ProfileSettingsForm profile={profile} userId={userId} onProfileUpdate={loadData} />
         </TabsContent>
-        <TabsContent value="pedagogical" className="mt-6">
-          {pedagogicalProfile && (
-            <SubjectsAndLevelsForm pedagogicalProfile={pedagogicalProfile} userId={userId} />
-          )}
+        {!isStudent && (
+          <TabsContent value="pedagogical" className="mt-6">
+            {pedagogicalProfile && (
+              <SubjectsAndLevelsForm pedagogicalProfile={pedagogicalProfile} userId={userId} />
+            )}
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="establishment" className="mt-6">
+            <EstablishmentSettingsForm />
+          </TabsContent>
+        )}
+        <TabsContent value="subscription" className="mt-6">
+          <SubscriptionManager />
         </TabsContent>
       </Tabs>
     </div>
