@@ -44,6 +44,13 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
         </div>
       </section>
 
+      {evaluation.aspectos_a_evaluar_ia && (
+        <section className="mb-4">
+          <h2 className="font-bold mb-2">Aspectos a Evaluar</h2>
+          <p className="text-sm">{evaluation.aspectos_a_evaluar_ia}</p>
+        </section>
+      )}
+
       <main>
         {evaluation.evaluation_content_blocks.map(block => (
           <div key={block.id} className="question-block">

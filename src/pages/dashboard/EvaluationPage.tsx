@@ -74,7 +74,38 @@ const EvaluationPage = () => {
 
     const toastId = showLoading("Preparando evaluación para imprimir...");
     try {
-      const evaluationDetails = await fetchEvaluationDetails(evaluationToPrint);
+      let evaluationDetails = await fetchEvaluationDetails(evaluationToPrint);
+
+      if (!evaluationDetails.aspectos_a_evaluar_ia) {
+        dismissToast(toastId);
+        const generatingToastId = showLoading("Generando aspectos pedagógicos con IA...");
+
+        const contentSummary = evaluationDetails.evaluation_content_blocks
+          .map(block => {
+            if (block.block_type === 'text') return block.content.text;
+            if (block.block_type === 'image') return `[Imagen: ${block.title || 'Sin título'}]`;
+            return '';
+          })
+          .join('\n\n');
+
+        const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-evaluation-aspects', {
+          body: { evaluationContent: contentSummary },
+        });
+
+        if (aiError) throw aiError;
+
+        const newAspects = aiData.aspects;
+        
+        const { error: updateError } = await supabase
+          .from('evaluaciones')
+          .update({ aspectos_a_evaluar_ia: newAspects })
+          .eq('id', evaluationToPrint);
+
+        if (updateError) throw updateError;
+
+        evaluationDetails.aspectos_a_evaluar_ia = newAspects;
+        dismissToast(generatingToastId);
+      }
       
       printComponent(
         <PrintableEvaluation 
