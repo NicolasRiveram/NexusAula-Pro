@@ -23,6 +23,7 @@ const EvaluationDetailPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const navigate = useNavigate();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
+  const [teacherName, setTeacherName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
@@ -32,7 +33,19 @@ const EvaluationDetailPage = () => {
     if (evaluationId) {
       setLoading(true);
       fetchEvaluationDetails(evaluationId)
-        .then(setEvaluation)
+        .then(async (evalData) => {
+          setEvaluation(evalData);
+          if (evalData.creado_por) {
+            const { data: profileData } = await supabase
+              .from('perfiles')
+              .select('nombre_completo')
+              .eq('id', evalData.creado_por)
+              .single();
+            if (profileData) {
+              setTeacherName(profileData.nombre_completo);
+            }
+          }
+        })
         .catch(err => showError(`Error al cargar la evaluación: ${err.message}`))
         .finally(() => setLoading(false));
     }
@@ -54,11 +67,19 @@ const EvaluationDetailPage = () => {
         return;
       }
       
+      const totalPuntaje = (evaluation.evaluation_content_blocks || []).reduce((total, block) => {
+        return total + block.evaluacion_items.reduce((blockTotal, item) => blockTotal + item.puntaje, 0);
+      }, 0);
+      const passingScore = totalPuntaje * 0.6;
+
       printComponent(
         <PrintableEvaluation 
           evaluation={evaluation} 
           establishment={activeEstablishment}
           fontSize={fontSize}
+          teacherName={teacherName || 'Docente no especificado'}
+          totalScore={totalPuntaje}
+          passingScore={passingScore}
         />,
         `Evaluación: ${evaluation.titulo}`
       );

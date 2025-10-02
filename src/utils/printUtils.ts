@@ -27,12 +27,6 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             size: A4;
             margin: 20mm;
           }
-          .printable-container {
-            width: 100%;
-            max-width: 210mm; /* A4 width */
-            margin: 0 auto;
-            page-break-after: always;
-          }
           .printable-container:last-child {
             page-break-after: auto;
           }
@@ -53,15 +47,25 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             margin-bottom: 20px;
           }
           .print-header img {
-            max-height: 60px;
+            max-height: 50px;
             max-width: 150px;
           }
           .print-header-info {
-            text-align: right;
+            text-align: center;
+            flex-grow: 1;
+          }
+          .evaluation-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+          }
+          .establishment-name {
+            font-size: 1rem;
+            margin-top: 4px;
           }
           .student-info {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 10px 20px;
             border: 1px solid #ccc;
             padding: 10px;
@@ -72,6 +76,7 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             display: flex;
             align-items: center;
             gap: 5px;
+            font-size: 0.8rem;
           }
           .student-info-item label {
             font-weight: 600;
@@ -83,7 +88,6 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           }
           .question-block {
             margin-bottom: 20px;
-            page-break-inside: avoid;
           }
           .question-enunciado {
             font-weight: 600;
@@ -97,15 +101,15 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             margin-bottom: 8px;
           }
           .content-block {
-            border: 1px solid #ccc;
+            border: 1px solid #eee;
             padding: 15px;
             border-radius: 5px;
             margin-bottom: 20px;
-            page-break-inside: avoid;
+            background-color: transparent !important;
           }
           .content-block p {
-            white-space: pre-wrap;
             text-align: justify;
+            white-space: pre-wrap;
           }
           .content-block img {
             max-width: 100%;

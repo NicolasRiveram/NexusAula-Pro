@@ -69,6 +69,7 @@ export interface EvaluationDetail extends Evaluation {
   descripcion: string;
   puntaje_maximo: number | null;
   aspectos_a_evaluar_ia: string | null;
+  creado_por: string;
   evaluation_content_blocks: (EvaluationContentBlock & {
     evaluacion_items: EvaluationItem[];
   })[];
@@ -430,6 +431,7 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       aspectos_a_evaluar_ia,
       randomizar_preguntas,
       randomizar_alternativas,
+      creado_por,
       evaluacion_curso_asignaturas (
         curso_asignatura_id,
         curso_asignaturas (

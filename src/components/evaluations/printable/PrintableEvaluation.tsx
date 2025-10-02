@@ -8,40 +8,31 @@ interface PrintableEvaluationProps {
   evaluation: EvaluationDetail;
   establishment: Establishment | null;
   fontSize: 'text-sm' | 'text-base' | 'text-lg';
+  teacherName: string;
+  totalScore: number;
+  passingScore: number;
 }
 
-const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize }) => {
+const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore, passingScore }) => {
   const logoUrl = establishment?.logo_url ? getLogoPublicUrl(establishment.logo_url) : null;
 
   return (
     <div className={`printable-container ${fontSize}`}>
       <header className="print-header">
-        <div>
-          {logoUrl && <img src={logoUrl} alt={establishment?.nombre} />}
-        </div>
+        {logoUrl && <img src={logoUrl} alt={establishment?.nombre || ''} />}
         <div className="print-header-info">
-          <h1 className="text-lg font-bold">{establishment?.nombre}</h1>
-          <p className="text-sm">{evaluation.titulo}</p>
+          <h1 className="evaluation-title">{evaluation.titulo}</h1>
+          <p className="establishment-name">{establishment?.nombre}</p>
         </div>
       </header>
 
       <section className="student-info">
-        <div className="student-info-item">
-          <label>Nombre:</label>
-          <div className="line"></div>
-        </div>
-        <div className="student-info-item">
-          <label>Curso:</label>
-          <div className="line"></div>
-        </div>
-        <div className="student-info-item">
-          <label>Fecha:</label>
-          <div className="line"></div>
-        </div>
-        <div className="student-info-item">
-          <label>Puntaje:</label>
-          <div className="line"></div>
-        </div>
+        <div className="student-info-item"><label>Nombre:</label><div className="line"></div></div>
+        <div className="student-info-item"><label>Curso:</label><div className="line"></div></div>
+        <div className="student-info-item"><label>Fecha:</label><div className="line"></div></div>
+        <div className="student-info-item"><label>Docente:</label><span>{teacherName}</span></div>
+        <div className="student-info-item"><label>Puntaje Total:</label><span>{totalScore} pts.</span></div>
+        <div className="student-info-item"><label>Puntaje Aprobación (4,0):</label><span>{passingScore.toFixed(1)} pts.</span></div>
       </section>
 
       {evaluation.aspectos_a_evaluar_ia && (
