@@ -10,11 +10,11 @@ interface PrintableEvaluationProps {
   fontSize: 'text-sm' | 'text-base' | 'text-lg';
   teacherName: string;
   totalScore: number;
-  passingScore: number;
 }
 
-const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore, passingScore }) => {
+const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore }) => {
   const logoUrl = establishment?.logo_url ? getLogoPublicUrl(establishment.logo_url) : null;
+  const passingScore = totalScore * 0.6;
 
   return (
     <div className={`printable-container ${fontSize}`}>
@@ -58,7 +58,7 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
               {contentElement && <div className="content-block">{contentElement}</div>}
               {(block.evaluacion_items || []).map(item => (
                 <div key={item.id} className="mb-4">
-                  <p className="question-enunciado">{item.orden}. {item.enunciado || ''} ({item.puntaje} pts.)</p>
+                  <p className="question-enunciado">{item.orden}. {item.enunciado || ''} ({item.puntaje || 0} pts.)</p>
                   {item.tipo_item === 'seleccion_multiple' && (
                     <ul className="alternatives-list">
                       {(item.item_alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (

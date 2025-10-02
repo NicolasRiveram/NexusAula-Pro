@@ -72,8 +72,6 @@ const EvaluationDetailPage = () => {
         return;
       }
       
-      const passingScore = totalPuntaje * 0.6;
-
       printComponent(
         <PrintableEvaluation 
           evaluation={evaluation} 
@@ -81,7 +79,6 @@ const EvaluationDetailPage = () => {
           fontSize={fontSize}
           teacherName={teacherName || 'Docente no especificado'}
           totalScore={totalPuntaje}
-          passingScore={passingScore}
         />,
         `Evaluación: ${evaluation.titulo}`
       );
