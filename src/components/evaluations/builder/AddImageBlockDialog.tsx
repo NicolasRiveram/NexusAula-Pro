@@ -68,15 +68,12 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
   }, [isOpen, isEditMode, blockToEdit, reset]);
 
   const onSubmit = async (data: FormData) => {
-    const toastId = showLoading(isEditMode ? "Actualizando bloque..." : "Añadiendo bloque...");
+    const toastId = showLoading("Guardando bloque de imagen...");
     try {
       if (isEditMode && blockToEdit) {
         let imageUrl = blockToEdit.content.imageUrl;
         if (data.image && data.image.length > 0) {
-          dismissToast(toastId);
-          const uploadToastId = showLoading("Subiendo nueva imagen...");
           imageUrl = await uploadEvaluationImage(evaluationId, data.image[0]);
-          dismissToast(uploadToastId);
         }
         await updateContentBlock(blockToEdit.id, {
           title: data.title,
@@ -85,17 +82,15 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
         showSuccess("Bloque de imagen actualizado.");
       } else {
         const imageUrl = await uploadEvaluationImage(evaluationId, data.image[0]);
-        dismissToast(toastId);
-        const blockToastId = showLoading("Añadiendo bloque...");
         await createContentBlock(evaluationId, 'image', { imageUrl }, currentOrder, data.title);
-        dismissToast(blockToastId);
         showSuccess("Bloque de imagen añadido.");
       }
       onSave();
       onClose();
     } catch (error: any) {
-      dismissToast(toastId);
       showError(`Error: ${error.message}`);
+    } finally {
+      dismissToast(toastId);
     }
   };
 

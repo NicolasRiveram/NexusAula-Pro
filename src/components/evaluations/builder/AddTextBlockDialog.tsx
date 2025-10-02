@@ -61,8 +61,9 @@ const AddTextBlockDialog: React.FC<AddTextBlockDialogProps> = ({ isOpen, onClose
       onSave();
       onClose();
     } catch (error: any) {
-      dismissToast(toastId);
       showError(`Error: ${error.message}`);
+    } finally {
+      dismissToast(toastId);
     }
   };
 
