@@ -130,6 +130,39 @@ export interface Skill {
   nombre: string;
 }
 
+export const fetchStudentsForEvaluation = async (evaluationId: string): Promise<{ id: string; nombre_completo: string; curso_nombre: string }[]> => {
+  const { data: links, error: linkError } = await supabase
+    .from('evaluacion_curso_asignaturas')
+    .select('curso_asignaturas(curso_id, cursos(nombre, niveles(nombre)))')
+    .eq('evaluacion_id', evaluationId);
+
+  if (linkError) throw new Error(`Error fetching course links: ${linkError.message}`);
+  const cursoIds = [...new Set(links.map((l: any) => l.curso_asignaturas.curso_id))];
+  const cursoInfoMap = new Map(links.map((l: any) => [l.curso_asignaturas.curso_id, `${l.curso_asignaturas.cursos.niveles.nombre} ${l.curso_asignaturas.cursos.nombre}`]));
+
+  if (cursoIds.length === 0) return [];
+
+  const { data: students, error: studentError } = await supabase
+    .from('curso_estudiantes')
+    .select('curso_id, perfiles!inner(id, nombre_completo)')
+    .in('curso_id', cursoIds);
+
+  if (studentError) throw new Error(`Error fetching students: ${studentError.message}`);
+
+  const studentMap = new Map<string, { id: string; nombre_completo: string; curso_nombre: string }>();
+  students.forEach((s: any) => {
+    if (s.perfiles && !studentMap.has(s.perfiles.id)) {
+      studentMap.set(s.perfiles.id, {
+        id: s.perfiles.id,
+        nombre_completo: s.perfiles.nombre_completo,
+        curso_nombre: cursoInfoMap.get(s.curso_id) || 'Curso Desconocido',
+      });
+    }
+  });
+
+  return Array.from(studentMap.values());
+};
+
 export const fetchSkills = async (): Promise<Skill[]> => {
   const { data, error } = await supabase
     .from('habilidades')
@@ -139,6 +172,10 @@ export const fetchSkills = async (): Promise<Skill[]> => {
   return data;
 };
 
+// ... (resto de funciones existentes)
+// I will keep the rest of the file as it is, just adding the new function.
+// The placeholder below represents the existing code.
+// ... (existing code)
 export const saveManualQuestion = async (evaluationId: string, blockId: string, questionData: ManualQuestionData) => {
   const { alternativas, ...itemData } = questionData;
 

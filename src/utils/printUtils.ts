@@ -31,6 +31,10 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             width: 100%;
             max-width: 210mm; /* A4 width */
             margin: 0 auto;
+            page-break-after: always;
+          }
+          .printable-container:last-child {
+            page-break-after: auto;
           }
           .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
           .text-base { font-size: 1rem; line-height: 1.5rem; }
@@ -108,6 +112,30 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             display: block;
             margin: 0 auto;
           }
+          /* Answer Sheet Styles */
+          .answer-sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 20px;
+          }
+          .qr-code-container { text-align: center; }
+          .qr-code-container p { font-size: 8px; margin-top: 4px; }
+          .fila-indicator { border: 3px solid #000; padding: 10px 20px; text-align: center; }
+          .fila-indicator .fila-letter { font-size: 48px; font-weight: bold; line-height: 1; }
+          .answer-sheet-title { text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
+          .answer-sheet-instructions { text-align: center; font-size: 0.9rem; color: #555; margin-bottom: 20px; }
+          .answer-grid { width: 100%; border-collapse: collapse; }
+          .answer-grid .question-number { font-weight: bold; text-align: right; padding-right: 10px; width: 40px; }
+          .answer-grid .alternative-cell { text-align: center; padding: 8px 0; }
+          .answer-grid .bubble { width: 20px; height: 20px; border: 1px solid #000; border-radius: 50%; margin: 0 auto; }
+          .answer-grid .alt-label { font-size: 10px; margin-top: 2px; }
+          /* Answer Key Styles */
+          .answer-key-title { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 10px; }
+          .answer-key-subtitle { font-size: 1.1rem; text-align: center; margin-bottom: 20px; }
+          .answer-key-table { width: 100%; border-collapse: collapse; text-align: center; }
+          .answer-key-table th, .answer-key-table td { border: 1px solid #000; padding: 8px; }
+          .answer-key-table th { background-color: #f3f4f6; }
         </style>
       </head>
       <body>

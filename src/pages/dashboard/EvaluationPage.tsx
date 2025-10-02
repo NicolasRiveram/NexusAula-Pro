@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails } from '@/api/evaluationsApi';
+import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -18,6 +18,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatEvaluationType } from '@/utils/evaluationUtils';
 import { printComponent } from '@/utils/printUtils';
 import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
+import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/PrintAnswerSheetDialog';
+import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
+import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
+import { seededShuffle } from '@/utils/shuffleUtils';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -35,6 +39,10 @@ const EvaluationPage = () => {
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [evaluationToPrint, setEvaluationToPrint] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-base');
+
+  const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
+  const [evaluationForAnswerSheet, setEvaluationForAnswerSheet] = useState<string | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     const loadEvaluations = async () => {
@@ -126,7 +134,76 @@ const EvaluationPage = () => {
     }
   };
 
+  const handleAnswerSheetClick = (evaluationId: string) => {
+    setEvaluationForAnswerSheet(evaluationId);
+    setAnswerSheetModalOpen(true);
+  };
+
+  const handleConfirmPrintAnswerSheets = async (formData: AnswerSheetFormData) => {
+    if (!evaluationForAnswerSheet || !activeEstablishment) return;
+    setIsPrinting(true);
+    const toastId = showLoading("Generando hojas de respuesta y pautas...");
+
+    try {
+      const [evaluation, students] = await Promise.all([
+        fetchEvaluationDetails(evaluationForAnswerSheet),
+        fetchStudentsForEvaluation(evaluationForAnswerSheet),
+      ]);
+
+      const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
+      const answerKey: { [row: string]: { [q: number]: string } } = {};
+      const printableComponents: React.ReactElement[] = [];
+
+      for (let i = 0; i < formData.rows; i++) {
+        const rowLabel = String.fromCharCode(65 + i);
+        answerKey[rowLabel] = {};
+
+        for (const student of students) {
+          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
+          const shuffledQuestions = allQuestions.map(q => {
+            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
+            const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
+            answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
+            return { ...q, item_alternativas: shuffledAlts };
+          });
+
+          printableComponents.push(
+            <PrintableAnswerSheet
+              key={`${student.id}-${rowLabel}`}
+              evaluationTitle={evaluation.titulo}
+              establishmentName={activeEstablishment.nombre}
+              logoUrl={activeEstablishment.logo_url}
+              studentName={student.nombre_completo}
+              courseName={student.curso_nombre}
+              rowLabel={rowLabel}
+              qrCodeData={qrCodeData}
+              questions={shuffledQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+            />
+          );
+        }
+      }
+
+      printableComponents.push(
+        <PrintableAnswerKey
+          key="answer-key"
+          evaluationTitle={evaluation.titulo}
+          answerKey={answerKey}
+        />
+      );
+
+      printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`);
+      dismissToast(toastId);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error al generar las hojas: ${error.message}`);
+    } finally {
+      setIsPrinting(false);
+      setAnswerSheetModalOpen(false);
+    }
+  };
+
   const renderTeacherView = () => {
+    // ... (existing renderTeacherView code, but with updated DropdownMenuItem)
     const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
       const groups: Record<string, Evaluation[]> = {};
       evals.forEach(evaluation => {
@@ -193,7 +270,7 @@ const EvaluationPage = () => {
                             <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
                               <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled>
+                            <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
                               <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
                             </DropdownMenuItem>
                             <DropdownMenuItem disabled>
@@ -362,6 +439,13 @@ const EvaluationPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrintAnswerSheetDialog
+        isOpen={isAnswerSheetModalOpen}
+        onClose={() => setAnswerSheetModalOpen(false)}
+        onConfirm={handleConfirmPrintAnswerSheets}
+        isPrinting={isPrinting}
+      />
     </div>
   );
 };
