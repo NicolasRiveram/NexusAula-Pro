@@ -19,6 +19,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 
+const formatTeacherNameForPrint = (fullName: string | null): string => {
+  if (!fullName || fullName.trim() === '') {
+    return '';
+  }
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 1) {
+    return fullName;
+  }
+  if (parts.length === 2) {
+    return fullName;
+  }
+  const firstName = parts[0];
+  const paternalLastName = parts[parts.length - 2];
+  return `${firstName} ${paternalLastName}`;
+};
+
 const EvaluationDetailPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const navigate = useNavigate();
@@ -41,7 +57,7 @@ const EvaluationDetailPage = () => {
               .select('nombre_completo')
               .eq('id', evalData.creado_por)
               .single();
-            if (profileData) {
+            if (profileData && profileData.nombre_completo) {
               setTeacherName(profileData.nombre_completo);
             }
           }
@@ -72,12 +88,14 @@ const EvaluationDetailPage = () => {
         return;
       }
       
+      const formattedTeacherName = formatTeacherNameForPrint(teacherName);
+
       printComponent(
         <PrintableEvaluation 
           evaluation={evaluation} 
           establishment={activeEstablishment}
           fontSize={fontSize}
-          teacherName={teacherName || 'Docente no especificado'}
+          teacherName={formattedTeacherName || 'Docente no especificado'}
           totalScore={totalPuntaje}
         />,
         `Evaluación: ${evaluation.titulo}`
