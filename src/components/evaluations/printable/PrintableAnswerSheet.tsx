@@ -1,5 +1,5 @@
 import React from 'react';
-import { QRCode } from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface PrintableAnswerSheetProps {
   evaluationTitle: string;
@@ -46,7 +46,7 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
 
       <div className="answer-sheet-header">
         <div className="qr-code-container">
-          <QRCode value={qrCodeData} size={80} />
+          <QRCodeSVG value={qrCodeData} size={80} />
           <p>ID: {qrCodeData}</p>
         </div>
         <div className="fila-indicator">
