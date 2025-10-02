@@ -29,6 +29,36 @@ export interface Asignatura {
 
 export type AsignaturaData = Omit<Asignatura, 'id'>;
 
+export interface Eje {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  asignatura_id: string;
+  asignaturas?: { nombre: string };
+}
+export type EjeData = Omit<Eje, 'id' | 'asignaturas'>;
+
+export interface Habilidad {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+}
+export type HabilidadData = Omit<Habilidad, 'id'>;
+
+export interface ObjetivoAprendizaje {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  nivel_id: string;
+  asignatura_id: string;
+  eje_id: string;
+  niveles?: { nombre: string };
+  asignaturas?: { nombre: string };
+  ejes?: { nombre: string };
+}
+export type ObjetivoAprendizajeData = Omit<ObjetivoAprendizaje, 'id' | 'niveles' | 'asignaturas' | 'ejes'>;
+
+
 export interface GlobalUser {
   id: string;
   nombre_completo: string;
@@ -162,4 +192,70 @@ export const saveAsignatura = async (asignaturaData: AsignaturaData, asignaturaI
 export const deleteAsignatura = async (asignaturaId: string) => {
   const { error } = await supabase.from('asignaturas').delete().eq('id', asignaturaId);
   if (error) throw new Error(`Error deleting asignatura: ${error.message}`);
+};
+
+export const fetchAllEjes = async (): Promise<Eje[]> => {
+  const { data, error } = await supabase.from('ejes').select('*, asignaturas(nombre)').order('nombre');
+  if (error) throw new Error(`Error fetching ejes: ${error.message}`);
+  return data || [];
+};
+
+export const saveEje = async (ejeData: EjeData, ejeId?: string) => {
+  if (ejeId) {
+    const { error } = await supabase.from('ejes').update(ejeData).eq('id', ejeId);
+    if (error) throw new Error(`Error updating eje: ${error.message}`);
+  } else {
+    const { error } = await supabase.from('ejes').insert(ejeData);
+    if (error) throw new Error(`Error creating eje: ${error.message}`);
+  }
+};
+
+export const deleteEje = async (ejeId: string) => {
+  const { error } = await supabase.from('ejes').delete().eq('id', ejeId);
+  if (error) throw new Error(`Error deleting eje: ${error.message}`);
+};
+
+export const fetchAllHabilidades = async (): Promise<Habilidad[]> => {
+  const { data, error } = await supabase.from('habilidades').select('*').order('nombre');
+  if (error) throw new Error(`Error fetching habilidades: ${error.message}`);
+  return data || [];
+};
+
+export const saveHabilidad = async (habilidadData: HabilidadData, habilidadId?: string) => {
+  if (habilidadId) {
+    const { error } = await supabase.from('habilidades').update(habilidadData).eq('id', habilidadId);
+    if (error) throw new Error(`Error updating habilidad: ${error.message}`);
+  } else {
+    const { error } = await supabase.from('habilidades').insert(habilidadData);
+    if (error) throw new Error(`Error creating habilidad: ${error.message}`);
+  }
+};
+
+export const deleteHabilidad = async (habilidadId: string) => {
+  const { error } = await supabase.from('habilidades').delete().eq('id', habilidadId);
+  if (error) throw new Error(`Error deleting habilidad: ${error.message}`);
+};
+
+export const fetchAllObjetivosAprendizaje = async (): Promise<ObjetivoAprendizaje[]> => {
+  const { data, error } = await supabase
+    .from('objetivos_aprendizaje')
+    .select('*, niveles(nombre), asignaturas(nombre), ejes(nombre)')
+    .order('codigo');
+  if (error) throw new Error(`Error fetching OAs: ${error.message}`);
+  return data || [];
+};
+
+export const saveObjetivoAprendizaje = async (oaData: ObjetivoAprendizajeData, oaId?: string) => {
+  if (oaId) {
+    const { error } = await supabase.from('objetivos_aprendizaje').update(oaData).eq('id', oaId);
+    if (error) throw new Error(`Error updating OA: ${error.message}`);
+  } else {
+    const { error } = await supabase.from('objetivos_aprendizaje').insert(oaData);
+    if (error) throw new Error(`Error creating OA: ${error.message}`);
+  }
+};
+
+export const deleteObjetivoAprendizaje = async (oaId: string) => {
+  const { error } = await supabase.from('objetivos_aprendizaje').delete().eq('id', oaId);
+  if (error) throw new Error(`Error deleting OA: ${error.message}`);
 };
