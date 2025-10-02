@@ -6,6 +6,8 @@ export interface Evaluation {
   titulo: string;
   tipo: string;
   fecha_aplicacion: string;
+  randomizar_preguntas: boolean;
+  randomizar_alternativas: boolean;
   curso_asignaturas: {
     id: string; // This is the curso_asignatura_id
     curso: {
@@ -172,10 +174,6 @@ export const fetchSkills = async (): Promise<Skill[]> => {
   return data;
 };
 
-// ... (resto de funciones existentes)
-// I will keep the rest of the file as it is, just adding the new function.
-// The placeholder below represents the existing code.
-// ... (existing code)
 export const saveManualQuestion = async (evaluationId: string, blockId: string, questionData: ManualQuestionData) => {
   const { alternativas, ...itemData } = questionData;
 
@@ -204,7 +202,6 @@ export const saveManualQuestion = async (evaluationId: string, blockId: string, 
       .insert(alternativesToInsert);
 
     if (altError) {
-      // Rollback the item insert for consistency
       await supabase.from('evaluacion_items').delete().eq('id', newItem.id);
       throw new Error(`Error al guardar las alternativas: ${altError.message}`);
     }
@@ -242,6 +239,8 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       titulo,
       tipo,
       fecha_aplicacion,
+      randomizar_preguntas,
+      randomizar_alternativas,
       evaluacion_curso_asignaturas!inner (
         curso_asignatura_id,
         curso_asignaturas!inner (
@@ -262,6 +261,8 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
     titulo: e.titulo,
     tipo: e.tipo,
     fecha_aplicacion: e.fecha_aplicacion,
+    randomizar_preguntas: e.randomizar_preguntas,
+    randomizar_alternativas: e.randomizar_alternativas,
     curso_asignaturas: e.evaluacion_curso_asignaturas.map((link: any) => ({
       id: link.curso_asignatura_id,
       curso: {
@@ -279,7 +280,7 @@ export const fetchStudentEvaluations = async (studentId: string, establecimiento
   const { data, error } = await supabase
     .from('evaluaciones')
     .select(`
-      id, titulo, tipo, fecha_aplicacion,
+      id, titulo, tipo, fecha_aplicacion, randomizar_preguntas, randomizar_alternativas,
       evaluacion_curso_asignaturas!inner(
         curso_asignaturas!inner(
           cursos!inner(
@@ -304,6 +305,8 @@ export const fetchStudentEvaluations = async (studentId: string, establecimiento
       titulo: e.titulo,
       tipo: e.tipo,
       fecha_aplicacion: e.fecha_aplicacion,
+      randomizar_preguntas: e.randomizar_preguntas,
+      randomizar_alternativas: e.randomizar_alternativas,
       status: e.respuestas_estudiante.some((r: any) => r.id) ? 'Completado' : 'Pendiente',
       curso_nombre: `${cursoAsignatura?.cursos?.niveles?.nombre} ${cursoAsignatura?.cursos?.nombre}`,
       asignatura_nombre: cursoAsignatura?.asignaturas?.nombre,
@@ -317,17 +320,15 @@ export interface CreateEvaluationData {
   descripcion?: string;
   fecha_aplicacion: string;
   cursoAsignaturaIds: string[];
+  randomizar_preguntas?: boolean;
+  randomizar_alternativas?: boolean;
 }
 
 export const createEvaluation = async (evalData: CreateEvaluationData) => {
+  const { cursoAsignaturaIds, ...rest } = evalData;
   const { data, error } = await supabase
     .from('evaluaciones')
-    .insert({
-      titulo: evalData.titulo,
-      tipo: evalData.tipo,
-      descripcion: evalData.descripcion,
-      fecha_aplicacion: evalData.fecha_aplicacion,
-    })
+    .insert(rest)
     .select('id')
     .single();
 
@@ -352,14 +353,10 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
 };
 
 export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData) => {
+  const { cursoAsignaturaIds, ...updateData } = evalData;
   const { error: updateError } = await supabase
     .from('evaluaciones')
-    .update({
-      titulo: evalData.titulo,
-      tipo: evalData.tipo,
-      descripcion: evalData.descripcion,
-      fecha_aplicacion: evalData.fecha_aplicacion,
-    })
+    .update(updateData)
     .eq('id', evaluationId);
 
   if (updateError) throw new Error(`Error updating evaluation: ${updateError.message}`);
@@ -409,6 +406,8 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       fecha_aplicacion,
       puntaje_maximo,
       aspectos_a_evaluar_ia,
+      randomizar_preguntas,
+      randomizar_alternativas,
       evaluacion_curso_asignaturas (
         curso_asignatura_id,
         curso_asignaturas (

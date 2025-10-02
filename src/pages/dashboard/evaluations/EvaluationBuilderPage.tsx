@@ -2,13 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import * as z from 'zod';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import Step1GeneralInfo, { EvaluationStep1Data, schema as step1Schema } from '@/components/evaluations/builder/Step1_GeneralInfo';
 import Step2ContentBlocks from '@/components/evaluations/builder/Step2_ContentBlocks';
-import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData } from '@/api/evaluationsApi';
+import Step3FinalReview from '@/components/evaluations/builder/Step3_FinalReview';
+import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData, EvaluationDetail } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
+
+const evaluationBuilderSchema = step1Schema.extend({
+  randomizar_preguntas: z.boolean().default(false),
+  randomizar_alternativas: z.boolean().default(false),
+});
+
+type EvaluationBuilderFormData = z.infer<typeof evaluationBuilderSchema>;
 
 const EvaluationBuilderPage = () => {
   const navigate = useNavigate();
@@ -17,11 +27,11 @@ const EvaluationBuilderPage = () => {
   const [isEditMode] = useState(!!evaluationIdFromParams);
   const [step, setStep] = useState(1);
   const [evaluationId, setEvaluationId] = useState<string | null>(evaluationIdFromParams || null);
-  const [evaluationTitle, setEvaluationTitle] = useState<string>('');
+  const [evaluationDetails, setEvaluationDetails] = useState<EvaluationDetail | null>(null);
   const [loadingInitialData, setLoadingInitialData] = useState(isEditMode);
 
-  const { control, handleSubmit, formState: { isSubmitting }, reset } = useForm<EvaluationStep1Data>({
-    resolver: zodResolver(step1Schema),
+  const { control, handleSubmit, formState: { isSubmitting }, reset, getValues } = useForm<EvaluationBuilderFormData>({
+    resolver: zodResolver(evaluationBuilderSchema),
   });
 
   useEffect(() => {
@@ -29,13 +39,15 @@ const EvaluationBuilderPage = () => {
       const loadEvaluationData = async () => {
         try {
           const data = await fetchEvaluationDetails(evaluationId);
-          setEvaluationTitle(data.titulo);
+          setEvaluationDetails(data);
           reset({
             titulo: data.titulo,
             tipo: data.tipo,
             descripcion: data.descripcion || '',
             fecha_aplicacion: parseISO(data.fecha_aplicacion),
             cursoAsignaturaIds: data.curso_asignaturas.map(ca => ca.id),
+            randomizar_preguntas: data.randomizar_preguntas,
+            randomizar_alternativas: data.randomizar_alternativas,
           });
         } catch (error: any) {
           showError(`Error al cargar datos para editar: ${error.message}`);
@@ -68,7 +80,6 @@ const EvaluationBuilderPage = () => {
         showSuccess("Información general guardada. Ahora añade contenido.");
       }
       
-      setEvaluationTitle(data.titulo);
       dismissToast(toastId);
       setStep(2);
     } catch (error: any) {
@@ -77,9 +88,41 @@ const EvaluationBuilderPage = () => {
     }
   };
 
-  const handleNextFromContent = () => {
-    showSuccess("Contenido y preguntas guardados.");
-    navigate(`/dashboard/evaluacion/${evaluationId}`);
+  const handleNextFromContent = async () => {
+    if (!evaluationId) return;
+    const toastId = showLoading("Cargando resumen de la evaluación...");
+    try {
+      const data = await fetchEvaluationDetails(evaluationId);
+      setEvaluationDetails(data);
+      setStep(3);
+    } catch (error: any) {
+      showError(`Error al cargar el resumen: ${error.message}`);
+    } finally {
+      dismissToast(toastId);
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    if (!evaluationId) return;
+    const formData = getValues();
+    const toastId = showLoading("Finalizando y guardando configuración...");
+    try {
+      await updateEvaluation(evaluationId, {
+        titulo: formData.titulo,
+        tipo: formData.tipo,
+        descripcion: formData.descripcion,
+        fecha_aplicacion: format(formData.fecha_aplicacion, 'yyyy-MM-dd'),
+        cursoAsignaturaIds: formData.cursoAsignaturaIds,
+        randomizar_preguntas: formData.randomizar_preguntas,
+        randomizar_alternativas: formData.randomizar_alternativas,
+      });
+      showSuccess("Evaluación guardada y configurada exitosamente.");
+      navigate(`/dashboard/evaluacion/${evaluationId}`);
+    } catch (error: any) {
+      showError(`Error al finalizar: ${error.message}`);
+    } finally {
+      dismissToast(toastId);
+    }
   };
 
   const getStepDescription = () => {
@@ -110,16 +153,29 @@ const EvaluationBuilderPage = () => {
             </div>
           ) : step === 1 ? (
             <Step1GeneralInfo onFormSubmit={handleSubmit(handleStep1Submit)} control={control} isSubmitting={isSubmitting} />
-          ) : (
-            evaluationId && (
-              <Step2ContentBlocks 
-                evaluationId={evaluationId} 
-                evaluationTitle={evaluationTitle}
-                onNextStep={handleNextFromContent}
-              />
-            )
-          )}
+          ) : step === 2 && evaluationId ? (
+            <Step2ContentBlocks 
+              evaluationId={evaluationId} 
+              evaluationTitle={getValues('titulo')}
+              onNextStep={handleNextFromContent}
+            />
+          ) : step === 3 && evaluationDetails ? (
+            <Step3FinalReview control={control} evaluation={evaluationDetails} />
+          ) : null}
         </CardContent>
+        {step > 1 && (
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" onClick={() => setStep(step - 1)} disabled={isSubmitting}>
+              <ChevronLeft className="mr-2 h-4 w-4" /> Atrás
+            </Button>
+            {step === 3 && (
+              <Button onClick={handleFinalSubmit} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Finalizar y Guardar
+              </Button>
+            )}
+          </CardFooter>
+        )}
       </Card>
     </div>
   );
