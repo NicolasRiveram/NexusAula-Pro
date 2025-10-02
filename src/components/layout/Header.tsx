@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/command";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from '@/lib/utils';
+import { getLogoPublicUrl } from '@/api/settingsApi';
 
 interface HeaderProps {
   profile: {
@@ -45,6 +46,7 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
   const navigate = useNavigate();
   const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const [openPopover, setOpenPopover] = React.useState(false);
+  const logoUrl = activeEstablishment?.logo_url ? getLogoPublicUrl(activeEstablishment.logo_url) : null;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -121,6 +123,9 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
     <header className="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
         <EstablishmentSelector />
+        {logoUrl && (
+          <img src={logoUrl} alt={activeEstablishment?.nombre} className="h-8 object-contain" />
+        )}
         <p className="hidden sm:block text-sm text-gray-500 dark:text-gray-400 capitalize">{today}</p>
       </div>
       <div className="flex items-center space-x-4">
