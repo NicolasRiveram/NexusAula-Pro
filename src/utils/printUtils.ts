@@ -97,7 +97,7 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             margin-bottom: 8px;
           }
           .content-block {
-            background-color: #f3f4f6;
+            border: 1px solid #ccc;
             padding: 15px;
             border-radius: 5px;
             margin-bottom: 20px;
@@ -105,6 +105,7 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           }
           .content-block p {
             white-space: pre-wrap;
+            text-align: justify;
           }
           .content-block img {
             max-width: 100%;
