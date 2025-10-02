@@ -118,21 +118,11 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             page-break-inside: avoid;
             margin-bottom: 20px;
           }
-          .question-enunciado {
-            font-weight: 600;
-            margin-bottom: 10px;
-          }
-          .alternatives-list {
-            list-style-type: none;
-            padding-left: 20px;
-          }
-          .alternatives-list li {
-            margin-bottom: 8px;
-          }
           .content-block-wrapper {
-            page-break-inside: avoid;
+            /* This class is now just a container */
           }
           .content-block {
+            page-break-inside: avoid; /* This ensures the content block itself (text/image) isn't split */
             border: 1px solid #eee;
             padding: 15px;
             border-radius: 5px;
