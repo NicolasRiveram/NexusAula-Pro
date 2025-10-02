@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EstablishmentsManagement from '@/components/super-admin/EstablishmentsManagement';
+import CurriculumManagement from '@/components/super-admin/CurriculumManagement';
 
 const SuperAdminDashboard = () => {
   return (
@@ -10,14 +11,14 @@ const SuperAdminDashboard = () => {
       <Tabs defaultValue="establishments" className="w-full">
         <TabsList>
           <TabsTrigger value="establishments">Establecimientos</TabsTrigger>
-          <TabsTrigger value="curriculum" disabled>Currículum Base</TabsTrigger>
+          <TabsTrigger value="curriculum">Currículum Base</TabsTrigger>
           <TabsTrigger value="users" disabled>Usuarios Globales</TabsTrigger>
         </TabsList>
         <TabsContent value="establishments" className="mt-4">
           <EstablishmentsManagement />
         </TabsContent>
-        <TabsContent value="curriculum">
-          {/* Placeholder for future curriculum management */}
+        <TabsContent value="curriculum" className="mt-4">
+          <CurriculumManagement />
         </TabsContent>
         <TabsContent value="users">
           {/* Placeholder for future global user management */}
