@@ -43,33 +43,36 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
       )}
 
       <main>
-        {(evaluation.evaluation_content_blocks || []).map(block => (
-          <div key={block.id} className="question-block">
-            {block.visible_en_evaluacion && (
-              <div className="content-block">
-                {block.block_type === 'text' || block.block_type === 'syllabus' ? (
-                  <p>{block.content.text}</p>
-                ) : (
-                  <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido ${block.orden}`} />
-                )}
-              </div>
-            )}
-            {block.evaluacion_items.map(item => (
-              <div key={item.id} className="mb-4">
-                <p className="question-enunciado">{item.orden}. {item.enunciado} ({item.puntaje} pts.)</p>
-                {item.tipo_item === 'seleccion_multiple' && (
-                  <ul className="alternatives-list">
-                    {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
-                      <li key={alt.id}>
-                        {String.fromCharCode(97 + index)}) {alt.texto}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
+        {(evaluation.evaluation_content_blocks || []).map(block => {
+          let contentElement = null;
+          if (block.visible_en_evaluacion && block.content) {
+            if ((block.block_type === 'text' || block.block_type === 'syllabus') && typeof block.content.text === 'string') {
+              contentElement = <p>{block.content.text}</p>;
+            } else if (block.block_type === 'image' && typeof block.content.imageUrl === 'string') {
+              contentElement = <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido ${block.orden}`} />;
+            }
+          }
+
+          return (
+            <div key={block.id} className="question-block">
+              {contentElement && <div className="content-block">{contentElement}</div>}
+              {(block.evaluacion_items || []).map(item => (
+                <div key={item.id} className="mb-4">
+                  <p className="question-enunciado">{item.orden}. {item.enunciado || ''} ({item.puntaje} pts.)</p>
+                  {item.tipo_item === 'seleccion_multiple' && (
+                    <ul className="alternatives-list">
+                      {(item.item_alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
+                        <li key={alt.id}>
+                          {String.fromCharCode(97 + index)}) {alt.texto || ''}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </main>
     </div>
   );

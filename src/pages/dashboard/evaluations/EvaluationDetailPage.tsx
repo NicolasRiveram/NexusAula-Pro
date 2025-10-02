@@ -23,7 +23,7 @@ const EvaluationDetailPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const navigate = useNavigate();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
-  const [teacherName, setTeacherName] = useState<string>('');
+  const [teacherName, setTeacherName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
