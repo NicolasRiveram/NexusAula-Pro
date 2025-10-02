@@ -12,6 +12,7 @@ import Step3FinalReview from '@/components/evaluations/builder/Step3_FinalReview
 import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData, EvaluationDetail } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 const evaluationBuilderSchema = step1Schema.extend({
   randomizar_preguntas: z.boolean().default(false),
@@ -103,10 +104,11 @@ const EvaluationBuilderPage = () => {
   };
 
   const handleFinalSubmit = async () => {
-    if (!evaluationId) return;
+    if (!evaluationId || !evaluationDetails) return;
     const formData = getValues();
     const toastId = showLoading("Finalizando y guardando configuración...");
     try {
+      // 1. Save main settings
       await updateEvaluation(evaluationId, {
         titulo: formData.titulo,
         tipo: formData.tipo,
@@ -116,6 +118,28 @@ const EvaluationBuilderPage = () => {
         randomizar_preguntas: formData.randomizar_preguntas,
         randomizar_alternativas: formData.randomizar_alternativas,
       });
+
+      // 2. Generate and save "Aspectos a Evaluar" if not present
+      if (!evaluationDetails.aspectos_a_evaluar_ia) {
+        const questions = evaluationDetails.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
+        const questionsSummary = questions.map(q => ({
+          enunciado: q.enunciado,
+          habilidad_evaluada: q.habilidad_evaluada,
+          nivel_comprension: q.nivel_comprension,
+        }));
+
+        const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-evaluation-aspects', {
+          body: { evaluationTitle: evaluationDetails.titulo, questions: questionsSummary },
+        });
+
+        if (aiError) throw aiError;
+
+        await supabase
+          .from('evaluaciones')
+          .update({ aspectos_a_evaluar_ia: aiData.aspects })
+          .eq('id', evaluationId);
+      }
+
       showSuccess("Evaluación guardada y configurada exitosamente.");
       navigate(`/dashboard/evaluacion/${evaluationId}`);
     } catch (error: any) {

@@ -16,20 +16,27 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada.");
     }
 
-    const { evaluationContent } = await req.json();
-    if (!evaluationContent) {
-      throw new Error("El contenido de la evaluación es requerido.");
+    const { evaluationTitle, questions } = await req.json();
+    if (!evaluationTitle || !questions) {
+      throw new Error("El título y las preguntas de la evaluación son requeridos.");
     }
 
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
+    const questionsSummary = questions.map((q: any) => 
+      `- Pregunta sobre "${q.enunciado.substring(0, 50)}..." (Habilidad: ${q.habilidad_evaluada || 'N/A'}, Nivel Bloom: ${q.nivel_comprension || 'N/A'})`
+    ).join('\n');
+
     const prompt = `
-      Eres un asistente pedagógico experto. Basado en el siguiente contenido de una evaluación (textos y títulos de imágenes), genera un párrafo conciso y profesional para una sección titulada "Aspectos a Evaluar".
+      Eres un asistente pedagógico experto. Basado en el título y el resumen de las preguntas de una evaluación, genera un párrafo conciso y profesional para una sección titulada "Aspectos a Evaluar".
       Este párrafo debe resumir en 2 o 3 frases las habilidades y conocimientos clave que se medirán en la prueba.
+      Basa tu resumen en los temas y habilidades inferidos de las preguntas, no menciones los tipos de contenido (texto, imagen).
       La respuesta debe ser únicamente el párrafo de texto, sin títulos, markdown ni formato JSON.
 
-      Contenido de la evaluación:
-      ${evaluationContent}
+      Título de la evaluación: ${evaluationTitle}
+      
+      Resumen de las preguntas:
+      ${questionsSummary}
     `;
 
     const res = await fetch(API_URL, {
