@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation } from '@/api/evaluationsApi';
+import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -32,6 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -56,6 +57,9 @@ const EvaluationPage = () => {
 
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [evaluationToDelete, setEvaluationToDelete] = useState<Evaluation | null>(null);
+
+  const [selectedEvaluations, setSelectedEvaluations] = useState<string[]>([]);
+  const [isBulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   const loadEvaluations = async () => {
     if (!activeEstablishment) {
@@ -85,6 +89,12 @@ const EvaluationPage = () => {
   useEffect(() => {
     loadEvaluations();
   }, [activeEstablishment, isStudent]);
+
+  const handleSelectionChange = (evaluationId: string, isSelected: boolean) => {
+    setSelectedEvaluations(prev => 
+      isSelected ? [...prev, evaluationId] : prev.filter(id => id !== evaluationId)
+    );
+  };
 
   const handlePrintClick = (evaluationId: string) => {
     setEvaluationToPrint(evaluationId);
@@ -213,6 +223,22 @@ const EvaluationPage = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedEvaluations.length === 0) return;
+    const toastId = showLoading(`Eliminando ${selectedEvaluations.length} evaluaciones...`);
+    try {
+      await deleteMultipleEvaluations(selectedEvaluations);
+      showSuccess(`${selectedEvaluations.length} evaluaciones eliminadas.`);
+      setSelectedEvaluations([]);
+      loadEvaluations();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      dismissToast(toastId);
+      setBulkDeleteDialogOpen(false);
+    }
+  };
+
   const renderTeacherView = () => {
     const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
       const groups: Record<string, Evaluation[]> = {};
@@ -258,59 +284,68 @@ const EvaluationPage = () => {
               <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{levelName}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped[levelName].map(evaluation => (
-                  <Card key={evaluation.id} className="flex flex-col">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle>{evaluation.titulo}</CardTitle>
-                          <CardDescription>
-                            Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
-                          </CardDescription>
+                  <div key={evaluation.id} className="relative">
+                    <div className="absolute top-2 left-2 z-10">
+                      <Checkbox
+                        checked={selectedEvaluations.includes(evaluation.id)}
+                        onCheckedChange={(checked) => handleSelectionChange(evaluation.id, !!checked)}
+                        className="bg-white"
+                      />
+                    </div>
+                    <Card className="flex flex-col h-full">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 pr-8">
+                            <CardTitle>{evaluation.titulo}</CardTitle>
+                            <CardDescription>
+                              Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
+                            </CardDescription>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
+                                <Eye className="mr-2 h-4 w-4" /> Ver / Editar Contenido
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
+                                <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
+                                <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
+                                <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
+                                <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
-                              <Eye className="mr-2 h-4 w-4" /> Ver / Editar Contenido
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
-                              <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
-                              <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
-                              <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
-                              <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      <div className="space-y-2">
-                        <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
-                        <div className="flex flex-wrap gap-1">
-                          {evaluation.curso_asignaturas.map((ca, index) => (
-                            <Badge key={index} variant="outline">
-                              {ca.curso.nivel.nombre} {ca.curso.nombre}
-                            </Badge>
-                          ))}
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        <div className="space-y-2">
+                          <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {evaluation.curso_asignaturas.map((ca, index) => (
+                              <Badge key={index} variant="outline">
+                                {ca.curso.nivel.nombre} {ca.curso.nombre}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
                 ))}
               </div>
             </div>
@@ -327,16 +362,25 @@ const EvaluationPage = () => {
             <p className="text-muted-foreground">Crea, gestiona y comparte tus instrumentos de evaluación.</p>
           </div>
           <div className="flex gap-2">
-            <Button asChild variant="outline" disabled={!activeEstablishment}>
-              <Link to="/dashboard/rubricas/crear">
-                <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
-              </Link>
-            </Button>
-            <Button asChild disabled={!activeEstablishment}>
-              <Link to="/dashboard/evaluacion/crear">
-                <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Evaluación
-              </Link>
-            </Button>
+            {selectedEvaluations.length > 0 ? (
+              <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar ({selectedEvaluations.length})
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="outline" disabled={!activeEstablishment}>
+                  <Link to="/dashboard/rubricas/crear">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
+                  </Link>
+                </Button>
+                <Button asChild disabled={!activeEstablishment}>
+                  <Link to="/dashboard/evaluacion/crear">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Evaluación
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
         <Tabs defaultValue="todas" className="w-full">
@@ -478,6 +522,23 @@ const EvaluationPage = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete}>
               Sí, eliminar evaluación
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de eliminar {selectedEvaluations.length} evaluaciones?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminarán permanentemente las evaluaciones seleccionadas y todos sus datos asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete}>
+              Sí, eliminar seleccionados
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -406,6 +406,17 @@ export const deleteEvaluation = async (evaluationId: string) => {
   }
 };
 
+export const deleteMultipleEvaluations = async (evaluationIds: string[]) => {
+  const { error } = await supabase
+    .from('evaluaciones')
+    .delete()
+    .in('id', evaluationIds);
+
+  if (error) {
+    throw new Error(`Error al eliminar las evaluaciones: ${error.message}`);
+  }
+};
+
 export const fetchEvaluationDetails = async (evaluationId: string): Promise<EvaluationDetail> => {
   const { data, error } = await supabase
     .from('evaluaciones')
