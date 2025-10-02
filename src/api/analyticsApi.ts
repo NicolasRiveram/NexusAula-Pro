@@ -39,3 +39,27 @@ export const fetchSkillPerformance = async (
   if (error) throw new Error(`Error fetching skill performance: ${error.message}`);
   return data || [];
 };
+
+export const fetchEstablishmentStudentPerformance = async (
+  establecimientoId: string,
+  cursoId?: string | null
+): Promise<StudentPerformance[]> => {
+  const { data, error } = await supabase.rpc('get_establishment_student_performance', {
+    p_establecimiento_id: establecimientoId,
+    p_curso_id_filter: cursoId || null,
+  });
+  if (error) throw new Error(`Error fetching establishment student performance: ${error.message}`);
+  return data || [];
+};
+
+export const fetchEstablishmentSkillPerformance = async (
+  establecimientoId: string,
+  cursoId?: string | null
+): Promise<SkillPerformance[]> => {
+  const { data, error } = await supabase.rpc('get_establishment_skill_performance', {
+    p_establecimiento_id: establecimientoId,
+    p_curso_id_filter: cursoId || null,
+  });
+  if (error) throw new Error(`Error fetching establishment skill performance: ${error.message}`);
+  return data || [];
+};

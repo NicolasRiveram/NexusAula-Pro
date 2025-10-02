@@ -5,14 +5,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Loader2, TrendingUp, TrendingDown } from 'lucide-react';
-import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
-import { fetchStudentPerformance, fetchSkillPerformance, StudentPerformance, SkillPerformance } from '@/api/analyticsApi';
+import { fetchCursosAsignaturasDocente, fetchCursosPorEstablecimiento, CursoAsignatura, CursoBase } from '@/api/coursesApi';
+import { 
+  fetchStudentPerformance, 
+  fetchSkillPerformance, 
+  fetchEstablishmentStudentPerformance,
+  fetchEstablishmentSkillPerformance,
+  StudentPerformance, 
+  SkillPerformance 
+} from '@/api/analyticsApi';
 import { showError } from '@/utils/toast';
 import PerformanceSummaryCard from '@/components/analytics/PerformanceSummaryCard';
+import { useOutletContext } from 'react-router-dom';
+
+interface DashboardContext {
+  profile: { rol: string };
+}
 
 const AnalyticsPage = () => {
   const { activeEstablishment } = useEstablishment();
-  const [cursos, setCursos] = useState<CursoAsignatura[]>([]);
+  const { profile } = useOutletContext<DashboardContext>();
+  const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
+
+  const [cursos, setCursos] = useState<(CursoAsignatura | CursoBase)[]>([]);
   const [selectedCursoId, setSelectedCursoId] = useState<string>('todos');
   const [studentPerformance, setStudentPerformance] = useState<StudentPerformance[]>([]);
   const [skillPerformance, setSkillPerformance] = useState<SkillPerformance[]>([]);
@@ -24,10 +39,14 @@ const AnalyticsPage = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           try {
-            const cursosData = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-            // Filter to unique courses by course.id
-            const uniqueCourses = Array.from(new Map(cursosData.map(item => [item.curso.id, item])).values());
-            setCursos(uniqueCourses);
+            if (isAdmin) {
+              const cursosData = await fetchCursosPorEstablecimiento(activeEstablishment.id);
+              setCursos(cursosData);
+            } else { // Teacher
+              const cursosData = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
+              const uniqueCourses = Array.from(new Map(cursosData.map(item => [item.curso.id, item])).values());
+              setCursos(uniqueCourses);
+            }
           } catch (err: any) {
             showError(`Error al cargar filtros: ${err.message}`);
           }
@@ -35,7 +54,7 @@ const AnalyticsPage = () => {
       }
     };
     loadFilters();
-  }, [activeEstablishment]);
+  }, [activeEstablishment, isAdmin]);
 
   useEffect(() => {
     const loadAnalytics = async () => {
@@ -45,10 +64,20 @@ const AnalyticsPage = () => {
         if (user) {
           try {
             const cursoFilter = selectedCursoId === 'todos' ? null : selectedCursoId;
-            const [studentData, skillData] = await Promise.all([
-              fetchStudentPerformance(user.id, activeEstablishment.id, cursoFilter),
-              fetchSkillPerformance(user.id, activeEstablishment.id, cursoFilter),
-            ]);
+            let studentData, skillData;
+
+            if (isAdmin) {
+              [studentData, skillData] = await Promise.all([
+                fetchEstablishmentStudentPerformance(activeEstablishment.id, cursoFilter),
+                fetchEstablishmentSkillPerformance(activeEstablishment.id, cursoFilter),
+              ]);
+            } else { // Teacher
+              [studentData, skillData] = await Promise.all([
+                fetchStudentPerformance(user.id, activeEstablishment.id, cursoFilter),
+                fetchSkillPerformance(user.id, activeEstablishment.id, cursoFilter),
+              ]);
+            }
+            
             setStudentPerformance(studentData);
             setSkillPerformance(skillData);
           } catch (err: any) {
@@ -63,10 +92,9 @@ const AnalyticsPage = () => {
       }
     };
     loadAnalytics();
-  }, [activeEstablishment, selectedCursoId]);
+  }, [activeEstablishment, selectedCursoId, isAdmin]);
 
   const { topPerformers, needsSupport } = useMemo(() => {
-    // The RPC sorts by average_score ASC, so the first items are those needing support.
     const sortedStudents = [...studentPerformance];
     return {
       needsSupport: sortedStudents.slice(0, 5),
@@ -84,7 +112,9 @@ const AnalyticsPage = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Analíticas de Rendimiento</h1>
-          <p className="text-muted-foreground">Visualiza el progreso de tus estudiantes y el desarrollo de habilidades.</p>
+          <p className="text-muted-foreground">
+            {isAdmin ? 'Visualiza el progreso de todo el establecimiento.' : 'Visualiza el progreso de tus estudiantes y el desarrollo de habilidades.'}
+          </p>
         </div>
         <div className="w-64">
           <Select value={selectedCursoId} onValueChange={setSelectedCursoId}>
@@ -93,11 +123,15 @@ const AnalyticsPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos los cursos</SelectItem>
-              {cursos.map(curso => (
-                <SelectItem key={curso.curso.id} value={curso.curso.id}>
-                  {curso.curso.nivel.nombre} {curso.curso.nombre}
-                </SelectItem>
-              ))}
+              {cursos.map(curso => {
+                const id = 'curso' in curso ? curso.curso.id : curso.id;
+                const label = 'curso' in curso ? `${curso.curso.nivel.nombre} ${curso.curso.nombre}` : `${(curso as CursoBase).nivel.nombre} ${curso.nombre}`;
+                return (
+                  <SelectItem key={id} value={id}>
+                    {label}
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>
