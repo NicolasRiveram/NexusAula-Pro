@@ -19,20 +19,29 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
   return (
     <div className={`printable-container ${fontSize}`}>
       <header className="print-header">
-        {logoUrl && <img src={logoUrl} alt={establishment?.nombre || ''} />}
-        <div className="print-header-info">
-          <h1 className="evaluation-title">{evaluation.titulo}</h1>
-          <p className="establishment-name">{establishment?.nombre}</p>
+        <div className="header-left">
+          {logoUrl && <img src={logoUrl} alt={establishment?.nombre || ''} />}
         </div>
+        <div className="header-center">
+          <h1 className="evaluation-title">{evaluation.titulo}</h1>
+          <p className="teacher-name">{teacherName}</p>
+        </div>
+        {/* Empty div for spacing */}
+        <div className="header-right"></div>
       </header>
+      <hr className="header-divider" />
 
       <section className="student-info">
-        <div className="student-info-item"><label>Nombre:</label><div className="line"></div></div>
-        <div className="student-info-item"><label>Curso:</label><div className="line"></div></div>
-        <div className="student-info-item"><label>Fecha:</label><div className="line"></div></div>
-        <div className="student-info-item"><label>Docente:</label><span>{teacherName}</span></div>
-        <div className="student-info-item"><label>Puntaje Total:</label><span>{totalScore} pts.</span></div>
-        <div className="student-info-item"><label>Puntaje Aprobación (4,0):</label><span>{(passingScore || 0).toFixed(1)} pts.</span></div>
+        <div className="info-row">
+          <div className="info-item"><label>Nombre:</label><div className="line"></div></div>
+          <div className="info-item"><label>Curso:</label><div className="line"></div></div>
+          <div className="info-item"><label>Fecha:</label><div className="line"></div></div>
+        </div>
+        <div className="info-row">
+          <div className="info-item"><label>Docente:</label><span>{teacherName}</span></div>
+          <div className="info-item"><label>Puntaje Total:</label><span>{totalScore} pts.</span></div>
+          <div className="info-item"><label>Puntaje Aprobación (4,0):</label><span>{(passingScore || 0).toFixed(1)} pts.</span></div>
+        </div>
       </section>
 
       {evaluation.aspectos_a_evaluar_ia && (
@@ -54,10 +63,10 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
           }
 
           return (
-            <div key={block.id} className="question-block">
+            <div key={block.id} className="content-block-wrapper">
               {contentElement && <div className="content-block">{contentElement}</div>}
               {(block.evaluacion_items || []).map(item => (
-                <div key={item.id} className="mb-4">
+                <div key={item.id} className="question-item">
                   <p className="question-enunciado">{item.orden}. {item.enunciado || ''} ({item.puntaje || 0} pts.)</p>
                   {item.tipo_item === 'seleccion_multiple' && (
                     <ul className="alternatives-list">
