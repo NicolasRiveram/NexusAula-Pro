@@ -395,6 +395,17 @@ export const updateEvaluation = async (evaluationId: string, evalData: CreateEva
   }
 };
 
+export const deleteEvaluation = async (evaluationId: string) => {
+  const { error } = await supabase
+    .from('evaluaciones')
+    .delete()
+    .eq('id', evaluationId);
+
+  if (error) {
+    throw new Error(`Error al eliminar la evaluación: ${error.message}`);
+  }
+};
+
 export const fetchEvaluationDetails = async (evaluationId: string): Promise<EvaluationDetail> => {
   const { data, error } = await supabase
     .from('evaluaciones')

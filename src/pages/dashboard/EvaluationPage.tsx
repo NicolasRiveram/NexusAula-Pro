@@ -9,8 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
-import { showError, showLoading, dismissToast } from '@/utils/toast';
+import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation } from '@/api/evaluationsApi';
+import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,16 @@ import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evalua
 import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
 import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
 import { seededShuffle } from '@/utils/shuffleUtils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface DashboardContext {
   profile: { rol: string };
@@ -44,31 +54,35 @@ const EvaluationPage = () => {
   const [evaluationForAnswerSheet, setEvaluationForAnswerSheet] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  useEffect(() => {
-    const loadEvaluations = async () => {
-      if (!activeEstablishment) {
-        setTeacherEvaluations([]);
-        setStudentEvaluations([]);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          if (isStudent) {
-            const data = await fetchStudentEvaluations(user.id, activeEstablishment.id);
-            setStudentEvaluations(data);
-          } else {
-            const data = await fetchEvaluations(user.id, activeEstablishment.id);
-            setTeacherEvaluations(data);
-          }
-        } catch (err: any) {
-          showError(`Error al cargar evaluaciones: ${err.message}`);
-        }
-      }
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [evaluationToDelete, setEvaluationToDelete] = useState<Evaluation | null>(null);
+
+  const loadEvaluations = async () => {
+    if (!activeEstablishment) {
+      setTeacherEvaluations([]);
+      setStudentEvaluations([]);
       setLoading(false);
-    };
+      return;
+    }
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      try {
+        if (isStudent) {
+          const data = await fetchStudentEvaluations(user.id, activeEstablishment.id);
+          setStudentEvaluations(data);
+        } else {
+          const data = await fetchEvaluations(user.id, activeEstablishment.id);
+          setTeacherEvaluations(data);
+        }
+      } catch (err: any) {
+        showError(`Error al cargar evaluaciones: ${err.message}`);
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     loadEvaluations();
   }, [activeEstablishment, isStudent]);
 
@@ -178,6 +192,27 @@ const EvaluationPage = () => {
     }
   };
 
+  const handleDeleteClick = (evaluation: Evaluation) => {
+    setEvaluationToDelete(evaluation);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!evaluationToDelete) return;
+    const toastId = showLoading("Eliminando evaluación...");
+    try {
+      await deleteEvaluation(evaluationToDelete.id);
+      showSuccess(`Evaluación "${evaluationToDelete.titulo}" eliminada.`);
+      loadEvaluations();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      dismissToast(toastId);
+      setDeleteDialogOpen(false);
+      setEvaluationToDelete(null);
+    }
+  };
+
   const renderTeacherView = () => {
     const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
       const groups: Record<string, Evaluation[]> = {};
@@ -256,7 +291,7 @@ const EvaluationPage = () => {
                               <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem disabled className="text-destructive">
+                            <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
                               <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -429,6 +464,24 @@ const EvaluationPage = () => {
         onConfirm={handleConfirmPrintAnswerSheets}
         isPrinting={isPrinting}
       />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la evaluación
+              "{evaluationToDelete?.titulo}" y todas sus preguntas, respuestas y resultados asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Sí, eliminar evaluación
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
