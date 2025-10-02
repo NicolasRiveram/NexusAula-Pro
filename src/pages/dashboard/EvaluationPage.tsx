@@ -4,14 +4,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, CheckCircle, Send } from 'lucide-react';
-import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation } from '@/api/evaluationsApi';
-import { showError } from '@/utils/toast';
+import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
+import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails } from '@/api/evaluationsApi';
+import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatEvaluationType } from '@/utils/evaluationUtils';
+import { printComponent } from '@/utils/printUtils';
+import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -25,6 +31,10 @@ const EvaluationPage = () => {
   const { activeEstablishment } = useEstablishment();
   const { profile } = useOutletContext<DashboardContext>();
   const isStudent = profile.rol === 'estudiante';
+
+  const [isPrintModalOpen, setPrintModalOpen] = useState(false);
+  const [evaluationToPrint, setEvaluationToPrint] = useState<string | null>(null);
+  const [fontSize, setFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-base');
 
   useEffect(() => {
     const loadEvaluations = async () => {
@@ -53,6 +63,37 @@ const EvaluationPage = () => {
     };
     loadEvaluations();
   }, [activeEstablishment, isStudent]);
+
+  const handlePrintClick = (evaluationId: string) => {
+    setEvaluationToPrint(evaluationId);
+    setPrintModalOpen(true);
+  };
+
+  const handleConfirmPrint = async () => {
+    if (!evaluationToPrint || !activeEstablishment) return;
+
+    const toastId = showLoading("Preparando evaluación para imprimir...");
+    try {
+      const evaluationDetails = await fetchEvaluationDetails(evaluationToPrint);
+      
+      printComponent(
+        <PrintableEvaluation 
+          evaluation={evaluationDetails} 
+          establishment={activeEstablishment}
+          fontSize={fontSize}
+        />,
+        `Evaluación: ${evaluationDetails.titulo}`
+      );
+
+      dismissToast(toastId);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error al preparar la impresión: ${error.message}`);
+    } finally {
+      setPrintModalOpen(false);
+      setEvaluationToPrint(null);
+    }
+  };
 
   const renderTeacherView = () => {
     const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
@@ -99,14 +140,39 @@ const EvaluationPage = () => {
               <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{levelName}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {grouped[levelName].map(evaluation => (
-                  <Card key={evaluation.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
+                  <Card key={evaluation.id} className="flex flex-col">
                     <CardHeader>
-                      <CardTitle>{evaluation.titulo}</CardTitle>
-                      <CardDescription>
-                        Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
-                      </CardDescription>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <CardTitle>{evaluation.titulo}</CardTitle>
+                          <CardDescription>
+                            Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
+                          </CardDescription>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
+                              <Eye className="mr-2 h-4 w-4" /> Ver / Editar Contenido
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
+                              <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled>
+                              <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled>
+                              <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex-grow">
                       <div className="space-y-2">
                         <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
                         <div className="flex flex-wrap gap-1">
@@ -237,6 +303,34 @@ const EvaluationPage = () => {
           <p className="text-muted-foreground mt-2">Elige un establecimiento para gestionar tus evaluaciones.</p>
         </div>
       ) : isStudent ? renderStudentView() : renderTeacherView()}
+
+      <Dialog open={isPrintModalOpen} onOpenChange={setPrintModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar Impresión</DialogTitle>
+            <DialogDescription>
+              Selecciona el tamaño de la letra para la evaluación. Un tamaño más pequeño puede ahorrar páginas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="font-size">Tamaño de la letra</Label>
+            <Select value={fontSize} onValueChange={(value) => setFontSize(value as any)}>
+              <SelectTrigger id="font-size">
+                <SelectValue placeholder="Selecciona un tamaño" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="text-sm">Pequeño</SelectItem>
+                <SelectItem value="text-base">Normal</SelectItem>
+                <SelectItem value="text-lg">Grande</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmPrint}>Imprimir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
