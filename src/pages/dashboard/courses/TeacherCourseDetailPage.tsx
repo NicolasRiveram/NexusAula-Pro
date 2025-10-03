@@ -10,7 +10,7 @@ import { showError } from '@/utils/toast';
 import EditStudentDialog from '@/components/courses/EditStudentDialog';
 import CourseScheduleManager from '@/components/courses/CourseScheduleManager';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const CourseDetailPage = () => {
   const { cursoAsignaturaId } = useParams<{ cursoAsignaturaId: string }>();
@@ -62,7 +62,7 @@ const CourseDetailPage = () => {
       est.rut ? est.rut.replace(/[.-]/g, '') : 'SIN RUT',
     ]);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: 45,
       head: [['Nombre Completo', 'Email de Acceso', 'Contraseña Temporal']],
       body: tableData,

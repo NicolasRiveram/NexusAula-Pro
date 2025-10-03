@@ -18,7 +18,7 @@ import AssignSubjectDialog from '@/components/courses/AssignSubjectDialog';
 import EnrollStudentsDialog from '@/components/courses/EnrollStudentsDialog';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const CoursesPage = () => {
   const [groupedCursos, setGroupedCursos] = useState<Record<string, CursoAsignatura[]>>({});
@@ -95,7 +95,7 @@ const CoursesPage = () => {
             est.rut ? est.rut.replace(/[.-]/g, '') : 'SIN RUT',
         ]);
 
-        (doc as any).autoTable({
+        autoTable(doc, {
             startY: 45,
             head: [['Nombre Completo', 'Email de Acceso', 'Contraseña Temporal']],
             body: tableData,
