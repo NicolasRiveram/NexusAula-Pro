@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, MoreVertical, Eye, Pencil, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -11,6 +11,7 @@ import { fetchUnitPlans, UnitPlan } from '@/api/planningApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const DidacticPlannerPage = () => {
   const [unitPlans, setUnitPlans] = useState<UnitPlan[]>([]);
@@ -44,6 +45,28 @@ const DidacticPlannerPage = () => {
     loadPlans();
   }, [activeEstablishment]);
 
+  const groupedPlans = unitPlans.reduce((acc, plan) => {
+    const levels = new Set<string>();
+    plan.unidad_maestra_curso_asignatura_link.forEach(link => {
+      if (link.curso_asignaturas?.cursos?.niveles?.nombre) {
+        levels.add(link.curso_asignaturas.cursos.niveles.nombre);
+      }
+    });
+
+    levels.forEach(levelName => {
+      if (!acc[levelName]) {
+        acc[levelName] = [];
+      }
+      if (!acc[levelName].some(p => p.id === plan.id)) {
+          acc[levelName].push(plan);
+      }
+    });
+
+    return acc;
+  }, {} as Record<string, UnitPlan[]>);
+
+  const sortedLevels = Object.keys(groupedPlans).sort();
+
   return (
     <div className="container mx-auto space-y-6">
       <div className="flex justify-between items-center">
@@ -66,42 +89,53 @@ const DidacticPlannerPage = () => {
           <p className="text-muted-foreground mt-2">Elige un establecimiento en la cabecera para ver tus planes.</p>
         </div>
       ) : unitPlans.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {unitPlans.map(plan => (
-            <Card key={plan.id} className="flex flex-col">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{plan.titulo}</CardTitle>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild><Link to={`/dashboard/planificacion/${plan.id}`} className="flex items-center w-full"><Eye className="mr-2 h-4 w-4" /> Ver Detalles</Link></DropdownMenuItem>
-                      <DropdownMenuItem asChild><Link to={`/dashboard/planificacion/editar/${plan.id}`} className="flex items-center w-full"><Pencil className="mr-2 h-4 w-4" /> Editar</Link></DropdownMenuItem>
-                      <DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <CardDescription>
-                  {format(parseISO(plan.fecha_inicio), "d 'de' LLL", { locale: es })} - {format(parseISO(plan.fecha_fin), "d 'de' LLL, yyyy", { locale: es })}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <p className="text-sm text-muted-foreground mb-2">Aplicado en los cursos:</p>
-                <div className="flex flex-wrap gap-1">
-                  {plan.unidad_maestra_curso_asignatura_link.map(link => (
-                    <Badge key={link.curso_asignaturas.cursos.nombre} variant="secondary">
-                      {link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}
-                    </Badge>
+        <Accordion type="multiple" className="w-full space-y-4" defaultValue={sortedLevels}>
+          {sortedLevels.map(levelName => (
+            <AccordionItem key={levelName} value={levelName}>
+              <AccordionTrigger className="text-xl font-semibold bg-muted/50 px-4 rounded-md">
+                {levelName} ({groupedPlans[levelName].length} planes)
+              </AccordionTrigger>
+              <AccordionContent className="pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedPlans[levelName].map(plan => (
+                    <Card key={plan.id} className="flex flex-col">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-lg">{plan.titulo}</CardTitle>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild><Link to={`/dashboard/planificacion/${plan.id}`} className="flex items-center w-full"><Eye className="mr-2 h-4 w-4" /> Ver Detalles</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link to={`/dashboard/planificacion/editar/${plan.id}`} className="flex items-center w-full"><Pencil className="mr-2 h-4 w-4" /> Editar</Link></DropdownMenuItem>
+                              <DropdownMenuItem disabled className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <CardDescription>
+                          {format(parseISO(plan.fecha_inicio), "d 'de' LLL", { locale: es })} - {format(parseISO(plan.fecha_fin), "d 'de' LLL, yyyy", { locale: es })}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        <p className="text-sm text-muted-foreground mb-2">Aplicado en los cursos:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {plan.unidad_maestra_curso_asignatura_link.map((link, index) => (
+                            <Badge key={`${plan.id}-${index}`} variant="secondary">
+                              {link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       ) : (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
           <h3 className="text-xl font-semibold">Aún no tienes planes de unidad</h3>
