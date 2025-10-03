@@ -12,11 +12,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
+import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura } from '@/api/coursesApi';
 import CreateCourseDialog from '@/components/courses/CreateCourseDialog';
 import AssignSubjectDialog from '@/components/courses/AssignSubjectDialog';
 import EnrollStudentsDialog from '@/components/courses/EnrollStudentsDialog';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const CoursesPage = () => {
   const [groupedCursos, setGroupedCursos] = useState<Record<string, CursoAsignatura[]>>({});
@@ -66,8 +68,48 @@ const CoursesPage = () => {
     setEnrollDialogOpen(true);
   };
 
-  const handleDownloadClick = () => {
-    showSuccess("La funcionalidad para descargar datos estará disponible próximamente.");
+  const handleDownloadCredentials = async (cursoAsignatura: CursoAsignatura) => {
+    const toastId = showLoading("Generando credenciales...");
+    try {
+        const estudiantes = await fetchEstudiantesPorCurso(cursoAsignatura.curso.id);
+
+        if (estudiantes.length === 0) {
+            dismissToast(toastId);
+            showError("No hay estudiantes en este curso para generar credenciales.");
+            return;
+        }
+
+        const doc = new jsPDF();
+
+        doc.setFontSize(18);
+        doc.text(`Credenciales de Acceso - ${cursoAsignatura.curso.nivel.nombre} ${cursoAsignatura.curso.nombre}`, 14, 22);
+
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text("A continuación se listan los datos de acceso para los estudiantes.", 14, 30);
+        doc.text("La contraseña temporal es el RUT del estudiante, sin puntos ni guion.", 14, 36);
+
+        const tableData = estudiantes.map(est => [
+            est.nombre_completo,
+            est.email || 'No asignado',
+            est.rut ? est.rut.replace(/[.-]/g, '') : 'SIN RUT',
+        ]);
+
+        (doc as any).autoTable({
+            startY: 45,
+            head: [['Nombre Completo', 'Email de Acceso', 'Contraseña Temporal']],
+            body: tableData,
+            theme: 'striped',
+            headStyles: { fillColor: [34, 49, 63] },
+        });
+
+        doc.save(`credenciales-${cursoAsignatura.curso.nivel.nombre}-${cursoAsignatura.curso.nombre}.pdf`);
+        dismissToast(toastId);
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Error al generar el PDF: ${error.message}`);
+    }
   };
 
   return (
@@ -148,8 +190,8 @@ const CoursesPage = () => {
                             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleEnrollClick(cursoAsignatura); }}>
                               Inscribir Estudiantes
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDownloadClick(); }}>
-                              Descargar Datos
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDownloadCredentials(cursoAsignatura); }}>
+                              Descargar Credenciales
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
