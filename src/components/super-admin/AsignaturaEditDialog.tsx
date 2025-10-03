@@ -41,7 +41,10 @@ const AsignaturaEditDialog: React.FC<AsignaturaEditDialogProps> = ({ isOpen, onC
 
   const onSubmit = async (data: FormData) => {
     try {
-      await saveAsignatura(data, asignatura?.id);
+      await saveAsignatura({
+        nombre: data.nombre,
+        descripcion: data.descripcion || null,
+      }, asignatura?.id);
       showSuccess(`Asignatura ${asignatura ? 'actualizada' : 'creada'} correctamente.`);
       onSaved();
       onClose();

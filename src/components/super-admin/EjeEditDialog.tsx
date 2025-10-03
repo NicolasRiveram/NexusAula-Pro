@@ -44,7 +44,11 @@ const EjeEditDialog: React.FC<EjeEditDialogProps> = ({ isOpen, onClose, onSaved,
 
   const onSubmit = async (data: FormData) => {
     try {
-      await saveEje(data, eje?.id);
+      await saveEje({
+        nombre: data.nombre,
+        descripcion: data.descripcion || null,
+        asignatura_id: data.asignatura_id,
+      }, eje?.id);
       showSuccess(`Eje ${eje ? 'actualizado' : 'creado'} correctamente.`);
       onSaved();
       onClose();

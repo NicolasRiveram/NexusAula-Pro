@@ -41,7 +41,10 @@ const HabilidadEditDialog: React.FC<HabilidadEditDialogProps> = ({ isOpen, onClo
 
   const onSubmit = async (data: FormData) => {
     try {
-      await saveHabilidad(data, habilidad?.id);
+      await saveHabilidad({
+        nombre: data.nombre,
+        descripcion: data.descripcion || null,
+      }, habilidad?.id);
       showSuccess(`Habilidad ${habilidad ? 'actualizada' : 'creada'} correctamente.`);
       onSaved();
       onClose();
