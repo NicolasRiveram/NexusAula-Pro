@@ -169,7 +169,8 @@ export const fetchEstudiantesPorCurso = async (cursoId: string): Promise<Estudia
     const { data, error } = await supabase
         .from('curso_estudiantes')
         .select('perfiles!inner(id, nombre_completo, rut, email, apoyo_pie)')
-        .eq('curso_id', cursoId);
+        .eq('curso_id', cursoId)
+        .order('created_at', { ascending: true });
 
     if (error) throw new Error(error.message);
     

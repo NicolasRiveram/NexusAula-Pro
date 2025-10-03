@@ -138,6 +138,7 @@ const CourseDetailPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">#</TableHead>
                 <TableHead>Nombre Completo</TableHead>
                 <TableHead>RUT</TableHead>
                 <TableHead className="text-center">Apoyo PIE</TableHead>
@@ -146,8 +147,9 @@ const CourseDetailPage = () => {
             </TableHeader>
             <TableBody>
               {estudiantes.length > 0 ? (
-                estudiantes.map((estudiante) => (
+                estudiantes.map((estudiante, index) => (
                   <TableRow key={estudiante.id} className="hover:bg-muted/50">
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell className="font-medium">
                       <Link to={`/dashboard/estudiante/${estudiante.id}`} className="hover:underline">
                         {estudiante.nombre_completo}
@@ -170,7 +172,7 @@ const CourseDetailPage = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">No hay estudiantes inscritos en este curso.</TableCell>
+                  <TableCell colSpan={5} className="text-center">No hay estudiantes inscritos en este curso.</TableCell>
                 </TableRow>
               )}
             </TableBody>
