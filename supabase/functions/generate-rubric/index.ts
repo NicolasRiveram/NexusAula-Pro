@@ -60,7 +60,6 @@ serve(async (req) => {
       - Genera exactamente ${cantidadCategorias} criterios de evaluación relevantes.
       - Cada criterio debe tener 5 niveles de logro con puntajes de 5 a 1.
       - Los descriptores de desempeño para cada nivel deben ser objetivamente muy diferentes para evidenciar diferencias graduales.
-      - En la descripción de cada nivel, **pon en negrita (usando markdown bold \`**\`) el elemento diferenciador clave** en comparación con los otros niveles.
       - La 'habilidad' debe ser una habilidad general asociada al criterio (ej: "Pensamiento Crítico", "Comunicación Efectiva").
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
 
