@@ -10,9 +10,10 @@ interface PrintableEvaluationProps {
   fontSize: 'text-sm' | 'text-base' | 'text-lg';
   teacherName: string;
   totalScore: number;
+  rowLabel?: string;
 }
 
-const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore }) => {
+const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore, rowLabel }) => {
   const logoUrl = establishment?.logo_url ? getLogoPublicUrl(establishment.logo_url) : null;
   const passingScore = totalScore * 0.6;
 
@@ -26,8 +27,14 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
           <h1 className="evaluation-title">{evaluation.titulo}</h1>
           <p className="teacher-name">{teacherName}</p>
         </div>
-        {/* Empty div for spacing */}
-        <div className="header-right"></div>
+        <div className="header-right">
+          {rowLabel && (
+            <div className="fila-indicator">
+              <span>FILA</span>
+              <span className="fila-letter">{rowLabel}</span>
+            </div>
+          )}
+        </div>
       </header>
       <hr className="header-divider" />
 

@@ -47,10 +47,13 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .header-left { width: 25%; }
           .header-left img { max-height: 50px; max-width: 100%; }
           .header-center { width: 50%; text-align: center; }
-          .header-right { width: 25%; }
+          .header-right { width: 25%; display: flex; justify-content: flex-end; }
           .evaluation-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
           .teacher-name { font-size: 1rem; margin-top: 4px; color: #333; }
           .header-divider { border: none; border-top: 1px solid #000; margin-bottom: 20px; }
+          .fila-indicator { border: 3px solid #000; padding: 5px 10px; text-align: center; }
+          .fila-indicator span { display: block; }
+          .fila-indicator .fila-letter { font-size: 32px; font-weight: bold; line-height: 1; }
 
           /* Student Info Styles */
           .student-info { display: flex; flex-direction: column; gap: 10px; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
@@ -62,6 +65,8 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
 
           /* Question Formatting */
           .question-item { page-break-inside: avoid; margin-bottom: 20px; }
+          .alternatives-list { list-style-type: none; padding-left: 0; }
+          .alternatives-list li { margin-bottom: 5px; }
           .content-block-wrapper { }
           .content-block { page-break-inside: avoid; border: 1px solid #eee; padding: 15px; border-radius: 5px; margin-bottom: 20px; background-color: transparent !important; }
           .content-block p { text-align: justify; white-space: pre-wrap; }
@@ -71,8 +76,6 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .answer-sheet-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
           .qr-code-container { text-align: center; }
           .qr-code-container p { font-size: 8px; margin-top: 4px; }
-          .fila-indicator { border: 3px solid #000; padding: 10px 20px; text-align: center; }
-          .fila-indicator .fila-letter { font-size: 48px; font-weight: bold; line-height: 1; }
           .answer-sheet-title { text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
           .answer-sheet-instructions { text-align: center; font-size: 0.9rem; color: #555; margin-bottom: 20px; }
           .answer-grid { width: 100%; border-collapse: collapse; }
