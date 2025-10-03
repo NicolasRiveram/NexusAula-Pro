@@ -136,14 +136,16 @@ export const fetchStudentProjects = async (studentId: string, establecimientoId:
         curso_asignaturas!inner (
           id,
           docente_id,
-          cursos!inner ( id, nombre, nivel_id, niveles ( nombre ) ),
-          asignaturas!inner ( id, nombre ),
-          curso_estudiantes!inner ( estudiante_perfil_id )
+          cursos!inner (
+            id, nombre, nivel_id, niveles ( nombre ),
+            curso_estudiantes!inner ( estudiante_perfil_id )
+          ),
+          asignaturas!inner ( id, nombre )
         )
       )
     `)
     .eq('establecimiento_id', establecimientoId)
-    .eq('proyecto_curso_asignaturas.curso_asignaturas.curso_estudiantes.estudiante_perfil_id', studentId);
+    .eq('proyecto_curso_asignaturas.curso_asignaturas.cursos.curso_estudiantes.estudiante_perfil_id', studentId);
 
   if (error) throw new Error(`Error fetching student projects: ${error.message}`);
   
