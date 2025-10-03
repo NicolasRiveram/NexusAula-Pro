@@ -107,7 +107,7 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errorBody = await res.json();
-      throw new Error(\`[GoogleGenerativeAI Error]: \${res.status} \${res.statusText} - \${JSON.stringify(errorBody)}\`);
+      throw new Error(`[GoogleGenerativeAI Error]: ${res.status} ${res.statusText} - ${JSON.stringify(errorBody)}`);
     }
 
     const data = await res.json();
