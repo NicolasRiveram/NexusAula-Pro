@@ -56,6 +56,33 @@ serve(async (req) => {
       history: historyRes.data,
       rubrics: rubricsRes.data,
     };
+
+    // --- Data Summarization for AI ---
+    let promptDataSummary = `Nombre del Estudiante: ${studentData.profile?.nombre_completo || 'No disponible'}\n\n`;
+
+    if (studentData.stats && studentData.stats.completed_evaluations > 0) {
+      promptDataSummary += `**Resumen de Rendimiento General:**\n- Promedio de logro: ${studentData.stats.average_score?.toFixed(1) || 'N/A'}%\n- Evaluaciones completadas: ${studentData.stats.completed_evaluations} de ${studentData.stats.total_evaluations}\n\n`;
+    } else {
+      promptDataSummary += "**Resumen de Rendimiento General:**\n- No hay suficientes datos de rendimiento para un resumen general.\n\n";
+    }
+
+    if (studentData.skills && studentData.skills.length > 0) {
+      promptDataSummary += `**Desempeño por Habilidad (Promedio de Logro):**\n${studentData.skills.map((s: any) => `- ${s.habilidad_nombre}: ${s.promedio_logro.toFixed(1)}%`).join('\n')}\n\n`;
+    } else {
+      promptDataSummary += "**Desempeño por Habilidad:**\n- No hay datos disponibles sobre el rendimiento en habilidades específicas.\n\n";
+    }
+
+    if (studentData.history && studentData.history.length > 0) {
+      promptDataSummary += `**Historial de Evaluaciones (Pruebas):**\n${studentData.history.map((h: any) => `- "${h.evaluation_title}": Puntaje ${h.score_obtained}/${h.max_score}`).join('\n')}\n\n`;
+    } else {
+      promptDataSummary += "**Historial de Evaluaciones (Pruebas):**\n- No ha completado evaluaciones de este tipo.\n\n";
+    }
+
+    if (studentData.rubrics && studentData.rubrics.length > 0) {
+      promptDataSummary += `**Historial de Evaluaciones (Rúbricas):**\n${studentData.rubrics.map((r: any) => `- "${r.rubrica.nombre}": Calificación ${r.calificacion_final.toFixed(1)} (Puntaje ${r.puntaje_obtenido}/${r.puntaje_maximo})`).join('\n')}\n\n`;
+    } else {
+      promptDataSummary += "**Historial de Evaluaciones (Rúbricas):**\n- No ha completado evaluaciones de este tipo.\n\n";
+    }
     
     // --- AI Prompting ---
     const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -68,7 +95,7 @@ serve(async (req) => {
       Eres un experto psicopedagogo y analista de datos educativos. Tu tarea es analizar el rendimiento de un estudiante y generar dos informes en formato JSON.
 
       **Datos del Estudiante:**
-      ${JSON.stringify(studentData, null, 2)}
+      ${promptDataSummary}
 
       **Instrucciones:**
       Analiza los datos proporcionados y genera un objeto JSON que contenga dos claves principales: "informe_docente_html" y "comunicado_apoderado_html".
@@ -77,7 +104,7 @@ serve(async (req) => {
           -   Debe ser un string que contenga HTML bien formado.
           -   Debe ser un informe profesional y detallado para el docente.
           -   Incluye un resumen general, análisis de fortalezas, identificación de brechas de aprendizaje, y recomendaciones pedagógicas concretas.
-          -   Utiliza los datos de rendimiento por habilidad, historial de evaluaciones y rúbricas para fundamentar tu análisis.
+          -   Utiliza los datos de rendimiento por habilidad, historial de evaluaciones y rúbricas para fundamentar tu análisis. Si no hay datos, indícalo de forma profesional.
           -   Usa etiquetas HTML como <h2>, <h3>, <p>, <ul>, <li>, <strong>.
 
       2.  **comunicado_apoderado_html**:
