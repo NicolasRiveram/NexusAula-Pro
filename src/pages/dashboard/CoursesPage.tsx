@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, BookUp, MoreVertical } from 'lucide-react';
+import { PlusCircle, BookUp, MoreVertical, BookOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura } from '@/api/coursesApi';
+import { fetchStudentCourses, StudentCourse } from '@/api/studentApi';
 import CreateCourseDialog from '@/components/courses/CreateCourseDialog';
 import AssignSubjectDialog from '@/components/courses/AssignSubjectDialog';
 import EnrollStudentsDialog from '@/components/courses/EnrollStudentsDialog';
@@ -20,8 +21,16 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+interface DashboardContext {
+  profile: { rol: string };
+}
+
 const CoursesPage = () => {
-  const [groupedCursos, setGroupedCursos] = useState<Record<string, CursoAsignatura[]>>({});
+  const { profile } = useOutletContext<DashboardContext>();
+  const isStudent = profile.rol === 'estudiante';
+
+  const [teacherCourses, setTeacherCourses] = useState<Record<string, CursoAsignatura[]>>({});
+  const [studentCourses, setStudentCourses] = useState<StudentCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -31,7 +40,8 @@ const CoursesPage = () => {
 
   const loadCourses = async () => {
     if (!activeEstablishment) {
-      setGroupedCursos({});
+      setTeacherCourses({});
+      setStudentCourses([]);
       setLoading(false);
       return;
     }
@@ -40,18 +50,21 @@ const CoursesPage = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       try {
-        const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-        
-        const groups = data.reduce((acc, curso) => {
-          const nivelNombre = curso.curso.nivel.nombre;
-          if (!acc[nivelNombre]) {
-            acc[nivelNombre] = [];
-          }
-          acc[nivelNombre].push(curso);
-          return acc;
-        }, {} as Record<string, CursoAsignatura[]>);
-
-        setGroupedCursos(groups);
+        if (isStudent) {
+          const data = await fetchStudentCourses(user.id, activeEstablishment.id);
+          setStudentCourses(data);
+        } else {
+          const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
+          const groups = data.reduce((acc, curso) => {
+            const nivelNombre = curso.curso.nivel.nombre;
+            if (!acc[nivelNombre]) {
+              acc[nivelNombre] = [];
+            }
+            acc[nivelNombre].push(curso);
+            return acc;
+          }, {} as Record<string, CursoAsignatura[]>);
+          setTeacherCourses(groups);
+        }
       } catch (error: any) {
         showError(`Error al cargar cursos: ${error.message}`);
       }
@@ -61,7 +74,7 @@ const CoursesPage = () => {
 
   useEffect(() => {
     loadCourses();
-  }, [activeEstablishment]);
+  }, [activeEstablishment, isStudent]);
 
   const handleEnrollClick = (curso: CursoAsignatura) => {
     setSelectedCourse({ id: curso.curso.id, nombre: `${curso.curso.nivel.nombre} ${curso.curso.nombre}` });
@@ -112,8 +125,41 @@ const CoursesPage = () => {
     }
   };
 
-  return (
-    <div className="container mx-auto space-y-6">
+  const renderStudentView = () => (
+    <>
+      <div>
+        <h1 className="text-3xl font-bold">Mis Asignaturas</h1>
+        <p className="text-muted-foreground">Aquí puedes ver todas las asignaturas en las que estás inscrito.</p>
+      </div>
+      {studentCourses.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {studentCourses.map(course => (
+            <Link to={`/dashboard/cursos/${course.id}`} key={course.id} className="block h-full">
+              <Card className="hover:shadow-lg transition-shadow h-full">
+                <CardHeader>
+                  <CardTitle>{course.asignatura_nombre}</CardTitle>
+                  <CardDescription>{course.nivel_nombre} {course.curso_nombre}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">Docente: {course.docente_nombre || 'No asignado'}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 border-2 border-dashed rounded-lg">
+          <h3 className="text-xl font-semibold">No estás inscrito en ninguna asignatura</h3>
+          <p className="text-muted-foreground mt-2">
+            Contacta al administrador de tu establecimiento para que te inscriba en tus cursos.
+          </p>
+        </div>
+      )}
+    </>
+  );
+
+  const renderTeacherView = () => (
+    <>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Mis Cursos</h1>
@@ -128,77 +174,48 @@ const CoursesPage = () => {
           </Button>
         </div>
       </div>
-
-      {loading ? (
-        <p>Cargando cursos...</p>
-      ) : !activeEstablishment ? (
-        <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <h3 className="text-xl font-semibold">Selecciona un establecimiento</h3>
-          <p className="text-muted-foreground mt-2">
-            Por favor, elige un establecimiento en la cabecera para ver tus cursos.
-          </p>
-        </div>
-      ) : Object.keys(groupedCursos).length > 0 ? (
+      {Object.keys(teacherCourses).length > 0 ? (
         <div className="space-y-8">
-          {Object.entries(groupedCursos).map(([nivelNombre, cursosEnNivel]) => (
+          {Object.entries(teacherCourses).map(([nivelNombre, cursosEnNivel]) => (
             <div key={nivelNombre}>
               <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{nivelNombre}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {cursosEnNivel.map((cursoAsignatura) => {
-                  const isDataIncomplete = 
-                    cursoAsignatura.asignatura.nombre === 'Asignatura no asignada' ||
-                    cursoAsignatura.curso.nivel.nombre === 'Nivel no asignado' ||
-                    cursoAsignatura.curso.nombre === 'Curso sin nombre';
-
-                  return (
-                    <div className="relative group" key={cursoAsignatura.id}>
-                      <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} className="block h-full">
-                        <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle>{cursoAsignatura.curso.nombre}</CardTitle>
-                                <CardDescription>{cursoAsignatura.asignatura.nombre} - {cursoAsignatura.curso.anio}</CardDescription>
-                              </div>
-                              {isDataIncomplete && (
-                                <Badge variant="destructive">Incompleto</Badge>
-                              )}
+                {cursosEnNivel.map((cursoAsignatura) => (
+                  <div className="relative group" key={cursoAsignatura.id}>
+                    <Link to={`/dashboard/cursos/${cursoAsignatura.id}`} className="block h-full">
+                      <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle>{cursoAsignatura.curso.nombre}</CardTitle>
+                              <CardDescription>{cursoAsignatura.asignatura.nombre} - {cursoAsignatura.curso.anio}</CardDescription>
                             </div>
-                          </CardHeader>
-                          <CardContent className="flex-grow">
-                            <p className="text-sm text-muted-foreground">
-                              {isDataIncomplete 
-                                ? 'Falta información. Haz clic para revisar.' 
-                                : 'Ver detalles del curso y estudiantes.'}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                      <div className="absolute top-2 right-2 z-10">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                              <span className="sr-only">Opciones del curso</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleEnrollClick(cursoAsignatura); }}>
-                              Inscribir Estudiantes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDownloadCredentials(cursoAsignatura); }}>
-                              Descargar Credenciales
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                          <p className="text-sm text-muted-foreground">Ver detalles del curso y estudiantes.</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <div className="absolute top-2 right-2 z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleEnrollClick(cursoAsignatura); }}>
+                            Inscribir Estudiantes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDownloadCredentials(cursoAsignatura); }}>
+                            Descargar Credenciales
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -211,27 +228,45 @@ const CoursesPage = () => {
           </p>
         </div>
       )}
+    </>
+  );
 
-      <CreateCourseDialog
-        isOpen={isCreateDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        onCourseCreated={loadCourses}
-      />
-      <AssignSubjectDialog
-        isOpen={isAssignDialogOpen}
-        onClose={() => setAssignDialogOpen(false)}
-        onSubjectAssigned={loadCourses}
-      />
-      <EnrollStudentsDialog
-        isOpen={isEnrollDialogOpen}
-        onClose={() => setEnrollDialogOpen(false)}
-        cursoId={selectedCourse?.id || ''}
-        cursoNombre={selectedCourse?.nombre || ''}
-        onStudentsEnrolled={() => {
-          setEnrollDialogOpen(false);
-          // Opcional: podrías recargar los datos del curso específico si fuera necesario
-        }}
-      />
+  return (
+    <div className="container mx-auto space-y-6">
+      {loading ? (
+        <p>Cargando cursos...</p>
+      ) : !activeEstablishment ? (
+        <div className="text-center py-12 border-2 border-dashed rounded-lg">
+          <h3 className="text-xl font-semibold">Selecciona un establecimiento</h3>
+          <p className="text-muted-foreground mt-2">
+            Por favor, elige un establecimiento en la cabecera para ver tus cursos.
+          </p>
+        </div>
+      ) : isStudent ? renderStudentView() : renderTeacherView()}
+
+      {!isStudent && (
+        <>
+          <CreateCourseDialog
+            isOpen={isCreateDialogOpen}
+            onClose={() => setCreateDialogOpen(false)}
+            onCourseCreated={loadCourses}
+          />
+          <AssignSubjectDialog
+            isOpen={isAssignDialogOpen}
+            onClose={() => setAssignDialogOpen(false)}
+            onSubjectAssigned={loadCourses}
+          />
+          <EnrollStudentsDialog
+            isOpen={isEnrollDialogOpen}
+            onClose={() => setEnrollDialogOpen(false)}
+            cursoId={selectedCourse?.id || ''}
+            cursoNombre={selectedCourse?.nombre || ''}
+            onStudentsEnrolled={() => {
+              setEnrollDialogOpen(false);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 };

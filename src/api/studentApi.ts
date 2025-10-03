@@ -40,6 +40,34 @@ export interface StudentCourseEvaluation {
   status: 'Pendiente' | 'Completado';
 }
 
+export interface StudentCourseClass {
+  id: string;
+  fecha: string;
+  titulo: string;
+  estado: string;
+}
+
+export const fetchClassesForStudentCourse = async (cursoAsignaturaId: string): Promise<StudentCourseClass[]> => {
+  const { data: unidades, error: unidadesError } = await supabase
+    .from('unidades')
+    .select('id')
+    .eq('curso_asignatura_id', cursoAsignaturaId);
+
+  if (unidadesError) throw new Error(`Error fetching units for course: ${unidadesError.message}`);
+  if (!unidades || unidades.length === 0) return [];
+
+  const unidadIds = unidades.map(u => u.id);
+
+  const { data: clases, error: clasesError } = await supabase
+    .from('planificaciones_clase')
+    .select('id, fecha, titulo, estado')
+    .in('unidad_id', unidadIds)
+    .order('fecha', { ascending: false });
+
+  if (clasesError) throw new Error(`Error fetching classes for course: ${clasesError.message}`);
+  return clases || [];
+};
+
 export const fetchStudentCourseDetails = async (studentId: string, cursoAsignaturaId: string): Promise<StudentCourse | null> => {
   const { data, error } = await supabase
     .from('curso_asignaturas')

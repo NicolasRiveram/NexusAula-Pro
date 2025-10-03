@@ -3,8 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, User, Clock, FileText, Send, CheckCircle } from 'lucide-react';
-import { fetchStudentCourseDetails, fetchStudentEvaluationsForCourse, StudentCourse, StudentCourseEvaluation } from '@/api/studentApi';
+import { ArrowLeft, Loader2, User, Clock, FileText, Send, CheckCircle, BookOpen } from 'lucide-react';
+import { fetchStudentCourseDetails, fetchStudentEvaluationsForCourse, StudentCourse, StudentCourseEvaluation, fetchClassesForStudentCourse, StudentCourseClass } from '@/api/studentApi';
 import { fetchScheduleForCourse, ScheduleBlock } from '@/api/scheduleApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
@@ -18,6 +18,7 @@ const StudentCourseDetailPage = () => {
   const [course, setCourse] = useState<StudentCourse | null>(null);
   const [evaluations, setEvaluations] = useState<StudentCourseEvaluation[]>([]);
   const [schedule, setSchedule] = useState<ScheduleBlock[]>([]);
+  const [classes, setClasses] = useState<StudentCourseClass[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,14 +29,16 @@ const StudentCourseDetailPage = () => {
 
       setLoading(true);
       try {
-        const [courseData, evalsData, scheduleData] = await Promise.all([
+        const [courseData, evalsData, scheduleData, classesData] = await Promise.all([
           fetchStudentCourseDetails(user.id, cursoAsignaturaId),
           fetchStudentEvaluationsForCourse(user.id, cursoAsignaturaId),
           fetchScheduleForCourse(cursoAsignaturaId),
+          fetchClassesForStudentCourse(cursoAsignaturaId),
         ]);
         setCourse(courseData);
         setEvaluations(evalsData);
         setSchedule(scheduleData);
+        setClasses(classesData);
       } catch (error: any) {
         showError(`Error al cargar los detalles del curso: ${error.message}`);
       }
@@ -59,7 +62,7 @@ const StudentCourseDetailPage = () => {
     <div className="container mx-auto space-y-6">
       <Link to="/dashboard/cursos" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Volver a Mis Cursos
+        Volver a Mis Asignaturas
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -74,6 +77,27 @@ const StudentCourseDetailPage = () => {
                 <User className="mr-2 h-4 w-4" />
                 <span>Docente: {course.docente_nombre}</span>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><BookOpen className="mr-2 h-5 w-5" /> Clases y Actividades</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {classes.length > 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {classes.map(c => (
+                    <div key={c.id} className="flex justify-between items-center p-2 bg-muted/50 rounded-md">
+                      <div>
+                        <p className="font-medium text-sm">{c.titulo}</p>
+                        <p className="text-xs text-muted-foreground">Fecha: {format(parseISO(c.fecha), 'PPP', { locale: es })}</p>
+                      </div>
+                      <Badge variant={c.estado === 'realizada' ? 'default' : 'outline'} className="capitalize">{c.estado}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-muted-foreground">Aún no hay clases planificadas para esta asignatura.</p>}
             </CardContent>
           </Card>
 
