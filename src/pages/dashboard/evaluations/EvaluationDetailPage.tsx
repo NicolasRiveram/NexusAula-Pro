@@ -144,7 +144,8 @@ const EvaluationDetailPage = () => {
 
       printComponent(
         <div>{printableComponents}</div>,
-        `Evaluación: ${evaluation.titulo}`
+        `Evaluación: ${evaluation.titulo}`,
+        'portrait'
       );
 
       dismissToast(toastId);

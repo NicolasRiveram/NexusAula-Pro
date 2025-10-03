@@ -1,7 +1,7 @@
 import ReactDOMServer from 'react-dom/server';
 import React from 'react';
 
-export const printComponent = (component: React.ReactElement, documentTitle: string) => {
+export const printComponent = (component: React.ReactElement, documentTitle: string, orientation: 'portrait' | 'landscape' = 'portrait') => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
     alert('Por favor, permite las ventanas emergentes para poder imprimir.');
@@ -24,7 +24,7 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             print-color-adjust: exact;
           }
           @page {
-            size: A4 landscape;
+            size: A4 ${orientation};
             margin: 15mm;
           }
           .printable-container {

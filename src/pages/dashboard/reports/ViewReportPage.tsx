@@ -28,7 +28,8 @@ const ViewReportPage = () => {
     if (report) {
       printComponent(
         <PrintableReport report={report} />,
-        `Informe - ${report.perfiles.nombre_completo}`
+        `Informe - ${report.perfiles.nombre_completo}`,
+        'portrait'
       );
     }
   };

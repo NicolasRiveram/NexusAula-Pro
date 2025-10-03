@@ -149,7 +149,8 @@ const RubricDetailPage = () => {
     if (rubric) {
         printComponent(
             <PrintableRubric rubric={rubric} />,
-            `Pauta Rúbrica - ${rubric.nombre}`
+            `Pauta Rúbrica - ${rubric.nombre}`,
+            'landscape'
         );
     }
   };
@@ -158,7 +159,8 @@ const RubricDetailPage = () => {
       if (rubric) {
           printComponent(
               <PrintableRubricForEvaluation rubric={rubric} />,
-              `Instrumento Rúbrica - ${rubric.nombre}`
+              `Instrumento Rúbrica - ${rubric.nombre}`,
+              'landscape'
           );
       }
   };
