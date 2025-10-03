@@ -11,31 +11,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const schema = z.object({
   rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(5, "Máximo 5 filas."),
   seed: z.string().min(3, "La semilla debe tener al menos 3 caracteres."),
-  fontSize: z.enum(['text-sm', 'text-base', 'text-lg']),
 });
 
-export type PrintFormData = z.infer<typeof schema>;
+export type AnswerSheetFormData = z.infer<typeof schema>;
 
-interface PrintEvaluationDialogProps {
+interface PrintAnswerSheetDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (data: PrintFormData) => void;
+  onConfirm: (data: AnswerSheetFormData) => void;
   isPrinting: boolean;
 }
 
-const PrintEvaluationDialog: React.FC<PrintEvaluationDialogProps> = ({ isOpen, onClose, onConfirm, isPrinting }) => {
-  const { control, handleSubmit, formState: { errors } } = useForm<PrintFormData>({
+const PrintAnswerSheetDialog: React.FC<PrintAnswerSheetDialogProps> = ({ isOpen, onClose, onConfirm, isPrinting }) => {
+  const { control, handleSubmit, formState: { errors } } = useForm<AnswerSheetFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { rows: 1, seed: 'nexus-2024', fontSize: 'text-base' },
+    defaultValues: { rows: 2, seed: 'nexus-2024' },
   });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Configurar Impresión de Evaluación</DialogTitle>
+          <DialogTitle>Generar Hojas de Respuesta</DialogTitle>
           <DialogDescription>
-            Selecciona las opciones para generar la evaluación impresa. Puedes crear múltiples "filas" (versiones) con orden aleatorio de preguntas y/o alternativas.
+            Configura la generación de filas (versiones) para la evaluación. Se creará una hoja de respuesta para cada estudiante y una pauta de corrección para el docente.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onConfirm)} className="space-y-4 py-4">
@@ -63,26 +62,9 @@ const PrintEvaluationDialog: React.FC<PrintEvaluationDialogProps> = ({ isOpen, o
               render={({ field }) => <Input id="seed" placeholder="Ej: lenguaje-unidad1-mayo" {...field} />}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Esta palabra actúa como un código. Al usar la misma palabra, te aseguras de que el orden para cada 'Fila' sea siempre idéntico, ideal si necesitas reimprimir una versión.
+              Usa la misma palabra clave para la pauta de corrección. Esto garantiza que la cámara y la pauta sepan el orden correcto de las alternativas.
             </p>
             {errors.seed && <p className="text-red-500 text-sm mt-1">{errors.seed.message}</p>}
-          </div>
-          <div>
-            <Label htmlFor="fontSize">Tamaño de la letra</Label>
-            <Controller
-              name="fontSize"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger id="fontSize"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text-sm">Pequeño</SelectItem>
-                    <SelectItem value="text-base">Normal</SelectItem>
-                    <SelectItem value="text-lg">Grande</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
@@ -96,4 +78,4 @@ const PrintEvaluationDialog: React.FC<PrintEvaluationDialogProps> = ({ isOpen, o
   );
 };
 
-export default PrintEvaluationDialog;
+export default PrintAnswerSheetDialog;

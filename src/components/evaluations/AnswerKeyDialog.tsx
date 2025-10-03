@@ -1,12 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { fetchEvaluationDetails, EvaluationDetail } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
-import { Loader2, CheckCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { seededShuffle } from '@/utils/shuffleUtils';
+
+const schema = z.object({
+  rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(5, "Máximo 5 filas."),
+  seed: z.string().min(3, "La semilla debe tener al menos 3 caracteres."),
+});
+
+type FormData = z.infer<typeof schema>;
+
+interface AnswerKey {
+  [rowLabel: string]: {
+    [questionNumber: number]: string;
+  };
+}
 
 interface AnswerKeyDialogProps {
   isOpen: boolean;
@@ -17,6 +36,12 @@ interface AnswerKeyDialogProps {
 const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, evaluationId }) => {
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [answerKey, setAnswerKey] = useState<AnswerKey | null>(null);
+
+  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { rows: 1, seed: 'nexus-2024' },
+  });
 
   useEffect(() => {
     if (isOpen && evaluationId) {
@@ -27,57 +52,116 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
         .finally(() => setLoading(false));
     } else {
       setEvaluation(null);
+      setAnswerKey(null);
     }
   }, [isOpen, evaluationId]);
 
-  const allItems = evaluation?.evaluation_content_blocks.flatMap(b => b.evaluacion_items) || [];
+  const generateKey = (data: FormData) => {
+    if (!evaluation) return;
+
+    const allItems = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
+    const newKey: AnswerKey = {};
+
+    for (let i = 0; i < data.rows; i++) {
+      const rowLabel = String.fromCharCode(65 + i);
+      newKey[rowLabel] = {};
+
+      allItems.forEach(item => {
+        if (item.tipo_item === 'seleccion_multiple') {
+          const shuffledAlts = seededShuffle(item.item_alternativas, `${data.seed}-${rowLabel}-${item.id}`);
+          const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
+          if (correctIndex !== -1) {
+            newKey[rowLabel][item.orden] = String.fromCharCode(65 + correctIndex);
+          }
+        } else if (item.tipo_item === 'verdadero_falso') {
+            const correctAnswer = item.item_alternativas.find(alt => alt.es_correcta)?.texto;
+            newKey[rowLabel][item.orden] = correctAnswer === 'Verdadero' ? 'V' : 'F';
+        } else {
+            newKey[rowLabel][item.orden] = 'Abierta';
+        }
+      });
+    }
+    setAnswerKey(newKey);
+  };
+
+  const questions = useMemo(() => {
+    if (!answerKey) return [];
+    return Array.from(new Set(Object.values(answerKey).flatMap(row => Object.keys(row).map(Number)))).sort((a, b) => a - b);
+  }, [answerKey]);
+
+  const rows = useMemo(() => answerKey ? Object.keys(answerKey).sort() : [], [answerKey]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Pauta de Respuestas Correctas</DialogTitle>
+          <DialogTitle>Generar Pauta de Respuestas</DialogTitle>
           <DialogDescription>
-            {evaluation?.titulo || 'Cargando...'}
+            Introduce los mismos parámetros que usaste al imprimir para generar la pauta de corrección correspondiente.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[60vh] pr-4">
-          {loading ? (
-            <div className="flex justify-center items-center h-48">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : allItems.length > 0 ? (
-            <div className="space-y-6 my-4">
-              {allItems.map(item => (
-                <div key={item.id}>
-                  <p className="font-semibold">{item.orden}. {item.enunciado}</p>
-                  {item.tipo_item === 'seleccion_multiple' && (
-                    <ul className="mt-2 space-y-1 text-sm pl-5">
-                      {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
-                        <li key={alt.id} className={cn("flex items-center", alt.es_correcta && "font-bold text-green-600")}>
-                          {alt.es_correcta && <CheckCircle className="h-4 w-4 mr-2" />}
-                          <span>{String.fromCharCode(97 + index)}) {alt.texto}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {item.tipo_item === 'verdadero_falso' && (
-                     <p className="mt-2 text-sm font-bold text-green-600 flex items-center pl-5">
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        {item.item_alternativas.find(alt => alt.es_correcta)?.texto || 'No especificado'}
-                     </p>
-                  )}
-                  {item.tipo_item === 'desarrollo' && (
-                    <p className="mt-2 text-sm text-muted-foreground pl-5">Respuesta abierta / de desarrollo.</p>
-                  )}
-                  <Separator className="mt-4" />
+        
+        {loading ? (
+          <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></div>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit(generateKey)} className="space-y-4 py-4 border-b">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="rows">Número de Filas (Versiones)</Label>
+                  <Controller
+                    name="rows"
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={(val) => field.onChange(Number(val))} value={String(field.value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5].map(num => <SelectItem key={num} value={String(num)}>{num} Fila{num > 1 ? 's' : ''}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.rows && <p className="text-red-500 text-sm mt-1">{errors.rows.message}</p>}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">Esta evaluación no tiene preguntas para mostrar una pauta.</p>
-          )}
-        </ScrollArea>
+                <div>
+                  <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
+                  <Controller name="seed" control={control} render={({ field }) => <Input id="seed" {...field} />} />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Introduce <strong>exactamente la misma palabra clave</strong> que usaste al imprimir.
+                  </p>
+                  {errors.seed && <p className="text-red-500 text-sm mt-1">{errors.seed.message}</p>}
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit">Generar Pauta</Button>
+              </div>
+            </form>
+
+            {answerKey && (
+              <ScrollArea className="max-h-[40vh] mt-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Pregunta</TableHead>
+                      {rows.map(row => <TableHead key={row} className="text-center">Fila {row}</TableHead>)}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {questions.map(qNum => (
+                      <TableRow key={qNum}>
+                        <TableCell className="font-medium">{qNum}</TableCell>
+                        {rows.map(row => (
+                          <TableCell key={row} className="text-center font-bold">{answerKey[row][qNum] || '-'}</TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            )}
+          </>
+        )}
+
         <DialogFooter>
           <Button onClick={onClose}>Cerrar</Button>
         </DialogFooter>
