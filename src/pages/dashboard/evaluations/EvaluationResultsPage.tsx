@@ -64,6 +64,34 @@ const EvaluationResultsPage = () => {
     }, 0);
   }, [evaluation]);
 
+  const allSkillsInData = useMemo(() => {
+    if (!evaluation) return [];
+
+    const definedSkills = Array.from(
+      new Set(
+        evaluation.evaluation_content_blocks
+          .flatMap(block => block.evaluacion_items)
+          .map(item => item.habilidad_evaluada)
+          .filter((skill): skill is string => !!skill)
+      )
+    );
+
+    const analysisMap = new Map(skillAnalysis.map(sa => [sa.habilidad, sa]));
+
+    return definedSkills.map(skillName => {
+      const analysisData = analysisMap.get(skillName);
+      if (analysisData) {
+        return analysisData;
+      }
+      return {
+        habilidad: skillName,
+        correct_answers: 0,
+        total_answers: 0,
+        achievement_percentage: 0,
+      };
+    });
+  }, [evaluation, skillAnalysis]);
+
   if (loading) {
     return (
       <div className="container mx-auto flex justify-center items-center h-64">
@@ -91,7 +119,7 @@ const EvaluationResultsPage = () => {
       
       {stats && stats.score_distribution.length > 0 && <ScoreDistributionChart stats={stats} />}
 
-      {skillAnalysis.length > 0 && <SkillPerformanceChart analysis={skillAnalysis} />}
+      {allSkillsInData.length > 0 && <SkillPerformanceChart analysis={allSkillsInData} />}
 
       {itemAnalysis.length > 0 && <ItemAnalysis analysis={itemAnalysis} />}
 
