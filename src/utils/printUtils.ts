@@ -24,8 +24,8 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             print-color-adjust: exact;
           }
           @page {
-            size: A4;
-            margin: 20mm;
+            size: A4 landscape;
+            margin: 15mm;
           }
           .printable-container {
             page-break-after: always;
@@ -98,6 +98,25 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .report-print .report-body h3 { font-size: 1.2rem; }
           .report-print .report-body ul { list-style-position: inside; }
           .report-print .page-break { page-break-before: always; }
+
+          /* Rubric Styles */
+          .rubric-print .report-header h2 { font-size: 1.2rem; color: #555; margin-top: 5px; }
+          .rubric-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.75rem; }
+          .rubric-table th, .rubric-table td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+          .rubric-table th { background-color: #f3f4f6; }
+          .rubric-table .criterion-header { width: 20%; }
+          .rubric-table .level-header { text-align: center; }
+          .rubric-table .level-name { font-weight: bold; }
+          .rubric-table .level-score { font-size: 0.9em; }
+          .rubric-table .criterion-cell .criterion-name { font-weight: bold; }
+          .rubric-table .criterion-cell .criterion-skill { font-size: 0.9em; color: #555; font-style: italic; margin: 4px 0; }
+          .rubric-table .criterion-cell .criterion-description { font-size: 0.9em; color: #555; }
+          .rubric-table .level-cell .level-description { font-size: 0.9em; }
+          .rubric-table .level-cell-eval { text-align: center; }
+          .rubric-table .level-cell-eval .bubble { width: 18px; height: 18px; border: 1px solid #000; border-radius: 50%; margin: 0 auto 5px auto; }
+          .comments-section { margin-top: 20px; page-break-inside: avoid; }
+          .comments-section label { font-weight: bold; }
+          .comments-box { border: 1px solid #ccc; height: 100px; margin-top: 5px; border-radius: 4px; }
         </style>
       </head>
       <body>

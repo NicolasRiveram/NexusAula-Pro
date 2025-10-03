@@ -13,6 +13,10 @@ import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatur
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { printComponent } from '@/utils/printUtils';
+import PrintableRubric from '@/components/rubrics/PrintableRubric';
+import PrintableRubricForEvaluation from '@/components/rubrics/PrintableRubricForEvaluation';
 
 const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number => {
   if (puntajeMaximo <= 0) {
@@ -141,6 +145,24 @@ const RubricDetailPage = () => {
     }
   };
 
+  const handleDownloadPauta = () => {
+    if (rubric) {
+        printComponent(
+            <PrintableRubric rubric={rubric} />,
+            `Pauta Rúbrica - ${rubric.nombre}`
+        );
+    }
+  };
+
+  const handleDownloadInstrumento = () => {
+      if (rubric) {
+          printComponent(
+              <PrintableRubricForEvaluation rubric={rubric} />,
+              `Instrumento Rúbrica - ${rubric.nombre}`
+          );
+      }
+  };
+
   if (loading) return <div className="container mx-auto"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!rubric) return <div className="container mx-auto"><p>Rúbrica no encontrada.</p></div>;
 
@@ -161,7 +183,19 @@ const RubricDetailPage = () => {
               <CardDescription>Actividad: {rubric.actividad_a_evaluar}</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => window.print()}><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDownloadPauta}>
+                    Descargar Pauta de Rúbrica
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadInstrumento}>
+                    Descargar Instrumento para Evaluar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button onClick={() => navigate(`/dashboard/rubricas/editar/${rubric.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
             </div>
           </div>
