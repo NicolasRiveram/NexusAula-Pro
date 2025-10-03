@@ -92,6 +92,31 @@ const EvaluationDetailPage = () => {
         const rowLabel = String.fromCharCode(65 + i);
         const evaluationCopy = JSON.parse(JSON.stringify(evaluation)); // Deep copy
 
+        // Aleatorizar preguntas si está activado
+        if (evaluationCopy.randomizar_preguntas) {
+          const allItems = evaluationCopy.evaluation_content_blocks.flatMap((block: any) => block.evaluacion_items);
+          const shuffledItems = seededShuffle(allItems, `${formData.seed}-${rowLabel}`);
+          
+          shuffledItems.forEach((item: any, index: number) => {
+            item.orden = index + 1;
+          });
+
+          let firstBlockWithItemsIndex = evaluationCopy.evaluation_content_blocks.findIndex((block: any) => block.evaluacion_items.length > 0);
+          if (firstBlockWithItemsIndex === -1 && shuffledItems.length > 0) {
+              firstBlockWithItemsIndex = 0;
+          }
+
+          if (firstBlockWithItemsIndex !== -1) {
+              evaluationCopy.evaluation_content_blocks[firstBlockWithItemsIndex].evaluacion_items = shuffledItems;
+              for (let j = 0; j < evaluationCopy.evaluation_content_blocks.length; j++) {
+                  if (j !== firstBlockWithItemsIndex) {
+                      evaluationCopy.evaluation_content_blocks[j].evaluacion_items = [];
+                  }
+              }
+          }
+        }
+
+        // Aleatorizar alternativas si está activado
         if (evaluationCopy.randomizar_alternativas) {
           evaluationCopy.evaluation_content_blocks.forEach((block: any) => {
             block.evaluacion_items.forEach((item: any) => {
