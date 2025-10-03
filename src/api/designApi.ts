@@ -20,7 +20,8 @@ export const updateDesignSetting = async (key: string, value: string | null) => 
 export const uploadDesignAsset = async (file: File): Promise<string> => {
   const fileExtension = file.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExtension}`;
-  const filePath = `public/${fileName}`;
+  // Corregido: Se eliminó el prefijo 'public/'
+  const filePath = `${fileName}`;
 
   const { data, error } = await supabase.storage
     .from('design_assets')

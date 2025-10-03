@@ -545,7 +545,8 @@ export const deleteContentBlock = async (blockId: string) => {
 export const uploadEvaluationImage = async (evaluationId: string, file: File): Promise<string> => {
     const fileExtension = file.name.split('.').pop();
     const fileName = `${Date.now()}.${fileExtension}`;
-    const filePath = `public/${evaluationId}/${fileName}`;
+    // Corregido: Se eliminó el prefijo 'public/'
+    const filePath = `${evaluationId}/${fileName}`;
 
     const { error } = await supabase.storage
         .from('evaluation_images')
