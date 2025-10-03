@@ -42,103 +42,31 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .mb-2 { margin-bottom: 0.5rem; }
           .pl-5 { padding-left: 1.25rem; }
           
-          /* New Header Styles */
-          .print-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding-bottom: 10px;
-          }
-          .header-left {
-            width: 25%;
-          }
-          .header-left img {
-            max-height: 50px;
-            max-width: 100%;
-          }
-          .header-center {
-            width: 50%;
-            text-align: center;
-          }
-          .header-right {
-            width: 25%;
-          }
-          .evaluation-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            margin: 0;
-          }
-          .teacher-name {
-            font-size: 1rem;
-            margin-top: 4px;
-            color: #333;
-          }
-          .header-divider {
-            border: none;
-            border-top: 1px solid #000;
-            margin-bottom: 20px;
-          }
+          /* Header Styles */
+          .print-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; }
+          .header-left { width: 25%; }
+          .header-left img { max-height: 50px; max-width: 100%; }
+          .header-center { width: 50%; text-align: center; }
+          .header-right { width: 25%; }
+          .evaluation-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
+          .teacher-name { font-size: 1rem; margin-top: 4px; color: #333; }
+          .header-divider { border: none; border-top: 1px solid #000; margin-bottom: 20px; }
 
-          /* New Student Info Styles */
-          .student-info {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            border: 1px solid #ccc;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-          }
-          .info-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-          }
-          .info-item {
-            display: flex;
-            align-items: baseline;
-            gap: 5px;
-            font-size: 0.9rem;
-          }
-          .info-item label {
-            font-weight: 600;
-            white-space: nowrap;
-          }
-          .info-item span {
-            font-weight: normal;
-          }
-          .info-item .line {
-            flex-grow: 1;
-            border-bottom: 1px solid #000;
-            min-height: 20px;
-          }
+          /* Student Info Styles */
+          .student-info { display: flex; flex-direction: column; gap: 10px; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+          .info-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+          .info-item { display: flex; align-items: baseline; gap: 5px; font-size: 0.9rem; }
+          .info-item label { font-weight: 600; white-space: nowrap; }
+          .info-item span { font-weight: normal; }
+          .info-item .line { flex-grow: 1; border-bottom: 1px solid #000; min-height: 20px; }
 
           /* Question Formatting */
-          .question-item {
-            page-break-inside: avoid;
-            margin-bottom: 20px;
-          }
-          .content-block-wrapper {
-            /* This class is now just a container */
-          }
-          .content-block {
-            page-break-inside: avoid; /* This ensures the content block itself (text/image) isn't split */
-            border: 1px solid #eee;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            background-color: transparent !important;
-          }
-          .content-block p {
-            text-align: justify;
-            white-space: pre-wrap;
-          }
-          .content-block img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-          }
+          .question-item { page-break-inside: avoid; margin-bottom: 20px; }
+          .content-block-wrapper { }
+          .content-block { page-break-inside: avoid; border: 1px solid #eee; padding: 15px; border-radius: 5px; margin-bottom: 20px; background-color: transparent !important; }
+          .content-block p { text-align: justify; white-space: pre-wrap; }
+          .content-block img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+          
           /* Answer Sheet Styles */
           .answer-sheet-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
           .qr-code-container { text-align: center; }
@@ -152,12 +80,21 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .answer-grid .alternative-cell { text-align: center; padding: 8px 0; }
           .answer-grid .bubble { width: 20px; height: 20px; border: 1px solid #000; border-radius: 50%; margin: 0 auto; }
           .answer-grid .alt-label { font-size: 10px; margin-top: 2px; }
+          
           /* Answer Key Styles */
           .answer-key-title { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 10px; }
           .answer-key-subtitle { font-size: 1.1rem; text-align: center; margin-bottom: 20px; }
           .answer-key-table { width: 100%; border-collapse: collapse; text-align: center; }
           .answer-key-table th, .answer-key-table td { border: 1px solid #000; padding: 8px; }
           .answer-key-table th { background-color: #f3f4f6; }
+
+          /* Report Styles */
+          .report-print .report-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+          .report-print .report-header h1 { font-size: 2rem; margin: 0; }
+          .report-print .report-body h2 { font-size: 1.5rem; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 2rem; }
+          .report-print .report-body h3 { font-size: 1.2rem; }
+          .report-print .report-body ul { list-style-position: inside; }
+          .report-print .page-break { page-break-before: always; }
         </style>
       </head>
       <body>

@@ -41,6 +41,9 @@ import { Toaster } from "@/components/ui/toaster";
     import ManageCalendarPage from "./pages/dashboard/admin/ManageCalendarPage";
     import StudentSchedulePage from "./pages/dashboard/student/StudentSchedulePage";
     import MyProgressPage from "./pages/dashboard/student/MyProgressPage";
+    import ReportsPage from "./pages/dashboard/reports/ReportsPage";
+    import GenerateReportPage from "./pages/dashboard/reports/GenerateReportPage";
+    import ViewReportPage from "./pages/dashboard/reports/ViewReportPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -151,6 +154,9 @@ import { Toaster } from "@/components/ui/toaster";
                 <Route path="rubricas/editar/:rubricId" element={<EditRubricPage />} />
                 <Route path="rubricas/:rubricId" element={<RubricDetailPage />} />
                 <Route path="analiticas" element={<AnalyticsPage />} />
+                <Route path="informes" element={<ReportsPage />} />
+                <Route path="informes/generar" element={<GenerateReportPage />} />
+                <Route path="informes/:reportId" element={<ViewReportPage />} />
                 <Route path="bitacora" element={<BitacoraPage />} />
                 
                 {/* Student-only Routes */}

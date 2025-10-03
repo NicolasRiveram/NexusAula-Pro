@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Mail, User, Hash } from 'lucide-react';
+import { ArrowLeft, Mail, User, Hash, FileSignature } from 'lucide-react';
 import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance } from '@/api/coursesApi';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { calculateGrade } from '@/utils/evaluationUtils';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Button } from '@/components/ui/button';
 
 const StudentDetailPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -60,10 +61,17 @@ const StudentDetailPage = () => {
 
   return (
     <div className="container mx-auto space-y-6">
-       <Link to="/dashboard/cursos" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Volver a Mis Cursos
-      </Link>
+       <div className="flex justify-between items-center">
+        <Link to="/dashboard/cursos" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Volver a Mis Cursos
+        </Link>
+        <Button asChild>
+          <Link to={`/dashboard/informes/generar?studentId=${studentId}`}>
+            <FileSignature className="mr-2 h-4 w-4" /> Generar Informe Pedagógico
+          </Link>
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">{student.nombre_completo}</CardTitle>
