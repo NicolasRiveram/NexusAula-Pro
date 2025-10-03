@@ -29,6 +29,7 @@ import { Toaster } from "@/components/ui/toaster";
     import ProfileSetup from "./pages/ProfileSetup";
     import NotFound from "./pages/NotFound";
     import { EstablishmentProvider } from "./contexts/EstablishmentContext";
+    import { DesignProvider } from "./contexts/DesignContext";
     import BitacoraPage from "./pages/dashboard/BitacoraPage";
     import RubricsPage from "./pages/dashboard/RubricsPage";
     import RubricBuilderPage from "./pages/dashboard/rubrics/RubricBuilderPage";
@@ -39,6 +40,7 @@ import { Toaster } from "@/components/ui/toaster";
     import DashboardIndex from "./pages/dashboard/DashboardIndex";
     import ManageCoursesPage from "./pages/dashboard/admin/ManageCoursesPage";
     import ManageCalendarPage from "./pages/dashboard/admin/ManageCalendarPage";
+    import DesignManagementPage from "./pages/dashboard/admin/DesignManagementPage";
     import StudentSchedulePage from "./pages/dashboard/student/StudentSchedulePage";
     import MyProgressPage from "./pages/dashboard/student/MyProgressPage";
     import ReportsPage from "./pages/dashboard/reports/ReportsPage";
@@ -166,6 +168,7 @@ import { Toaster } from "@/components/ui/toaster";
                 {/* Admin Routes */}
                 <Route path="gestion/cursos" element={<ManageCoursesPage />} />
                 <Route path="gestion/calendario" element={<ManageCalendarPage />} />
+                <Route path="gestion/diseno" element={<DesignManagementPage />} />
               </Route>
             ) : (
               <Route path="*" element={<Login />} />
@@ -184,7 +187,9 @@ import { Toaster } from "@/components/ui/toaster";
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AppContent />
+            <DesignProvider>
+              <AppContent />
+            </DesignProvider>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
