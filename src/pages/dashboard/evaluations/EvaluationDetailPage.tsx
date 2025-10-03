@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -17,6 +17,7 @@ import { printComponent } from '@/utils/printUtils';
 import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
 import PrintEvaluationDialog, { PrintFormData } from '@/components/evaluations/printable/PrintEvaluationDialog';
 import { seededShuffle } from '@/utils/shuffleUtils';
+import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
 
 const formatTeacherNameForPrint = (fullName: string | null): string => {
   if (!fullName || fullName.trim() === '') {
@@ -43,6 +44,7 @@ const EvaluationDetailPage = () => {
   const { activeEstablishment } = useEstablishment();
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
 
   useEffect(() => {
     if (evaluationId) {
@@ -202,6 +204,7 @@ const EvaluationDetailPage = () => {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 justify-end">
+                <Button variant="outline" onClick={() => setAnswerKeyDialogOpen(true)}><ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta</Button>
                 <Button variant="outline" onClick={() => setPrintModalOpen(true)}><Download className="mr-2 h-4 w-4" /> Descargar</Button>
                 <Button onClick={() => navigate(`/dashboard/evaluacion/editar/${evaluation.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
                 <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}><BarChart className="mr-2 h-4 w-4" /> Ver Resultados</Button>
@@ -279,6 +282,11 @@ const EvaluationDetailPage = () => {
         onClose={() => setPrintModalOpen(false)}
         onConfirm={handleConfirmPrint}
         isPrinting={isPrinting}
+      />
+      <AnswerKeyDialog
+        isOpen={isAnswerKeyDialogOpen}
+        onClose={() => setAnswerKeyDialogOpen(false)}
+        evaluationId={evaluationId || null}
       />
     </>
   );

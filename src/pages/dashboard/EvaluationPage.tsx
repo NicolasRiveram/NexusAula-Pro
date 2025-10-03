@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from '@/components/ui/checkbox';
 import PrintEvaluationDialog, { PrintFormData } from '@/components/evaluations/printable/PrintEvaluationDialog';
+import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -60,6 +61,9 @@ const EvaluationPage = () => {
 
   const [selectedEvaluations, setSelectedEvaluations] = useState<string[]>([]);
   const [isBulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  
+  const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
+  const [evaluationForAnswerKey, setEvaluationForAnswerKey] = useState<string | null>(null);
 
   const loadEvaluations = async () => {
     if (!activeEstablishment) {
@@ -393,6 +397,9 @@ const EvaluationPage = () => {
                               <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
                                 <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setEvaluationForAnswerKey(evaluation.id); setAnswerKeyDialogOpen(true); }}>
+                                <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
                                 <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
@@ -601,6 +608,12 @@ const EvaluationPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <AnswerKeyDialog
+        isOpen={isAnswerKeyDialogOpen}
+        onClose={() => setAnswerKeyDialogOpen(false)}
+        evaluationId={evaluationForAnswerKey}
+      />
     </div>
   );
 };
