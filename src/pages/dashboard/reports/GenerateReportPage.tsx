@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,16 +7,22 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Loader2, Sparkles, AlertCircle } from 'lucide-react';
-import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura, Estudiante } from '@/api/coursesApi';
+import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, fetchCursosPorEstablecimiento, Estudiante, CursoBase } from '@/api/coursesApi';
 import { checkReportEligibility, generateReport, saveReport } from '@/api/reportsApi';
 import { showError } from '@/utils/toast';
+
+interface DashboardContext {
+  profile: { rol: string };
+}
 
 const GenerateReportPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { activeEstablishment } = useEstablishment();
+  const { profile } = useOutletContext<DashboardContext>();
+  const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
   
-  const [cursos, setCursos] = useState<CursoAsignatura[]>([]);
+  const [cursos, setCursos] = useState<CursoBase[]>([]);
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   
   const [selectedCursoId, setSelectedCursoId] = useState<string>('');
@@ -32,29 +38,32 @@ const GenerateReportPage = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           try {
-            const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-            setCursos(data);
+            if (isAdmin) {
+              const data = await fetchCursosPorEstablecimiento(activeEstablishment.id);
+              setCursos(data);
+            } else {
+              const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
+              const uniqueCourses = Array.from(new Map(data.map(item => [item.curso.id, item.curso])).values());
+              setCursos(uniqueCourses);
+            }
           } catch (err: any) { showError(err.message); }
         }
       }
     };
     loadCursos();
-  }, [activeEstablishment]);
+  }, [activeEstablishment, isAdmin]);
 
   useEffect(() => {
     const loadEstudiantes = async () => {
       if (selectedCursoId) {
-        const curso = cursos.find(c => c.id === selectedCursoId);
-        if (curso) {
-          try {
-            const data = await fetchEstudiantesPorCurso(curso.curso.id);
-            setEstudiantes(data);
-          } catch (err: any) { showError(err.message); }
-        }
+        try {
+          const data = await fetchEstudiantesPorCurso(selectedCursoId);
+          setEstudiantes(data);
+        } catch (err: any) { showError(err.message); }
       }
     };
     loadEstudiantes();
-  }, [selectedCursoId, cursos]);
+  }, [selectedCursoId]);
 
   useEffect(() => {
     const checkEligibility = async () => {
@@ -85,7 +94,7 @@ const GenerateReportPage = () => {
         estudiante_perfil_id: selectedEstudianteId,
         docente_perfil_id: user.id,
         establecimiento_id: activeEstablishment.id,
-        curso_id: cursos.find(c => c.id === selectedCursoId)?.curso.id || null,
+        curso_id: selectedCursoId || null,
         informe_docente_html: reportData.informe_docente_html,
         comunicado_apoderado_html: reportData.comunicado_apoderado_html,
         datos_fuente_jsonb: reportData.sourceData,
@@ -119,7 +128,7 @@ const GenerateReportPage = () => {
               <Label>Curso</Label>
               <Select value={selectedCursoId} onValueChange={setSelectedCursoId}>
                 <SelectTrigger><SelectValue placeholder="Selecciona un curso" /></SelectTrigger>
-                <SelectContent>{cursos.map(c => <SelectItem key={c.id} value={c.id}>{c.curso.nivel.nombre} {c.curso.nombre} - {c.asignatura.nombre}</SelectItem>)}</SelectContent>
+                <SelectContent>{cursos.map(c => <SelectItem key={c.id} value={c.id}>{c.nivel.nombre} {c.nombre}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>

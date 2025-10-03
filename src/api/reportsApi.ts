@@ -10,15 +10,30 @@ export interface Report {
   comunicado_apoderado_html: string;
   created_at: string;
   perfiles: { nombre_completo: string }; // Student name
+  cursos: {
+    nombre: string;
+    niveles: {
+      nombre: string;
+    };
+  } | null;
 }
 
-export const fetchReports = async (docenteId: string, establecimientoId: string): Promise<Report[]> => {
-  const { data, error } = await supabase
+export const fetchReports = async (userId: string, establecimientoId: string, isAdmin: boolean): Promise<Report[]> => {
+  let query = supabase
     .from('informes_pedagogicos')
-    .select('*, perfiles!informes_pedagogicos_estudiante_perfil_id_fkey(nombre_completo)')
-    .eq('docente_perfil_id', docenteId)
+    .select(`
+      *, 
+      perfiles!informes_pedagogicos_estudiante_perfil_id_fkey(nombre_completo),
+      cursos ( nombre, niveles ( nombre ) )
+    `)
     .eq('establecimiento_id', establecimientoId)
     .order('created_at', { ascending: false });
+
+  if (!isAdmin) {
+    query = query.eq('docente_perfil_id', userId);
+  }
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data as any;
 };
