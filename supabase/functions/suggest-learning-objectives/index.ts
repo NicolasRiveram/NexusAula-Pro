@@ -38,7 +38,7 @@ serve(async (req) => {
 
     const prompt = `
       Eres un asistente experto en el currículum educativo chileno.
-      Basado en el nivel, asignatura y tema proporcionados, sugiere entre 3 y 5 Objetivos de Aprendizaje (OA) relevantes.
+      Basado en el nivel, asignatura y tema proporcionados, sugiere todos los Objetivos de Aprendizaje (OA) que sean directamente aplicables. Si hay muchos, prioriza los más importantes.
       Para cada OA, incluye su código (si aplica) y una breve descripción.
       Formato de salida: Una lista numerada de OAs. No incluyas nada más en tu respuesta.
 

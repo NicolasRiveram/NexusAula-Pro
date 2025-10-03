@@ -36,7 +36,7 @@ serve(async (req) => {
       Tu tarea es generar una propuesta para una unidad de planificación. Basado en el título, descripción y las instrucciones adicionales, debes devolver un objeto JSON con la siguiente estructura:
       \`\`\`json
       {
-        "objetivos": ["string", "string", "string"],
+        "objetivos": ["string", "string", ...],
         "proposito": "string",
         "proyectoABP": {
           "titulo": "string",
@@ -45,7 +45,7 @@ serve(async (req) => {
         }
       }
       \`\`\`
-      - Los 'objetivos' deben ser 3 Objetivos de Aprendizaje (OA) del currículum chileno, relevantes al tema, incluyendo su código si es posible (ej: "OA-6: ...").
+      - Los 'objetivos' deben ser todos los Objetivos de Aprendizaje (OA) del currículum chileno que sean relevantes y coherentes con el tema, incluyendo su código si es posible (ej: "OA-6: ..."). Si hay muchos, prioriza los más importantes.
       - El 'proposito' debe ser un párrafo conciso que resuma la intención pedagógica de la unidad.
       - El 'proyectoABP' debe ser una idea de proyecto de Aprendizaje Basado en Proyectos, simple y aplicable.
       - NO incluyas nada más en tu respuesta, solo el bloque de código JSON.
