@@ -63,6 +63,7 @@ serve(async (req) => {
       }
       \`\`\`
       - Asegúrate de que solo UNA alternativa tenga "es_correcta" como true.
+      - Distribuye la posición de la alternativa correcta de manera aleatoria y variada a lo largo de todas las preguntas. Evita que la misma posición (por ejemplo, la primera o segunda alternativa) sea la correcta repetidamente.
       - El puntaje debe ser un número entero.
       - El enunciado y las alternativas deben ser claros y concisos.
       - Para "habilidad_evaluada", identifica una habilidad curricular específica (ej: "Comprensión Lectora", "Análisis de Fuentes", "Resolución de Problemas").
