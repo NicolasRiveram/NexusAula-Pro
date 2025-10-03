@@ -3,7 +3,18 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { fetchEvaluationDetails, fetchEvaluationResultsSummary, EvaluationDetail, EvaluationResultSummary, fetchEvaluationStatistics, EvaluationStatistics, fetchItemAnalysis, ItemAnalysisResult } from '@/api/evaluationsApi';
+import { 
+  fetchEvaluationDetails, 
+  fetchEvaluationResultsSummary, 
+  EvaluationDetail, 
+  EvaluationResultSummary, 
+  fetchEvaluationStatistics, 
+  EvaluationStatistics, 
+  fetchItemAnalysis, 
+  ItemAnalysisResult,
+  fetchSkillAnalysisForEvaluation,
+  SkillAnalysisResult
+} from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +23,7 @@ import EvaluationStatsCard from '@/components/evaluations/results/EvaluationStat
 import { calculateGrade } from '@/utils/evaluationUtils';
 import ScoreDistributionChart from '@/components/evaluations/results/ScoreDistributionChart';
 import ItemAnalysis from '@/components/evaluations/results/ItemAnalysis';
+import SkillPerformanceChart from '@/components/evaluations/results/SkillPerformanceChart';
 
 const EvaluationResultsPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -19,6 +31,7 @@ const EvaluationResultsPage = () => {
   const [results, setResults] = useState<EvaluationResultSummary[]>([]);
   const [stats, setStats] = useState<EvaluationStatistics | null>(null);
   const [itemAnalysis, setItemAnalysis] = useState<ItemAnalysisResult[]>([]);
+  const [skillAnalysis, setSkillAnalysis] = useState<SkillAnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,12 +41,14 @@ const EvaluationResultsPage = () => {
         fetchEvaluationDetails(evaluationId),
         fetchEvaluationResultsSummary(evaluationId),
         fetchEvaluationStatistics(evaluationId),
-        fetchItemAnalysis(evaluationId)
-      ]).then(([evalData, resultsData, statsData, analysisData]) => {
+        fetchItemAnalysis(evaluationId),
+        fetchSkillAnalysisForEvaluation(evaluationId)
+      ]).then(([evalData, resultsData, statsData, analysisData, skillData]) => {
         setEvaluation(evalData);
         setResults(resultsData);
         setStats(statsData);
         setItemAnalysis(analysisData);
+        setSkillAnalysis(skillData);
       }).catch(err => {
         showError(`Error al cargar los resultados: ${err.message}`);
       }).finally(() => {
@@ -75,6 +90,8 @@ const EvaluationResultsPage = () => {
       {stats && <EvaluationStatsCard stats={stats} />}
       
       {stats && stats.score_distribution.length > 0 && <ScoreDistributionChart stats={stats} />}
+
+      {skillAnalysis.length > 0 && <SkillPerformanceChart analysis={skillAnalysis} />}
 
       {itemAnalysis.length > 0 && <ItemAnalysis analysis={itemAnalysis} />}
 

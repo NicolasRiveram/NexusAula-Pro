@@ -113,6 +113,13 @@ export interface ItemAnalysisResult {
   correct_percentage: number;
 }
 
+export interface SkillAnalysisResult {
+  habilidad: string;
+  correct_answers: number;
+  total_answers: number;
+  achievement_percentage: number;
+}
+
 export interface StudentAnswer {
   itemId: string;
   selectedAlternativeId: string;
@@ -229,6 +236,16 @@ export const fetchItemAnalysis = async (evaluationId: string): Promise<ItemAnaly
   return data || [];
 };
 
+export const fetchSkillAnalysisForEvaluation = async (evaluationId: string): Promise<SkillAnalysisResult[]> => {
+  const { data, error } = await supabase.rpc('get_skill_analysis_for_evaluation', {
+    p_evaluation_id: evaluationId,
+  });
+
+  if (error) {
+    throw new Error(`Error fetching skill analysis: ${error.message}`);
+  }
+  return data || [];
+};
 
 export const fetchEvaluations = async (docenteId: string, establecimientoId: string): Promise<Evaluation[]> => {
   if (!establecimientoId) return [];
