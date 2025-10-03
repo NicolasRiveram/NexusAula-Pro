@@ -7,6 +7,13 @@ interface SkillPerformanceChartProps {
   analysis: SkillAnalysisResult[];
 }
 
+const COLORS = {
+  SUPPORT: 'hsl(var(--destructive))', // Red
+  ACCEPTABLE: '#F59E0B', // Amber 500
+  GOOD: '#10B981', // Emerald 500
+  NO_DATA: 'hsl(var(--muted))', // Grey
+};
+
 const SkillPerformanceChart: React.FC<SkillPerformanceChartProps> = ({ analysis }) => {
   const chartData = analysis.map(item => ({
     name: item.habilidad.substring(0, 15) + (item.habilidad.length > 15 ? '...' : ''),
@@ -14,11 +21,23 @@ const SkillPerformanceChart: React.FC<SkillPerformanceChartProps> = ({ analysis 
     hasData: item.total_answers > 0,
   }));
 
+  const getColor = (value: number, hasData: boolean) => {
+    if (!hasData) return COLORS.NO_DATA;
+    if (value < 60) return COLORS.SUPPORT;
+    if (value < 80) return COLORS.ACCEPTABLE;
+    return COLORS.GOOD;
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Rendimiento por Habilidad</CardTitle>
-        <CardDescription>Porcentaje de logro promedio para cada habilidad evaluada. Las barras grises indican habilidades sin respuestas aún.</CardDescription>
+        <CardDescription>
+          Porcentaje de logro promedio. 
+          <span className="inline-flex items-center ml-2"><span className="w-3 h-3 rounded-full mr-1" style={{ backgroundColor: COLORS.SUPPORT }}></span>Requiere Apoyo (&lt;60%)</span>
+          <span className="inline-flex items-center ml-2"><span className="w-3 h-3 rounded-full mr-1" style={{ backgroundColor: COLORS.ACCEPTABLE }}></span>Aceptable</span>
+          <span className="inline-flex items-center ml-2"><span className="w-3 h-3 rounded-full mr-1" style={{ backgroundColor: COLORS.GOOD }}></span>Bueno</span>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
@@ -37,10 +56,9 @@ const SkillPerformanceChart: React.FC<SkillPerformanceChartProps> = ({ analysis 
                 return [`${(value as number).toFixed(1)}%`, 'Logro'];
               }}
             />
-            <Legend />
             <Bar dataKey="Logro" radius={[4, 4, 0, 0]}>
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.hasData ? 'hsl(var(--primary))' : 'hsl(var(--muted))'} />
+                <Cell key={`cell-${index}`} fill={getColor(entry.Logro, entry.hasData)} />
               ))}
             </Bar>
           </BarChart>
