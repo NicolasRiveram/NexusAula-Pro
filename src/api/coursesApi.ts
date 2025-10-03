@@ -262,11 +262,15 @@ export const crearCurso = async (
 };
 
 export const inscribirYCrearEstudiantes = async (cursoId: string, estudiantesData: any[]) => {
-  const { data, error } = await supabase.rpc('inscribir_y_crear_estudiantes', {
-    p_curso_id: cursoId,
-    p_estudiantes_data: estudiantesData,
+  const { data, error } = await supabase.functions.invoke('enroll-students', {
+    body: {
+      cursoId: cursoId,
+      estudiantesData: estudiantesData,
+    },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(`Error al invocar la función: ${error.message}`);
+  }
   return data;
 };
 
