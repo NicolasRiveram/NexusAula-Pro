@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from '@/components/ui/checkbox';
+import PrintEvaluationDialog, { PrintFormData } from '@/components/evaluations/printable/PrintEvaluationDialog';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -49,11 +50,10 @@ const EvaluationPage = () => {
 
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [evaluationToPrint, setEvaluationToPrint] = useState<string | null>(null);
-  const [fontSize, setFontSize] = useState<'text-sm' | 'text-base' | 'text-lg'>('text-base');
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
   const [evaluationForAnswerSheet, setEvaluationForAnswerSheet] = useState<string | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
 
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [evaluationToDelete, setEvaluationToDelete] = useState<Evaluation | null>(null);
@@ -101,9 +101,10 @@ const EvaluationPage = () => {
     setPrintModalOpen(true);
   };
 
-  const handleConfirmPrint = async () => {
+  const handleConfirmPrint = async (formData: PrintFormData) => {
     if (!evaluationToPrint || !activeEstablishment) return;
 
+    setIsPrinting(true);
     const toastId = showLoading("Preparando evaluación para imprimir...");
     try {
       const evaluationDetails = await fetchEvaluationDetails(evaluationToPrint);
@@ -112,6 +113,7 @@ const EvaluationPage = () => {
         showError("Falta el resumen 'Aspectos a Evaluar'. Por favor, edita y finaliza la evaluación para generarlo.");
         dismissToast(toastId);
         setPrintModalOpen(false);
+        setIsPrinting(false);
         return;
       }
 
@@ -143,14 +145,37 @@ const EvaluationPage = () => {
       };
       const formattedTeacherName = formatTeacherNameForPrint(teacherName);
       
+      const printableComponents: React.ReactElement[] = [];
+
+      for (let i = 0; i < formData.rows; i++) {
+        const rowLabel = String.fromCharCode(65 + i);
+        const evaluationCopy = JSON.parse(JSON.stringify(evaluationDetails)); // Deep copy
+
+        if (evaluationCopy.randomizar_alternativas) {
+          evaluationCopy.evaluation_content_blocks.forEach((block: any) => {
+            block.evaluacion_items.forEach((item: any) => {
+              if (item.tipo_item === 'seleccion_multiple' && item.item_alternativas) {
+                item.item_alternativas = seededShuffle(item.item_alternativas, `${formData.seed}-${rowLabel}-${item.id}`);
+              }
+            });
+          });
+        }
+
+        printableComponents.push(
+          <PrintableEvaluation 
+            key={rowLabel}
+            evaluation={evaluationCopy} 
+            establishment={activeEstablishment}
+            fontSize={formData.fontSize}
+            teacherName={formattedTeacherName}
+            totalScore={totalScore}
+            rowLabel={formData.rows > 1 ? rowLabel : undefined}
+          />
+        );
+      }
+
       printComponent(
-        <PrintableEvaluation 
-          evaluation={evaluationDetails} 
-          establishment={activeEstablishment}
-          fontSize={fontSize}
-          teacherName={formattedTeacherName}
-          totalScore={totalScore}
-        />,
+        <div>{printableComponents}</div>,
         `Evaluación: ${evaluationDetails.titulo}`
       );
 
@@ -159,6 +184,7 @@ const EvaluationPage = () => {
       dismissToast(toastId);
       showError(`Error al preparar la impresión: ${error.message}`);
     } finally {
+      setIsPrinting(false);
       setPrintModalOpen(false);
       setEvaluationToPrint(null);
     }
@@ -504,33 +530,12 @@ const EvaluationPage = () => {
         </div>
       ) : isStudent ? renderStudentView() : renderTeacherView()}
 
-      <Dialog open={isPrintModalOpen} onOpenChange={setPrintModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Configurar Impresión</DialogTitle>
-            <DialogDescription>
-              Selecciona el tamaño de la letra para la evaluación. Un tamaño más pequeño puede ahorrar páginas.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="font-size">Tamaño de la letra</Label>
-            <Select value={fontSize} onValueChange={(value) => setFontSize(value as any)}>
-              <SelectTrigger id="font-size">
-                <SelectValue placeholder="Selecciona un tamaño" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="text-sm">Pequeño</SelectItem>
-                <SelectItem value="text-base">Normal</SelectItem>
-                <SelectItem value="text-lg">Grande</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPrintModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleConfirmPrint}>Imprimir</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PrintEvaluationDialog
+        isOpen={isPrintModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        onConfirm={handleConfirmPrint}
+        isPrinting={isPrinting}
+      />
 
       <PrintAnswerSheetDialog
         isOpen={isAnswerSheetModalOpen}
