@@ -3,13 +3,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2, Edit, PlusCircle, Upload, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Edit, PlusCircle, Loader2, Save } from 'lucide-react';
 import { 
   fetchAllNiveles, deleteNivel, Nivel, 
   fetchAllAsignaturas, deleteAsignatura, Asignatura,
   fetchAllEjes, deleteEje, Eje,
   fetchAllHabilidades, deleteHabilidad, Habilidad,
-  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje
+  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje,
+  bulkInsertObjectives
 } from '@/api/superAdminApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import NivelEditDialog from './NivelEditDialog';
@@ -20,9 +21,7 @@ import ObjetivoAprendizajeEditDialog from './ObjetivoAprendizajeEditDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
-import CurriculumUploadStatus from './CurriculumUploadStatus';
+import { Textarea } from '@/components/ui/textarea';
 
 const CurriculumManagement = () => {
   const [niveles, setNiveles] = useState<Nivel[]>([]);
@@ -31,11 +30,13 @@ const CurriculumManagement = () => {
   const [habilidades, setHabilidades] = useState<Habilidad[]>([]);
   const [oas, setOas] = useState<ObjetivoAprendizaje[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
 
-  const [selectedPdfNivel, setSelectedPdfNivel] = useState('');
-  const [selectedPdfAsignatura, setSelectedPdfAsignatura] = useState('');
-  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
+  const [selectedBulkNivel, setSelectedBulkNivel] = useState('');
+  const [selectedBulkAsignatura, setSelectedBulkAsignatura] = useState('');
+  const [selectedBulkEje, setSelectedBulkEje] = useState('');
+  const [bulkText, setBulkText] = useState('');
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
+  const [filteredBulkEjes, setFilteredBulkEjes] = useState<Eje[]>([]);
 
   const [isNivelDialogOpen, setNivelDialogOpen] = useState(false);
   const [selectedNivel, setSelectedNivel] = useState<Nivel | null>(null);
@@ -78,70 +79,33 @@ const CurriculumManagement = () => {
     loadData();
   }, []);
 
-  const handlePdfUpload = async () => {
-    if (!selectedPdfNivel || !selectedPdfAsignatura || !selectedPdfFile) {
-      showError("Por favor, selecciona un nivel, una asignatura y un archivo PDF.");
+  useEffect(() => {
+    if (selectedBulkAsignatura) {
+      setFilteredBulkEjes(ejes.filter(eje => eje.asignatura_id === selectedBulkAsignatura));
+      setSelectedBulkEje('');
+    } else {
+      setFilteredBulkEjes([]);
+    }
+  }, [selectedBulkAsignatura, ejes]);
+
+  const handleBulkSave = async () => {
+    if (!selectedBulkNivel || !selectedBulkAsignatura || !selectedBulkEje || !bulkText) {
+      showError("Por favor, completa todos los campos: Nivel, Asignatura, Eje y pega los objetivos.");
       return;
     }
-    setIsUploading(true);
-    const toastId = showLoading("Iniciando carga...");
-
+    setIsBulkSaving(true);
+    const toastId = showLoading("Procesando y guardando objetivos...");
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado.");
-
-      const { data: jobData, error: jobError } = await supabase
-        .from('curriculum_upload_jobs')
-        .insert({
-          file_name: selectedPdfFile.name,
-          nivel_id: selectedPdfNivel,
-          asignatura_id: selectedPdfAsignatura,
-          uploaded_by: user.id,
-          status: 'processing',
-          file_path: 'pending',
-        })
-        .select('id')
-        .single();
-      
-      if (jobError) throw new Error(`Error al crear el registro de trabajo: ${jobError.message}`);
-      const jobId = jobData.id;
-
-      const fileExtension = selectedPdfFile.name.split('.').pop();
-      const fileName = `${jobId}.${fileExtension}`;
-      const filePath = `uploads/${fileName}`;
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('curriculum-pdfs')
-        .upload(filePath, selectedPdfFile);
-
-      if (uploadError) {
-        throw new Error(`Error al subir el PDF: ${uploadError.message}`);
-      }
-
-      const { error: updateJobError } = await supabase
-        .from('curriculum_upload_jobs')
-        .update({ file_path: uploadData.path })
-        .eq('id', jobId);
-      
-      if (updateJobError) throw new Error(`Error al actualizar el registro de trabajo: ${updateJobError.message}`);
-
-      supabase.functions.invoke('process-curriculum-pdf', {
-        body: { jobId },
-      }).then(({ error: functionError }) => {
-        if (functionError) {
-          console.error('Error invoking function:', functionError);
-        }
-      });
-
+      const result = await bulkInsertObjectives(selectedBulkNivel, selectedBulkAsignatura, selectedBulkEje, bulkText);
       dismissToast(toastId);
-      showSuccess("Archivo subido. El procesamiento ha comenzado. Revisa el historial de cargas para ver el estado.");
-      setSelectedPdfFile(null);
-
+      showSuccess(result.message);
+      setBulkText('');
+      loadData();
     } catch (error: any) {
       dismissToast(toastId);
-      showError(`Error al subir el archivo: ${error.message}`);
+      showError(error.message);
     } finally {
-      setIsUploading(false);
+      setIsBulkSaving(false);
     }
   };
 
@@ -167,42 +131,52 @@ const CurriculumManagement = () => {
     <>
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Carga Masiva con IA desde PDF</CardTitle>
+          <CardTitle>Carga Rápida de Objetivos por Texto</CardTitle>
           <CardDescription>
-            Sube el documento curricular (plan y programa) en formato PDF para un nivel y asignatura específicos. La IA extraerá y poblará automáticamente los ejes, habilidades y objetivos de aprendizaje.
+            Pega una lista de objetivos de aprendizaje en formato "CÓDIGO: Descripción" para guardarlos en lote.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label>Nivel Educativo</Label>
-              <Select value={selectedPdfNivel} onValueChange={setSelectedPdfNivel}>
+              <Select value={selectedBulkNivel} onValueChange={setSelectedBulkNivel}>
                 <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
                 <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Asignatura</Label>
-              <Select value={selectedPdfAsignatura} onValueChange={setSelectedPdfAsignatura}>
+              <Select value={selectedBulkAsignatura} onValueChange={setSelectedBulkAsignatura}>
                 <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
                 <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Archivo PDF</Label>
-              <Input type="file" accept=".pdf" onChange={(e) => e.target.files && setSelectedPdfFile(e.target.files[0])} />
+              <Label>Eje Temático</Label>
+              <Select value={selectedBulkEje} onValueChange={setSelectedBulkEje} disabled={!selectedBulkAsignatura}>
+                <SelectTrigger><SelectValue placeholder="Selecciona un eje" /></SelectTrigger>
+                <SelectContent>{filteredBulkEjes.map(e => <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
           </div>
+          <div>
+            <Label>Lista de Objetivos de Aprendizaje</Label>
+            <Textarea
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              placeholder="Pega aquí los objetivos, uno por línea. Ejemplo:&#10;OA 1: Leer y familiarizarse...&#10;OA 2: Comprender textos..."
+              rows={10}
+            />
+          </div>
           <div className="flex justify-end">
-            <Button onClick={handlePdfUpload} disabled={isUploading}>
-              {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-              {isUploading ? 'Procesando...' : 'Subir y Procesar'}
+            <Button onClick={handleBulkSave} disabled={isBulkSaving}>
+              {isBulkSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {isBulkSaving ? 'Guardando...' : 'Guardar Objetivos'}
             </Button>
           </div>
         </CardContent>
       </Card>
-
-      <CurriculumUploadStatus />
 
       <Accordion type="single" collapsible className="w-full mt-6" defaultValue="niveles">
         {/* NIVELES */}

@@ -72,6 +72,14 @@ export interface GlobalUser {
   }[];
 }
 
+export const bulkInsertObjectives = async (nivelId: string, asignaturaId: string, ejeId: string, text: string) => {
+  const { data, error } = await supabase.functions.invoke('bulk-insert-objectives', {
+    body: { nivelId, asignaturaId, ejeId, text },
+  });
+  if (error) throw new Error(error.message);
+  return data;
+};
+
 export const fetchAllUsers = async (): Promise<GlobalUser[]> => {
   const { data, error } = await supabase
     .from('perfiles')
