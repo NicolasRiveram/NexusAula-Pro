@@ -2,9 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as pdfjs from "https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.mjs";
 
-// This is required for pdfjs to work in Deno/server-side environments
-pdfjs.GlobalWorkerOptions.workerSrc = "https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.worker.mjs";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -22,7 +19,10 @@ function cleanAndParseJson(text: string): any {
 }
 
 async function extractTextFromPdf(pdfBuffer: ArrayBuffer): Promise<string> {
-  const doc = await pdfjs.getDocument(pdfBuffer).promise;
+  const doc = await pdfjs.getDocument({
+    data: pdfBuffer,
+    disableWorker: true, // This forces single-threaded execution, avoiding the worker issue.
+  }).promise;
   let text = '';
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
