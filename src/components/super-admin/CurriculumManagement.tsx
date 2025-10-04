@@ -64,6 +64,7 @@ const CurriculumManagement = () => {
   const [isOaDialogOpen, setOaDialogOpen] = useState(false);
   const [selectedOa, setSelectedOa] = useState<ObjetivoAprendizaje | null>(null);
 
+  const [ejeAsignaturaFilter, setEjeAsignaturaFilter] = useState<string>('all');
   const [oaNivelFilter, setOaNivelFilter] = useState<string>('all');
   const [oaAsignaturaFilter, setOaAsignaturaFilter] = useState<string>('all');
 
@@ -101,6 +102,13 @@ const CurriculumManagement = () => {
       setFilteredBulkEjes([]);
     }
   }, [selectedBulkAsignatura, ejes]);
+
+  const filteredEjes = useMemo(() => {
+    if (ejeAsignaturaFilter === 'all') {
+      return ejes;
+    }
+    return ejes.filter(eje => eje.asignatura_id === ejeAsignaturaFilter);
+  }, [ejes, ejeAsignaturaFilter]);
 
   const filteredOas = useMemo(() => {
     return oas.filter(oa => {
@@ -290,7 +298,16 @@ const CurriculumManagement = () => {
         <AccordionItem value="ejes">
           <AccordionTrigger className="text-lg font-semibold">Ejes Temáticos</AccordionTrigger>
           <AccordionContent>
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <div className="w-64">
+                <Select value={ejeAsignaturaFilter} onValueChange={setEjeAsignaturaFilter}>
+                  <SelectTrigger><SelectValue placeholder="Filtrar por Asignatura" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las asignaturas</SelectItem>
+                    {asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               {selectedEjes.length > 0 ? (
                 <Button variant="destructive" onClick={() => openBulkDeleteDialog('eje')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedEjes.length})</Button>
               ) : (
@@ -298,8 +315,8 @@ const CurriculumManagement = () => {
               )}
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedEjes.length === ejes.length && ejes.length > 0} onCheckedChange={(checked) => setSelectedEjes(checked ? ejes.map(e => e.id) : [])} /></TableHead><TableHead>Nombre</TableHead><TableHead>Asignatura</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-              <TableBody>{ejes.map(e => (<TableRow key={e.id}><TableCell><Checkbox checked={selectedEjes.includes(e.id)} onCheckedChange={(checked) => setSelectedEjes(prev => checked ? [...prev, e.id] : prev.filter(id => id !== e.id))} /></TableCell><TableCell>{e.nombre}</TableCell><TableCell>{e.asignaturas?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedEje(e); setEjeDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('eje', e)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedEjes.length === filteredEjes.length && filteredEjes.length > 0} onCheckedChange={(checked) => setSelectedEjes(checked ? filteredEjes.map(e => e.id) : [])} /></TableHead><TableHead>Nombre</TableHead><TableHead>Asignatura</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>{filteredEjes.map(e => (<TableRow key={e.id}><TableCell><Checkbox checked={selectedEjes.includes(e.id)} onCheckedChange={(checked) => setSelectedEjes(prev => checked ? [...prev, e.id] : prev.filter(id => id !== e.id))} /></TableCell><TableCell>{e.nombre}</TableCell><TableCell>{e.asignaturas?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedEje(e); setEjeDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('eje', e)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
             </Table>
           </AccordionContent>
         </AccordionItem>
