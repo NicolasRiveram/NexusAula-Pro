@@ -64,7 +64,6 @@ serve(async (req) => {
     }
 
     // --- DATABASE LOGIC ---
-    // Fetch existing OAs for this level/subject to determine which to insert and which to update
     const { data: existingOas, error: fetchError } = await supabaseAdmin
       .from('objetivos_aprendizaje')
       .select('id, codigo')
@@ -82,6 +81,8 @@ serve(async (req) => {
     for (const oa of objectives) {
       const payload = {
         ...oa,
+        nivel_id: nivelId,
+        asignatura_id: asignaturaId,
         eje_id: ejeId,
       };
       const existingId = existingOaMap.get(oa.codigo);
@@ -95,7 +96,6 @@ serve(async (req) => {
     let insertedCount = 0;
     let updatedCount = 0;
 
-    // Perform inserts
     if (oasToInsert.length > 0) {
       const { data, error: insertError } = await supabaseAdmin
         .from('objetivos_aprendizaje')
@@ -107,7 +107,6 @@ serve(async (req) => {
       insertedCount = data.length;
     }
 
-    // Perform updates one by one to be safer
     if (oasToUpdate.length > 0) {
       for (const oaToUpdate of oasToUpdate) {
         const { id, ...updateData } = oaToUpdate;
@@ -117,7 +116,6 @@ serve(async (req) => {
           .eq('id', id);
         if (updateError) {
           console.error(`Failed to update OA with id ${id}:`, updateError);
-          // Continue to next update, but log the error
         } else {
           updatedCount++;
         }
