@@ -9,10 +9,9 @@ import {
   fetchAllAsignaturas, deleteAsignatura, Asignatura,
   fetchAllEjes, deleteEje, Eje,
   fetchAllHabilidades, deleteHabilidad, Habilidad,
-  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje,
-  uploadAndProcessCurriculumPdf
+  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje
 } from '@/api/superAdminApi';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import NivelEditDialog from './NivelEditDialog';
 import AsignaturaEditDialog from './AsignaturaEditDialog';
 import EjeEditDialog from './EjeEditDialog';
@@ -22,6 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import CurriculumUploadStatus from './CurriculumUploadStatus';
 
 const CurriculumManagement = () => {
   const [niveles, setNiveles] = useState<Nivel[]>([]);
@@ -83,12 +84,61 @@ const CurriculumManagement = () => {
       return;
     }
     setIsUploading(true);
+    const toastId = showLoading("Iniciando carga...");
+
     try {
-      await uploadAndProcessCurriculumPdf(selectedPdfFile, selectedPdfNivel, selectedPdfAsignatura);
-      showSuccess("Archivo subido. El procesamiento ha comenzado en segundo plano. Los datos aparecerán en las tablas de abajo en unos minutos.");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuario no autenticado.");
+
+      const { data: jobData, error: jobError } = await supabase
+        .from('curriculum_upload_jobs')
+        .insert({
+          file_name: selectedPdfFile.name,
+          nivel_id: selectedPdfNivel,
+          asignatura_id: selectedPdfAsignatura,
+          uploaded_by: user.id,
+          status: 'processing',
+          file_path: 'pending',
+        })
+        .select('id')
+        .single();
+      
+      if (jobError) throw new Error(`Error al crear el registro de trabajo: ${jobError.message}`);
+      const jobId = jobData.id;
+
+      const fileExtension = selectedPdfFile.name.split('.').pop();
+      const fileName = `${jobId}.${fileExtension}`;
+      const filePath = `uploads/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('curriculum-pdfs')
+        .upload(filePath, selectedPdfFile);
+
+      if (uploadError) {
+        throw new Error(`Error al subir el PDF: ${uploadError.message}`);
+      }
+
+      const { error: updateJobError } = await supabase
+        .from('curriculum_upload_jobs')
+        .update({ file_path: uploadData.path })
+        .eq('id', jobId);
+      
+      if (updateJobError) throw new Error(`Error al actualizar el registro de trabajo: ${updateJobError.message}`);
+
+      supabase.functions.invoke('process-curriculum-pdf', {
+        body: { jobId },
+      }).then(({ error: functionError }) => {
+        if (functionError) {
+          console.error('Error invoking function:', functionError);
+        }
+      });
+
+      dismissToast(toastId);
+      showSuccess("Archivo subido. El procesamiento ha comenzado. Revisa el historial de cargas para ver el estado.");
       setSelectedPdfFile(null);
-      // Optionally clear selects or keep them for next upload
+
     } catch (error: any) {
+      dismissToast(toastId);
       showError(`Error al subir el archivo: ${error.message}`);
     } finally {
       setIsUploading(false);
@@ -152,7 +202,9 @@ const CurriculumManagement = () => {
         </CardContent>
       </Card>
 
-      <Accordion type="single" collapsible className="w-full" defaultValue="niveles">
+      <CurriculumUploadStatus />
+
+      <Accordion type="single" collapsible className="w-full mt-6" defaultValue="niveles">
         {/* NIVELES */}
         <AccordionItem value="niveles">
           <AccordionTrigger className="text-lg font-semibold">Niveles Educativos</AccordionTrigger>

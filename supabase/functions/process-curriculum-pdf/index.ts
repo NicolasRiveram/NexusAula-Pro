@@ -37,29 +37,44 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const { jobId } = await req.json();
+  if (!jobId) {
+    return new Response(JSON.stringify({ error: "jobId is required." }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    });
+  }
+
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
   try {
-    const { filePath, nivelId, asignaturaId } = await req.json();
-    if (!filePath || !nivelId || !asignaturaId) {
-      throw new Error("filePath, nivelId, and asignaturaId are required.");
-    }
+    // 1. Fetch job details
+    const { data: job, error: jobError } = await supabaseAdmin
+      .from('curriculum_upload_jobs')
+      .select('file_path, nivel_id, asignatura_id')
+      .eq('id', jobId)
+      .single();
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    if (jobError) throw new Error(`Error fetching job details: ${jobError.message}`);
+    if (!job) throw new Error(`Job with ID ${jobId} not found.`);
 
-    // 1. Download PDF from Storage
+    const { file_path: filePath, nivel_id: nivelId, asignatura_id: asignaturaId } = job;
+
+    // 2. Download PDF from Storage
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
       .from('curriculum-pdfs')
       .download(filePath);
     if (downloadError) throw new Error(`Error downloading PDF: ${downloadError.message}`);
     const pdfBuffer = await fileData.arrayBuffer();
 
-    // 2. Extract text from PDF
+    // 3. Extract text from PDF
     const extractedText = await extractTextFromPdf(pdfBuffer);
 
-    // 3. Call Gemini API
+    // 4. Call Gemini API
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -113,7 +128,7 @@ serve(async (req) => {
     const aiText = data.candidates[0].content.parts[0].text;
     const curriculumData = cleanAndParseJson(aiText);
 
-    // 4. Upsert data into the database
+    // 5. Upsert data into the database
     const ejeUpserts = (curriculumData.ejes || []).map((nombre: string) => ({ nombre, asignatura_id: asignaturaId }));
     const { data: ejesData, error: ejesError } = await supabaseAdmin.from('ejes').upsert(ejeUpserts, { onConflict: 'nombre, asignatura_id' }).select();
     if (ejesError) throw new Error(`Error upserting ejes: ${ejesError.message}`);
@@ -129,12 +144,15 @@ serve(async (req) => {
       nivel_id: nivelId,
       asignatura_id: asignaturaId,
       eje_id: ejeMap.get(oa.eje),
-    })).filter(oa => oa.eje_id); // Filter out OAs where the eje wasn't found/created
+    })).filter((oa: any) => oa.eje_id);
 
     if (oaInserts.length > 0) {
       const { error: oasError } = await supabaseAdmin.from('objetivos_aprendizaje').upsert(oaInserts, { onConflict: 'codigo, nivel_id, asignatura_id' });
       if (oasError) throw new Error(`Error upserting OAs: ${oasError.message}`);
     }
+
+    // 6. Update job status to 'completed'
+    await supabaseAdmin.from('curriculum_upload_jobs').update({ status: 'completed' }).eq('id', jobId);
 
     return new Response(JSON.stringify({ message: "Curriculum processed successfully." }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -143,6 +161,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in process-curriculum-pdf:", error);
+    // Update job status to 'failed'
+    await supabaseAdmin.from('curriculum_upload_jobs').update({ status: 'failed', error_message: error.message }).eq('id', jobId);
+    
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
