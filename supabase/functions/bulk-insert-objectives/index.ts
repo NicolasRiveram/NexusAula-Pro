@@ -24,7 +24,7 @@ serve(async (req) => {
     }
 
     const lines = text.trim().split('\n').filter((line: string) => line.trim() !== '');
-    const objectivesFromText = [];
+    const objectivesMap = new Map<string, any>();
 
     for (const line of lines) {
       const match = line.match(/^([^:]+):\s*(.*)$/);
@@ -32,7 +32,8 @@ serve(async (req) => {
         const codigo = match[1].trim();
         const descripcion = match[2].trim();
         if (codigo && descripcion) {
-          objectivesFromText.push({
+          // Use a map to handle duplicates in the input text, keeping the last one.
+          objectivesMap.set(codigo, {
             codigo,
             descripcion,
             nivel_id: nivelId,
@@ -42,6 +43,8 @@ serve(async (req) => {
         }
       }
     }
+
+    const objectivesFromText = Array.from(objectivesMap.values());
 
     if (objectivesFromText.length === 0) {
       throw new Error("No se encontraron objetivos válidos en el formato 'CODIGO: Descripción'.");
@@ -86,16 +89,21 @@ serve(async (req) => {
       insertedCount = data.length;
     }
 
-    // Perform updates (using upsert with primary key)
+    // Perform updates
     if (oasToUpdate.length > 0) {
-      const { data, error: updateError } = await supabaseAdmin
-        .from('objetivos_aprendizaje')
-        .upsert(oasToUpdate)
-        .select();
-      if (updateError) {
-        throw new Error(`Error updating existing objectives: ${updateError.message}`);
+      for (const oaToUpdate of oasToUpdate) {
+        const { id, ...updateData } = oaToUpdate;
+        const { error: updateError } = await supabaseAdmin
+          .from('objetivos_aprendizaje')
+          .update(updateData)
+          .eq('id', id);
+        if (updateError) {
+          console.error(`Failed to update OA with id ${id}:`, updateError);
+          // Continue to next update, but log the error
+        } else {
+          updatedCount++;
+        }
       }
-      updatedCount = data.length;
     }
 
     const message = `Proceso completado. ${insertedCount} objetivos creados, ${updatedCount} objetivos actualizados.`;
