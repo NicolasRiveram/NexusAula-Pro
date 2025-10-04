@@ -784,11 +784,13 @@ export const savePIEAdaptation = async (parentItemId: string, adaptationData: an
     }
 };
 
-export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; alternativas: any[] }) => {
+export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; habilidad_evaluada: string; nivel_comprension: string; alternativas: any[] }) => {
     const { error } = await supabase.rpc('actualizar_pregunta_y_alternativas', {
         p_item_id: itemId,
         p_enunciado: data.enunciado,
         p_puntaje: data.puntaje,
+        p_habilidad_evaluada: data.habilidad_evaluada,
+        p_nivel_comprension: data.nivel_comprension,
         p_alternativas: data.alternativas,
     });
     if (error) throw new Error(`Error al actualizar la pregunta: ${error.message}`);
