@@ -23,6 +23,7 @@ serve(async (req) => {
       throw new Error("nivelId, asignaturaId, ejeId, y text son requeridos.");
     }
 
+    // --- PARSING LOGIC ---
     const lines = text.trim().split('\n');
     const objectives = [];
     let currentObjective: { codigo: string; descripcion: string } | null = null;
@@ -31,18 +32,21 @@ serve(async (req) => {
       const trimmedLine = line.trim();
       if (!trimmedLine) continue;
 
-      // Heuristic to detect a new objective code line
+      // Heuristic to detect a new objective code line (e.g., "OA 1", "Objetivo 3")
       const isCodeLine = /^(OA|OI|AE|Objetivo)[\s-]?\d+/.test(trimmedLine) && trimmedLine.length < 20;
 
       if (isCodeLine) {
+        // If we were building a previous objective, save it before starting a new one.
         if (currentObjective && currentObjective.descripcion) {
           objectives.push(currentObjective);
         }
+        // Start a new objective.
         currentObjective = {
           codigo: trimmedLine.replace(/:$/, '').trim(),
           descripcion: '',
         };
       } else {
+        // If it's not a code line, it's part of the description of the current objective.
         if (currentObjective) {
           const descriptionPart = trimmedLine.replace(/^:\s*/, '');
           currentObjective.descripcion += (currentObjective.descripcion ? ' ' : '') + descriptionPart;
@@ -50,6 +54,7 @@ serve(async (req) => {
       }
     }
 
+    // Add the last objective being processed
     if (currentObjective && currentObjective.descripcion) {
       objectives.push(currentObjective);
     }
@@ -58,23 +63,70 @@ serve(async (req) => {
       throw new Error("No se encontraron objetivos válidos. Asegúrate de que cada objetivo tenga un código (ej: OA 1) en una línea y su descripción debajo.");
     }
 
-    const objectivesToUpsert = objectives.map(obj => ({
-      ...obj,
-      nivel_id: nivelId,
-      asignatura_id: asignaturaId,
-      eje_id: ejeId,
-    }));
-
-    const { data, error } = await supabaseAdmin
+    // --- DATABASE LOGIC ---
+    // Fetch existing OAs for this level/subject to determine which to insert and which to update
+    const { data: existingOas, error: fetchError } = await supabaseAdmin
       .from('objetivos_aprendizaje')
-      .upsert(objectivesToUpsert, { onConflict: 'codigo, nivel_id, asignatura_id' })
-      .select();
+      .select('id, codigo')
+      .eq('nivel_id', nivelId)
+      .eq('asignatura_id', asignaturaId);
 
-    if (error) {
-      throw new Error(`Error al guardar los objetivos: ${error.message}`);
+    if (fetchError) {
+      throw new Error(`Error fetching existing objectives: ${fetchError.message}`);
     }
 
-    return new Response(JSON.stringify({ message: `${data.length} objetivos guardados correctamente.` }), {
+    const existingOaMap = new Map(existingOas.map((oa: any) => [oa.codigo, oa.id]));
+    const oasToInsert = [];
+    const oasToUpdate = [];
+
+    for (const oa of objectives) {
+      const payload = {
+        ...oa,
+        eje_id: ejeId,
+      };
+      const existingId = existingOaMap.get(oa.codigo);
+      if (existingId) {
+        oasToUpdate.push({ ...payload, id: existingId });
+      } else {
+        oasToInsert.push(payload);
+      }
+    }
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Perform inserts
+    if (oasToInsert.length > 0) {
+      const { data, error: insertError } = await supabaseAdmin
+        .from('objetivos_aprendizaje')
+        .insert(oasToInsert)
+        .select();
+      if (insertError) {
+        throw new Error(`Error inserting new objectives: ${insertError.message}`);
+      }
+      insertedCount = data.length;
+    }
+
+    // Perform updates one by one to be safer
+    if (oasToUpdate.length > 0) {
+      for (const oaToUpdate of oasToUpdate) {
+        const { id, ...updateData } = oaToUpdate;
+        const { error: updateError } = await supabaseAdmin
+          .from('objetivos_aprendizaje')
+          .update(updateData)
+          .eq('id', id);
+        if (updateError) {
+          console.error(`Failed to update OA with id ${id}:`, updateError);
+          // Continue to next update, but log the error
+        } else {
+          updatedCount++;
+        }
+      }
+    }
+
+    const message = `Proceso completado. ${insertedCount} objetivos creados, ${updatedCount} objetivos actualizados.`;
+
+    return new Response(JSON.stringify({ message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
