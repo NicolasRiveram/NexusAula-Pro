@@ -16,7 +16,7 @@ function Login() {
       className="min-h-screen flex items-center justify-center bg-gray-50 p-4 bg-cover bg-center"
       style={backgroundStyle}
     >
-      <div className="w-full max-w-md rounded-lg shadow-md p-8 bg-white/90 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-lg shadow-md p-8 bg-white/90 backdrop-blur-sm">
         <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Nexusaula</h2>
         <Auth
           supabaseClient={supabase}
