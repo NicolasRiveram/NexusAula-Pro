@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -64,6 +64,9 @@ const CurriculumManagement = () => {
   const [isOaDialogOpen, setOaDialogOpen] = useState(false);
   const [selectedOa, setSelectedOa] = useState<ObjetivoAprendizaje | null>(null);
 
+  const [oaNivelFilter, setOaNivelFilter] = useState<string>('all');
+  const [oaAsignaturaFilter, setOaAsignaturaFilter] = useState<string>('all');
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -98,6 +101,14 @@ const CurriculumManagement = () => {
       setFilteredBulkEjes([]);
     }
   }, [selectedBulkAsignatura, ejes]);
+
+  const filteredOas = useMemo(() => {
+    return oas.filter(oa => {
+        const nivelMatch = oaNivelFilter === 'all' || oa.nivel_id === oaNivelFilter;
+        const asignaturaMatch = oaAsignaturaFilter === 'all' || oa.asignatura_id === oaAsignaturaFilter;
+        return nivelMatch && asignaturaMatch;
+    });
+  }, [oas, oaNivelFilter, oaAsignaturaFilter]);
 
   const handleBulkSave = async () => {
     if (!selectedBulkNivel || !selectedBulkAsignatura || !selectedBulkEje || !bulkText) {
@@ -313,7 +324,17 @@ const CurriculumManagement = () => {
         <AccordionItem value="oas">
           <AccordionTrigger className="text-lg font-semibold">Objetivos de Aprendizaje (OAs)</AccordionTrigger>
           <AccordionContent>
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex gap-2">
+                <Select value={oaNivelFilter} onValueChange={setOaNivelFilter}>
+                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar por Nivel" /></SelectTrigger>
+                  <SelectContent><SelectItem value="all">Todos los niveles</SelectItem>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
+                </Select>
+                <Select value={oaAsignaturaFilter} onValueChange={setOaAsignaturaFilter}>
+                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar por Asignatura" /></SelectTrigger>
+                  <SelectContent><SelectItem value="all">Todas las asignaturas</SelectItem>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
               {selectedOas.length > 0 ? (
                 <Button variant="destructive" onClick={() => openBulkDeleteDialog('oa')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
               ) : (
@@ -321,8 +342,8 @@ const CurriculumManagement = () => {
               )}
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedOas.length === oas.length && oas.length > 0} onCheckedChange={(checked) => setSelectedOas(checked ? oas.map(o => o.id) : [])} /></TableHead><TableHead>Código</TableHead><TableHead>Descripción</TableHead><TableHead>Nivel</TableHead><TableHead>Asignatura</TableHead><TableHead>Eje</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-              <TableBody>{oas.map(oa => (<TableRow key={oa.id}><TableCell><Checkbox checked={selectedOas.includes(oa.id)} onCheckedChange={(checked) => setSelectedOas(prev => checked ? [...prev, oa.id] : prev.filter(id => id !== oa.id))} /></TableCell><TableCell>{oa.codigo}</TableCell><TableCell className="max-w-xs truncate">{oa.descripcion}</TableCell><TableCell>{oa.nivel?.nombre}</TableCell><TableCell>{oa.asignatura?.nombre}</TableCell><TableCell>{oa.eje?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedOa(oa); setOaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('oa', oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedOas.length === filteredOas.length && filteredOas.length > 0} onCheckedChange={(checked) => setSelectedOas(checked ? filteredOas.map(o => o.id) : [])} /></TableHead><TableHead>Código</TableHead><TableHead>Descripción</TableHead><TableHead>Nivel</TableHead><TableHead>Asignatura</TableHead><TableHead>Eje</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>{filteredOas.map(oa => (<TableRow key={oa.id}><TableCell><Checkbox checked={selectedOas.includes(oa.id)} onCheckedChange={(checked) => setSelectedOas(prev => checked ? [...prev, oa.id] : prev.filter(id => id !== oa.id))} /></TableCell><TableCell>{oa.codigo}</TableCell><TableCell className="max-w-xs truncate">{oa.descripcion}</TableCell><TableCell>{oa.nivel?.nombre}</TableCell><TableCell>{oa.asignatura?.nombre}</TableCell><TableCell>{oa.eje?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedOa(oa); setOaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('oa', oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
             </Table>
           </AccordionContent>
         </AccordionItem>
