@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 const evaluationBuilderSchema = step1Schema.extend({
   randomizar_preguntas: z.boolean().default(false),
   randomizar_alternativas: z.boolean().default(false),
+  estandar_esperado: z.string().optional(),
 });
 
 type EvaluationBuilderFormData = z.infer<typeof evaluationBuilderSchema>;
@@ -44,11 +45,14 @@ const EvaluationBuilderPage = () => {
           reset({
             titulo: data.titulo,
             tipo: data.tipo,
+            momento_evaluativo: data.momento_evaluativo,
             descripcion: data.descripcion || '',
             fecha_aplicacion: parseISO(data.fecha_aplicacion),
-            cursoAsignaturaIds: data.curso_asignaturas.map(ca => ca.id),
+            cursoAsignaturaIds: data.evaluacion_curso_asignaturas.map((link: any) => link.curso_asignatura_id),
+            objetivos_aprendizaje_ids: data.evaluacion_objetivos.map(eo => eo.oa_id),
             randomizar_preguntas: data.randomizar_preguntas,
             randomizar_alternativas: data.randomizar_alternativas,
+            estandar_esperado: data.estandar_esperado || '',
           });
         } catch (error: any) {
           showError(`Error al cargar datos para editar: ${error.message}`);
@@ -64,12 +68,14 @@ const EvaluationBuilderPage = () => {
   const handleStep1Submit = async (data: EvaluationStep1Data) => {
     const toastId = showLoading(isEditMode ? "Actualizando evaluación..." : "Creando evaluación...");
     try {
-      const payload: CreateEvaluationData = {
+      const payload: CreateEvaluationData & { objetivos_aprendizaje_ids: string[] } = {
         titulo: data.titulo,
         tipo: data.tipo,
+        momento_evaluativo: data.momento_evaluativo,
         descripcion: data.descripcion,
         fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
         cursoAsignaturaIds: data.cursoAsignaturaIds,
+        objetivos_aprendizaje_ids: data.objetivos_aprendizaje_ids || [],
       };
 
       if (isEditMode && evaluationId) {
@@ -112,11 +118,14 @@ const EvaluationBuilderPage = () => {
       await updateEvaluation(evaluationId, {
         titulo: formData.titulo,
         tipo: formData.tipo,
+        momento_evaluativo: formData.momento_evaluativo,
         descripcion: formData.descripcion,
         fecha_aplicacion: format(formData.fecha_aplicacion, 'yyyy-MM-dd'),
         cursoAsignaturaIds: formData.cursoAsignaturaIds,
         randomizar_preguntas: formData.randomizar_preguntas,
         randomizar_alternativas: formData.randomizar_alternativas,
+        estandar_esperado: formData.estandar_esperado,
+        objetivos_aprendizaje_ids: formData.objetivos_aprendizaje_ids || [],
       });
 
       // 2. Generate and save "Aspectos a Evaluar" if not present

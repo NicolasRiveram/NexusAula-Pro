@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Target } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
@@ -102,6 +102,14 @@ const EvaluationTakerPage = () => {
           <CardTitle className="text-3xl">{evaluation.titulo}</CardTitle>
           <CardDescription>{evaluation.descripcion}</CardDescription>
         </CardHeader>
+        {evaluation.estandar_esperado && (
+          <CardContent>
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+              <h3 className="font-semibold flex items-center text-blue-800 dark:text-blue-300"><Target className="h-5 w-5 mr-2" /> Objetivo de la Evaluación</h3>
+              <p className="text-sm text-blue-700 dark:text-blue-300/90 mt-2">{evaluation.estandar_esperado}</p>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
@@ -151,6 +159,3 @@ const EvaluationTakerPage = () => {
       </form>
     </div>
   );
-};
-
-export default EvaluationTakerPage;

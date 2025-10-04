@@ -1,10 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
+export interface ObjetivoAprendizaje {
+  id: string;
+  codigo: string;
+  descripcion: string;
+}
+
 export interface Evaluation {
   id: string;
   titulo: string;
   tipo: string;
+  momento_evaluativo: string;
   fecha_aplicacion: string;
   randomizar_preguntas: boolean;
   randomizar_alternativas: boolean;
@@ -68,11 +75,13 @@ export interface EvaluationItem {
 export interface EvaluationDetail extends Evaluation {
   descripcion: string;
   puntaje_maximo: number | null;
+  estandar_esperado: string | null;
   aspectos_a_evaluar_ia: string | null;
   creado_por: string;
   evaluation_content_blocks: (EvaluationContentBlock & {
     evaluacion_items: EvaluationItem[];
   })[];
+  evaluacion_objetivos: { oa_id: string }[];
 }
 
 export interface EvaluationResultSummary {
@@ -139,6 +148,22 @@ export interface Skill {
   id: string;
   nombre: string;
 }
+
+export const fetchObjetivosAprendizaje = async (nivelIds: string[], asignaturaIds: string[]): Promise<ObjetivoAprendizaje[]> => {
+  if (nivelIds.length === 0 || asignaturaIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('objetivos_aprendizaje')
+    .select('id, codigo, descripcion')
+    .in('nivel_id', nivelIds)
+    .in('asignatura_id', asignaturaIds)
+    .order('codigo');
+
+  if (error) throw new Error(`Error fetching learning objectives: ${error.message}`);
+  return data;
+};
 
 export const fetchStudentsForEvaluation = async (evaluationId: string): Promise<{ id: string; nombre_completo: string; curso_nombre: string }[]> => {
   const { data: links, error: linkError } = await supabase
@@ -256,6 +281,7 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       id,
       titulo,
       tipo,
+      momento_evaluativo,
       fecha_aplicacion,
       randomizar_preguntas,
       randomizar_alternativas,
@@ -278,6 +304,7 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
     id: e.id,
     titulo: e.titulo,
     tipo: e.tipo,
+    momento_evaluativo: e.momento_evaluativo,
     fecha_aplicacion: e.fecha_aplicacion,
     randomizar_preguntas: e.randomizar_preguntas,
     randomizar_alternativas: e.randomizar_alternativas,
@@ -298,7 +325,7 @@ export const fetchStudentEvaluations = async (studentId: string, establecimiento
   const { data, error } = await supabase
     .from('evaluaciones')
     .select(`
-      id, titulo, tipo, fecha_aplicacion, randomizar_preguntas, randomizar_alternativas,
+      id, titulo, tipo, fecha_aplicacion, randomizar_preguntas, randomizar_alternativas, momento_evaluativo,
       evaluacion_curso_asignaturas!inner(
         curso_asignaturas!inner(
           cursos!inner(
@@ -325,6 +352,7 @@ export const fetchStudentEvaluations = async (studentId: string, establecimiento
       fecha_aplicacion: e.fecha_aplicacion,
       randomizar_preguntas: e.randomizar_preguntas,
       randomizar_alternativas: e.randomizar_alternativas,
+      momento_evaluativo: e.momento_evaluativo,
       status: e.respuestas_estudiante.some((r: any) => r.id) ? 'Completado' : 'Pendiente',
       curso_nombre: `${cursoAsignatura?.cursos?.niveles?.nombre} ${cursoAsignatura?.cursos?.nombre}`,
       asignatura_nombre: cursoAsignatura?.asignaturas?.nombre,
@@ -340,10 +368,12 @@ export interface CreateEvaluationData {
   cursoAsignaturaIds: string[];
   randomizar_preguntas?: boolean;
   randomizar_alternativas?: boolean;
+  momento_evaluativo: string;
+  estandar_esperado?: string;
 }
 
-export const createEvaluation = async (evalData: CreateEvaluationData) => {
-  const { cursoAsignaturaIds, ...rest } = evalData;
+export const createEvaluation = async (evalData: CreateEvaluationData & { objetivos_aprendizaje_ids: string[] }) => {
+  const { cursoAsignaturaIds, objetivos_aprendizaje_ids, ...rest } = evalData;
   const { data, error } = await supabase
     .from('evaluaciones')
     .insert(rest)
@@ -367,11 +397,25 @@ export const createEvaluation = async (evalData: CreateEvaluationData) => {
     throw new Error(`Error al vincular la evaluación a los cursos: ${linkError.message}`);
   }
   
+  if (objetivos_aprendizaje_ids && objetivos_aprendizaje_ids.length > 0) {
+    const oaLinks = objetivos_aprendizaje_ids.map(id => ({
+      evaluacion_id: newEvaluationId,
+      oa_id: id,
+    }));
+    const { error: oaLinkError } = await supabase
+      .from('evaluacion_objetivos')
+      .insert(oaLinks);
+    if (oaLinkError) {
+      await supabase.from('evaluaciones').delete().eq('id', newEvaluationId); // Rollback
+      throw new Error(`Error al vincular los Objetivos de Aprendizaje: ${oaLinkError.message}`);
+    }
+  }
+
   return newEvaluationId;
 };
 
-export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData) => {
-  const { cursoAsignaturaIds, ...updateData } = evalData;
+export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData & { objetivos_aprendizaje_ids: string[] }) => {
+  const { cursoAsignaturaIds, objetivos_aprendizaje_ids, ...updateData } = evalData;
   const { error: updateError } = await supabase
     .from('evaluaciones')
     .update(updateData)
@@ -411,6 +455,39 @@ export const updateEvaluation = async (evaluationId: string, evalData: CreateEva
       .insert(linksToInsert);
     if (insertError) throw new Error(`Error adding new links: ${insertError.message}`);
   }
+
+  // Handle OA links
+  const { data: existingOaLinks, error: fetchOaError } = await supabase
+    .from('evaluacion_objetivos')
+    .select('oa_id')
+    .eq('evaluacion_id', evaluationId);
+  if (fetchOaError) throw new Error(`Error fetching existing OA links: ${fetchOaError.message}`);
+  
+  const existingOaIds = existingOaLinks.map(l => l.oa_id);
+  const newOaIds = objetivos_aprendizaje_ids || [];
+
+  const oaIdsToRemove = existingOaIds.filter(id => !newOaIds.includes(id));
+  const oaIdsToAdd = newOaIds.filter(id => !existingOaIds.includes(id));
+
+  if (oaIdsToRemove.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('evaluacion_objetivos')
+      .delete()
+      .eq('evaluacion_id', evaluationId)
+      .in('oa_id', oaIdsToRemove);
+    if (deleteError) throw new Error(`Error removing old OA links: ${deleteError.message}`);
+  }
+
+  if (oaIdsToAdd.length > 0) {
+    const linksToInsert = oaIdsToAdd.map(id => ({
+      evaluacion_id: evaluationId,
+      oa_id: id,
+    }));
+    const { error: insertError } = await supabase
+      .from('evaluacion_objetivos')
+      .insert(linksToInsert);
+    if (insertError) throw new Error(`Error adding new OA links: ${insertError.message}`);
+  }
 };
 
 export const deleteEvaluation = async (evaluationId: string) => {
@@ -445,9 +522,11 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       descripcion,
       fecha_aplicacion,
       puntaje_maximo,
+      estandar_esperado,
       aspectos_a_evaluar_ia,
       randomizar_preguntas,
       randomizar_alternativas,
+      momento_evaluativo,
       creado_por,
       evaluacion_curso_asignaturas (
         curso_asignatura_id,
@@ -463,7 +542,8 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
           item_alternativas ( * ),
           adaptaciones_pie ( * )
         )
-      )
+      ),
+      evaluacion_objetivos ( oa_id )
     `)
     .eq('id', evaluationId)
     .order('orden', { referencedTable: 'evaluation_content_blocks' })

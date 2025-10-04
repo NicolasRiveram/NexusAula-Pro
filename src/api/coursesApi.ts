@@ -15,12 +15,12 @@ export interface CursoBase {
   id: string;
   nombre: string;
   anio: number;
-  nivel: { nombre: string };
+  nivel: { id: string; nombre: string };
 }
 
 export interface CursoAsignatura {
   id: string;
-  asignatura: { nombre: string };
+  asignatura: { id: string; nombre: string };
   curso: CursoBase;
 }
 
@@ -86,7 +86,7 @@ export const fetchDocenteAsignaturas = async (docenteId: string): Promise<Asigna
 export const fetchCursosPorEstablecimiento = async (establecimientoId: string): Promise<CursoBase[]> => {
     const { data, error } = await supabase
       .from('cursos')
-      .select('id, nombre, anio, niveles(nombre)')
+      .select('id, nombre, anio, niveles(id, nombre)')
       .eq('establecimiento_id', establecimientoId)
       .order('anio', { ascending: false })
       .order('nombre');
@@ -103,8 +103,8 @@ export const fetchCursosAsignaturasDocente = async (docenteId: string, estableci
     .from('curso_asignaturas')
     .select(`
       id,
-      asignaturas (nombre),
-      cursos!inner (id, nombre, anio, niveles (nombre))
+      asignaturas (id, nombre),
+      cursos!inner (id, nombre, anio, niveles (id, nombre))
     `)
     .eq('docente_id', docenteId)
     .eq('cursos.establecimiento_id', establecimientoId);
@@ -116,12 +116,13 @@ export const fetchCursosAsignaturasDocente = async (docenteId: string, estableci
     const asignaturaData = ca.asignaturas as any;
     const cursoData = ca.cursos as any;
 
-    const asignatura = asignaturaData ? { nombre: asignaturaData.nombre } : { nombre: 'Asignatura no asignada' };
+    const asignatura = asignaturaData ? { id: asignaturaData.id, nombre: asignaturaData.nombre } : { id: 'ID-invalido', nombre: 'Asignatura no asignada' };
     const curso = {
       id: cursoData?.id || 'ID-invalido',
       nombre: cursoData?.nombre || 'Curso sin nombre',
       anio: cursoData?.anio || new Date().getFullYear(),
       nivel: {
+        id: (cursoData?.niveles as any)?.id || 'ID-invalido',
         nombre: (cursoData?.niveles as any)?.nombre || 'Nivel no asignado'
       }
     };
@@ -139,8 +140,8 @@ export const fetchDetallesCursoAsignatura = async (cursoAsignaturaId: string) =>
         .from('curso_asignaturas')
         .select(`
             id,
-            asignaturas (nombre),
-            cursos (id, nombre, anio, niveles (nombre))
+            asignaturas (id, nombre),
+            cursos (id, nombre, anio, niveles (id, nombre))
         `)
         .eq('id', cursoAsignaturaId)
         .single();
@@ -155,12 +156,12 @@ export const fetchDetallesCursoAsignatura = async (cursoAsignaturaId: string) =>
 
     return {
         id: data.id,
-        asignatura: { nombre: asignaturaData.nombre },
+        asignatura: { id: asignaturaData.id, nombre: asignaturaData.nombre },
         curso: { 
             id: cursoData.id,
             nombre: cursoData.nombre,
             anio: cursoData.anio,
-            nivel: { nombre: (cursoData.niveles as any).nombre } 
+            nivel: { id: (cursoData.niveles as any).id, nombre: (cursoData.niveles as any).nombre } 
         }
     } as CursoAsignatura;
 };

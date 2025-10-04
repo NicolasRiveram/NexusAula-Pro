@@ -3,6 +3,7 @@ import { Controller, Control } from 'react-hook-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { EvaluationDetail } from '@/api/evaluationsApi';
 
 interface Step3FinalReviewProps {
@@ -35,6 +36,26 @@ const Step3FinalReview: React.FC<Step3FinalReviewProps> = ({ control, evaluation
             <p className="text-sm text-muted-foreground">Puntaje Total</p>
             <p className="font-semibold">{totalPuntaje}</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Estándar de Logro Esperado</CardTitle>
+          <CardDescription>Describe qué se espera de un estudiante para considerar que ha logrado el aprendizaje. Esto será visible para ellos.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Controller
+            name="estandar_esperado"
+            control={control}
+            render={({ field }) => (
+              <Textarea
+                placeholder="Ej: Se espera que el estudiante sea capaz de analizar y comparar las causas de ambos procesos revolucionarios, utilizando evidencia de las fuentes para fundamentar su respuesta de manera coherente."
+                rows={4}
+                {...field}
+              />
+            )}
+          />
         </CardContent>
       </Card>
 

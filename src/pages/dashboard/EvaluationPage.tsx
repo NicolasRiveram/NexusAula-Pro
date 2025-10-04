@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatEvaluationType } from '@/utils/evaluationUtils';
 import { printComponent } from '@/utils/printUtils';
 import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
-import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/PrintAnswerSheetDialog';
+import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/printable/PrintAnswerSheetDialog';
 import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
 import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
 import { seededShuffle } from '@/utils/shuffleUtils';
@@ -421,7 +421,10 @@ const EvaluationPage = () => {
                       </CardHeader>
                       <CardContent className="flex-grow">
                         <div className="space-y-2">
-                          <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
+                          <div className="flex gap-2">
+                            <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
+                            {evaluation.momento_evaluativo && <Badge variant="outline" className="capitalize">{evaluation.momento_evaluativo}</Badge>}
+                          </div>
                           <div className="flex flex-wrap gap-1">
                             {evaluation.curso_asignaturas.map((ca, index) => (
                               <Badge key={index} variant="outline">
