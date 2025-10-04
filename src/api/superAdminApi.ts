@@ -52,11 +52,11 @@ export interface ObjetivoAprendizaje {
   nivel_id: string;
   asignatura_id: string;
   eje_id: string;
-  niveles?: { nombre: string };
-  asignaturas?: { nombre: string };
-  ejes?: { nombre: string };
+  nivel?: { nombre: string };
+  asignatura?: { nombre: string };
+  eje?: { nombre: string };
 }
-export type ObjetivoAprendizajeData = Omit<ObjetivoAprendizaje, 'id' | 'niveles' | 'asignaturas' | 'ejes'>;
+export type ObjetivoAprendizajeData = Omit<ObjetivoAprendizaje, 'id' | 'nivel' | 'asignatura' | 'eje'>;
 
 
 export interface GlobalUser {
@@ -247,7 +247,7 @@ export const deleteHabilidad = async (habilidadId: string) => {
 export const fetchAllObjetivosAprendizaje = async (): Promise<ObjetivoAprendizaje[]> => {
   const { data, error } = await supabase
     .from('objetivos_aprendizaje')
-    .select('*, niveles(nombre), asignaturas(nombre), ejes(nombre)')
+    .select('*, nivel:niveles(nombre), asignatura:asignaturas(nombre), eje:ejes(nombre)')
     .order('codigo');
   if (error) throw new Error(`Error fetching OAs: ${error.message}`);
   return data || [];
