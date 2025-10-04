@@ -159,3 +159,6 @@ const EvaluationTakerPage = () => {
       </form>
     </div>
   );
+};
+
+export default EvaluationTakerPage;
