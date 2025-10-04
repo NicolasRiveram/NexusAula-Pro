@@ -217,11 +217,17 @@ const EvaluationDetailPage = () => {
               </div>
             </div>
           </CardHeader>
-          {evaluation.descripcion && (
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{evaluation.descripcion}</p>
-            </CardContent>
-          )}
+          <CardContent>
+            {evaluation.descripcion && (
+              <p className="text-sm text-muted-foreground mb-4">{evaluation.descripcion}</p>
+            )}
+            {evaluation.aspectos_a_evaluar_ia && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                <h3 className="font-semibold flex items-center text-blue-800 dark:text-blue-300"><BrainCircuit className="h-5 w-5 mr-2" /> Aspectos a Evaluar (IA)</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300/90 mt-2">{evaluation.aspectos_a_evaluar_ia}</p>
+              </div>
+            )}
+          </CardContent>
         </Card>
 
         <Card>
