@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { saveNivel, Nivel } from '@/api/superAdminApi';
+import { saveNivel, Nivel, NivelData } from '@/api/superAdminApi';
 import { showSuccess, showError } from '@/utils/toast';
 
 const schema = z.object({
@@ -40,7 +40,11 @@ const NivelEditDialog: React.FC<NivelEditDialogProps> = ({ isOpen, onClose, onSa
 
   const onSubmit = async (data: FormData) => {
     try {
-      await saveNivel(data, nivel?.id);
+      const nivelData: NivelData = {
+        nombre: data.nombre,
+        orden: data.orden,
+      };
+      await saveNivel(nivelData, nivel?.id);
       showSuccess(`Nivel ${nivel ? 'actualizado' : 'creado'} correctamente.`);
       onSaved();
       onClose();

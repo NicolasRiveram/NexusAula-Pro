@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { saveObjetivoAprendizaje, ObjetivoAprendizaje, Nivel, Asignatura, Eje } from '@/api/superAdminApi';
+import { saveObjetivoAprendizaje, ObjetivoAprendizaje, Nivel, Asignatura, Eje, ObjetivoAprendizajeData } from '@/api/superAdminApi';
 import { showSuccess, showError } from '@/utils/toast';
 
 const schema = z.object({
@@ -65,7 +65,14 @@ const ObjetivoAprendizajeEditDialog: React.FC<ObjetivoAprendizajeEditDialogProps
 
   const onSubmit = async (data: FormData) => {
     try {
-      await saveObjetivoAprendizaje(data, oa?.id);
+      const oaData: ObjetivoAprendizajeData = {
+        codigo: data.codigo,
+        descripcion: data.descripcion,
+        nivel_id: data.nivel_id,
+        asignatura_id: data.asignatura_id,
+        eje_id: data.eje_id,
+      };
+      await saveObjetivoAprendizaje(oaData, oa?.id);
       showSuccess(`OA ${oa ? 'actualizado' : 'creado'} correctamente.`);
       onSaved();
       onClose();
