@@ -3,13 +3,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, Trash2, Edit, PlusCircle, Upload, Loader2 } from 'lucide-react';
 import { 
   fetchAllNiveles, deleteNivel, Nivel, 
   fetchAllAsignaturas, deleteAsignatura, Asignatura,
   fetchAllEjes, deleteEje, Eje,
   fetchAllHabilidades, deleteHabilidad, Habilidad,
-  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje
+  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje,
+  uploadAndProcessCurriculumPdf
 } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import NivelEditDialog from './NivelEditDialog';
@@ -17,6 +18,10 @@ import AsignaturaEditDialog from './AsignaturaEditDialog';
 import EjeEditDialog from './EjeEditDialog';
 import HabilidadEditDialog from './HabilidadEditDialog';
 import ObjetivoAprendizajeEditDialog from './ObjetivoAprendizajeEditDialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 const CurriculumManagement = () => {
   const [niveles, setNiveles] = useState<Nivel[]>([]);
@@ -25,6 +30,11 @@ const CurriculumManagement = () => {
   const [habilidades, setHabilidades] = useState<Habilidad[]>([]);
   const [oas, setOas] = useState<ObjetivoAprendizaje[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const [selectedPdfNivel, setSelectedPdfNivel] = useState('');
+  const [selectedPdfAsignatura, setSelectedPdfAsignatura] = useState('');
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
 
   const [isNivelDialogOpen, setNivelDialogOpen] = useState(false);
   const [selectedNivel, setSelectedNivel] = useState<Nivel | null>(null);
@@ -67,6 +77,24 @@ const CurriculumManagement = () => {
     loadData();
   }, []);
 
+  const handlePdfUpload = async () => {
+    if (!selectedPdfNivel || !selectedPdfAsignatura || !selectedPdfFile) {
+      showError("Por favor, selecciona un nivel, una asignatura y un archivo PDF.");
+      return;
+    }
+    setIsUploading(true);
+    try {
+      await uploadAndProcessCurriculumPdf(selectedPdfFile, selectedPdfNivel, selectedPdfAsignatura);
+      showSuccess("Archivo subido. El procesamiento ha comenzado en segundo plano. Los datos aparecerán en las tablas de abajo en unos minutos.");
+      setSelectedPdfFile(null);
+      // Optionally clear selects or keep them for next upload
+    } catch (error: any) {
+      showError(`Error al subir el archivo: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleDelete = async (type: 'nivel' | 'asignatura' | 'eje' | 'habilidad' | 'oa', item: any) => {
     if (window.confirm(`¿Seguro que quieres eliminar "${item.nombre || item.codigo}"?`)) {
       try {
@@ -87,6 +115,43 @@ const CurriculumManagement = () => {
 
   return (
     <>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Carga Masiva con IA desde PDF</CardTitle>
+          <CardDescription>
+            Sube el documento curricular (plan y programa) en formato PDF para un nivel y asignatura específicos. La IA extraerá y poblará automáticamente los ejes, habilidades y objetivos de aprendizaje.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>Nivel Educativo</Label>
+              <Select value={selectedPdfNivel} onValueChange={setSelectedPdfNivel}>
+                <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Asignatura</Label>
+              <Select value={selectedPdfAsignatura} onValueChange={setSelectedPdfAsignatura}>
+                <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+                <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Archivo PDF</Label>
+              <Input type="file" accept=".pdf" onChange={(e) => e.target.files && setSelectedPdfFile(e.target.files[0])} />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={handlePdfUpload} disabled={isUploading}>
+              {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+              {isUploading ? 'Procesando...' : 'Subir y Procesar'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Accordion type="single" collapsible className="w-full" defaultValue="niveles">
         {/* NIVELES */}
         <AccordionItem value="niveles">

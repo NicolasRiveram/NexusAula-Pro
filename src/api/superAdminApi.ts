@@ -72,6 +72,32 @@ export interface GlobalUser {
   }[];
 }
 
+export const uploadAndProcessCurriculumPdf = async (file: File, nivelId: string, asignaturaId: string) => {
+  const fileExtension = file.name.split('.').pop();
+  const fileName = `${nivelId}_${asignaturaId}_${Date.now()}.${fileExtension}`;
+  const filePath = `uploads/${fileName}`;
+
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('curriculum-pdfs')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    throw new Error(`Error al subir el PDF: ${uploadError.message}`);
+  }
+
+  const { error: functionError } = await supabase.functions.invoke('process-curriculum-pdf', {
+    body: {
+      filePath: uploadData.path,
+      nivelId,
+      asignaturaId,
+    },
+  });
+
+  if (functionError) {
+    throw new Error(`Error al iniciar el procesamiento del PDF: ${functionError.message}`);
+  }
+};
+
 export const fetchAllUsers = async (): Promise<GlobalUser[]> => {
   const { data, error } = await supabase
     .from('perfiles')
