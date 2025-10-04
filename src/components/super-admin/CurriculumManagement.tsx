@@ -5,11 +5,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle, Loader2, Save } from 'lucide-react';
 import { 
-  fetchAllNiveles, deleteNivel, Nivel, 
-  fetchAllAsignaturas, deleteAsignatura, Asignatura,
-  fetchAllEjes, deleteEje, Eje,
-  fetchAllHabilidades, deleteHabilidad, Habilidad,
-  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje,
+  fetchAllNiveles, deleteNivel, Nivel, deleteMultipleNiveles,
+  fetchAllAsignaturas, deleteAsignatura, Asignatura, deleteMultipleAsignaturas,
+  fetchAllEjes, deleteEje, Eje, deleteMultipleEjes,
+  fetchAllHabilidades, deleteHabilidad, Habilidad, deleteMultipleHabilidades,
+  fetchAllObjetivosAprendizaje, deleteObjetivoAprendizaje, ObjetivoAprendizaje, deleteMultipleObjetivosAprendizaje,
   bulkInsertObjectives
 } from '@/api/superAdminApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
@@ -22,6 +22,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const CurriculumManagement = () => {
   const [niveles, setNiveles] = useState<Nivel[]>([]);
@@ -30,6 +32,15 @@ const CurriculumManagement = () => {
   const [habilidades, setHabilidades] = useState<Habilidad[]>([]);
   const [oas, setOas] = useState<ObjetivoAprendizaje[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [selectedNiveles, setSelectedNiveles] = useState<string[]>([]);
+  const [selectedAsignaturas, setSelectedAsignaturas] = useState<string[]>([]);
+  const [selectedEjes, setSelectedEjes] = useState<string[]>([]);
+  const [selectedHabilidades, setSelectedHabilidades] = useState<string[]>([]);
+  const [selectedOas, setSelectedOas] = useState<string[]>([]);
+
+  const [isBulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteConfig, setBulkDeleteConfig] = useState<{ type: string; count: number; onConfirm: () => void } | null>(null);
 
   const [selectedBulkNivel, setSelectedBulkNivel] = useState('');
   const [selectedBulkAsignatura, setSelectedBulkAsignatura] = useState('');
@@ -125,6 +136,57 @@ const CurriculumManagement = () => {
     }
   };
 
+  const handleConfirmBulkDelete = async (
+    type: string,
+    deleteFn: (ids: string[]) => Promise<void>,
+    idsToDelete: string[],
+    clearSelectionFn: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    try {
+      await deleteFn(idsToDelete);
+      showSuccess(`${idsToDelete.length} ${type}(s) eliminados.`);
+      clearSelectionFn([]);
+      loadData();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setBulkDeleteOpen(false);
+    }
+  };
+
+  const openBulkDeleteDialog = (type: 'nivel' | 'asignatura' | 'eje' | 'habilidad' | 'oa') => {
+    let count = 0;
+    let onConfirm: () => void;
+
+    switch (type) {
+      case 'nivel':
+        count = selectedNiveles.length;
+        onConfirm = () => handleConfirmBulkDelete('nivel', deleteMultipleNiveles, selectedNiveles, setSelectedNiveles);
+        break;
+      case 'asignatura':
+        count = selectedAsignaturas.length;
+        onConfirm = () => handleConfirmBulkDelete('asignatura', deleteMultipleAsignaturas, selectedAsignaturas, setSelectedAsignaturas);
+        break;
+      case 'eje':
+        count = selectedEjes.length;
+        onConfirm = () => handleConfirmBulkDelete('eje', deleteMultipleEjes, selectedEjes, setSelectedEjes);
+        break;
+      case 'habilidad':
+        count = selectedHabilidades.length;
+        onConfirm = () => handleConfirmBulkDelete('habilidad', deleteMultipleHabilidades, selectedHabilidades, setSelectedHabilidades);
+        break;
+      case 'oa':
+        count = selectedOas.length;
+        onConfirm = () => handleConfirmBulkDelete('objetivo de aprendizaje', deleteMultipleObjetivosAprendizaje, selectedOas, setSelectedOas);
+        break;
+    }
+
+    if (count > 0) {
+      setBulkDeleteConfig({ type, count, onConfirm });
+      setBulkDeleteOpen(true);
+    }
+  };
+
   if (loading) return <p>Cargando currículum...</p>;
 
   return (
@@ -184,11 +246,15 @@ const CurriculumManagement = () => {
           <AccordionTrigger className="text-lg font-semibold">Niveles Educativos</AccordionTrigger>
           <AccordionContent>
             <div className="flex justify-end mb-4">
-              <Button onClick={() => { setSelectedNivel(null); setNivelDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Nivel</Button>
+              {selectedNiveles.length > 0 ? (
+                <Button variant="destructive" onClick={() => openBulkDeleteDialog('nivel')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedNiveles.length})</Button>
+              ) : (
+                <Button onClick={() => { setSelectedNivel(null); setNivelDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Nivel</Button>
+              )}
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Orden</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-              <TableBody>{niveles.map(n => (<TableRow key={n.id}><TableCell>{n.nombre}</TableCell><TableCell>{n.orden}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedNivel(n); setNivelDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('nivel', n)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedNiveles.length === niveles.length && niveles.length > 0} onCheckedChange={(checked) => setSelectedNiveles(checked ? niveles.map(n => n.id) : [])} /></TableHead><TableHead>Nombre</TableHead><TableHead>Orden</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>{niveles.map(n => (<TableRow key={n.id}><TableCell><Checkbox checked={selectedNiveles.includes(n.id)} onCheckedChange={(checked) => setSelectedNiveles(prev => checked ? [...prev, n.id] : prev.filter(id => id !== n.id))} /></TableCell><TableCell>{n.nombre}</TableCell><TableCell>{n.orden}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedNivel(n); setNivelDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('nivel', n)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
             </Table>
           </AccordionContent>
         </AccordionItem>
@@ -197,11 +263,15 @@ const CurriculumManagement = () => {
           <AccordionTrigger className="text-lg font-semibold">Asignaturas</AccordionTrigger>
           <AccordionContent>
             <div className="flex justify-end mb-4">
-              <Button onClick={() => { setSelectedAsignatura(null); setAsignaturaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Asignatura</Button>
+              {selectedAsignaturas.length > 0 ? (
+                <Button variant="destructive" onClick={() => openBulkDeleteDialog('asignatura')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedAsignaturas.length})</Button>
+              ) : (
+                <Button onClick={() => { setSelectedAsignatura(null); setAsignaturaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Asignatura</Button>
+              )}
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Descripción</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-              <TableBody>{asignaturas.map(a => (<TableRow key={a.id}><TableCell>{a.nombre}</TableCell><TableCell className="max-w-xs truncate">{a.descripcion}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedAsignatura(a); setAsignaturaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('asignatura', a)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedAsignaturas.length === asignaturas.length && asignaturas.length > 0} onCheckedChange={(checked) => setSelectedAsignaturas(checked ? asignaturas.map(a => a.id) : [])} /></TableHead><TableHead>Nombre</TableHead><TableHead>Descripción</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>{asignaturas.map(a => (<TableRow key={a.id}><TableCell><Checkbox checked={selectedAsignaturas.includes(a.id)} onCheckedChange={(checked) => setSelectedAsignaturas(prev => checked ? [...prev, a.id] : prev.filter(id => id !== a.id))} /></TableCell><TableCell>{a.nombre}</TableCell><TableCell className="max-w-xs truncate">{a.descripcion}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedAsignatura(a); setAsignaturaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('asignatura', a)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
             </Table>
           </AccordionContent>
         </AccordionItem>
@@ -210,11 +280,15 @@ const CurriculumManagement = () => {
           <AccordionTrigger className="text-lg font-semibold">Ejes Temáticos</AccordionTrigger>
           <AccordionContent>
             <div className="flex justify-end mb-4">
-              <Button onClick={() => { setSelectedEje(null); setEjeDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Eje</Button>
+              {selectedEjes.length > 0 ? (
+                <Button variant="destructive" onClick={() => openBulkDeleteDialog('eje')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedEjes.length})</Button>
+              ) : (
+                <Button onClick={() => { setSelectedEje(null); setEjeDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Eje</Button>
+              )}
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Asignatura</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-              <TableBody>{ejes.map(e => (<TableRow key={e.id}><TableCell>{e.nombre}</TableCell><TableCell>{e.asignaturas?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedEje(e); setEjeDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('eje', e)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedEjes.length === ejes.length && ejes.length > 0} onCheckedChange={(checked) => setSelectedEjes(checked ? ejes.map(e => e.id) : [])} /></TableHead><TableHead>Nombre</TableHead><TableHead>Asignatura</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>{ejes.map(e => (<TableRow key={e.id}><TableCell><Checkbox checked={selectedEjes.includes(e.id)} onCheckedChange={(checked) => setSelectedEjes(prev => checked ? [...prev, e.id] : prev.filter(id => id !== e.id))} /></TableCell><TableCell>{e.nombre}</TableCell><TableCell>{e.asignaturas?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedEje(e); setEjeDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('eje', e)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
             </Table>
           </AccordionContent>
         </AccordionItem>
@@ -223,11 +297,15 @@ const CurriculumManagement = () => {
           <AccordionTrigger className="text-lg font-semibold">Habilidades</AccordionTrigger>
           <AccordionContent>
             <div className="flex justify-end mb-4">
-              <Button onClick={() => { setSelectedHabilidad(null); setHabilidadDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Habilidad</Button>
+              {selectedHabilidades.length > 0 ? (
+                <Button variant="destructive" onClick={() => openBulkDeleteDialog('habilidad')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedHabilidades.length})</Button>
+              ) : (
+                <Button onClick={() => { setSelectedHabilidad(null); setHabilidadDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Habilidad</Button>
+              )}
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Descripción</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-              <TableBody>{habilidades.map(h => (<TableRow key={h.id}><TableCell>{h.nombre}</TableCell><TableCell className="max-w-xs truncate">{h.descripcion}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedHabilidad(h); setHabilidadDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('habilidad', h)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedHabilidades.length === habilidades.length && habilidades.length > 0} onCheckedChange={(checked) => setSelectedHabilidades(checked ? habilidades.map(h => h.id) : [])} /></TableHead><TableHead>Nombre</TableHead><TableHead>Descripción</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>{habilidades.map(h => (<TableRow key={h.id}><TableCell><Checkbox checked={selectedHabilidades.includes(h.id)} onCheckedChange={(checked) => setSelectedHabilidades(prev => checked ? [...prev, h.id] : prev.filter(id => id !== h.id))} /></TableCell><TableCell>{h.nombre}</TableCell><TableCell className="max-w-xs truncate">{h.descripcion}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedHabilidad(h); setHabilidadDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('habilidad', h)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
             </Table>
           </AccordionContent>
         </AccordionItem>
@@ -236,11 +314,15 @@ const CurriculumManagement = () => {
           <AccordionTrigger className="text-lg font-semibold">Objetivos de Aprendizaje (OAs)</AccordionTrigger>
           <AccordionContent>
             <div className="flex justify-end mb-4">
-              <Button onClick={() => { setSelectedOa(null); setOaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear OA</Button>
+              {selectedOas.length > 0 ? (
+                <Button variant="destructive" onClick={() => openBulkDeleteDialog('oa')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
+              ) : (
+                <Button onClick={() => { setSelectedOa(null); setOaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear OA</Button>
+              )}
             </div>
             <Table>
-              <TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Descripción</TableHead><TableHead>Nivel</TableHead><TableHead>Asignatura</TableHead><TableHead>Eje</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-              <TableBody>{oas.map(oa => (<TableRow key={oa.id}><TableCell>{oa.codigo}</TableCell><TableCell className="max-w-xs truncate">{oa.descripcion}</TableCell><TableCell>{oa.nivel?.nombre}</TableCell><TableCell>{oa.asignatura?.nombre}</TableCell><TableCell>{oa.eje?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedOa(oa); setOaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('oa', oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+              <TableHeader><TableRow><TableHead className="w-[50px]"><Checkbox checked={selectedOas.length === oas.length && oas.length > 0} onCheckedChange={(checked) => setSelectedOas(checked ? oas.map(o => o.id) : [])} /></TableHead><TableHead>Código</TableHead><TableHead>Descripción</TableHead><TableHead>Nivel</TableHead><TableHead>Asignatura</TableHead><TableHead>Eje</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>{oas.map(oa => (<TableRow key={oa.id}><TableCell><Checkbox checked={selectedOas.includes(oa.id)} onCheckedChange={(checked) => setSelectedOas(prev => checked ? [...prev, oa.id] : prev.filter(id => id !== oa.id))} /></TableCell><TableCell>{oa.codigo}</TableCell><TableCell className="max-w-xs truncate">{oa.descripcion}</TableCell><TableCell>{oa.nivel?.nombre}</TableCell><TableCell>{oa.asignatura?.nombre}</TableCell><TableCell>{oa.eje?.nombre}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setSelectedOa(oa); setOaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem><DropdownMenuItem onClick={() => handleDelete('oa', oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
             </Table>
           </AccordionContent>
         </AccordionItem>
@@ -251,6 +333,21 @@ const CurriculumManagement = () => {
       <EjeEditDialog isOpen={isEjeDialogOpen} onClose={() => setEjeDialogOpen(false)} onSaved={loadData} eje={selectedEje} asignaturas={asignaturas} />
       <HabilidadEditDialog isOpen={isHabilidadDialogOpen} onClose={() => setHabilidadDialogOpen(false)} onSaved={loadData} habilidad={selectedHabilidad} />
       <ObjetivoAprendizajeEditDialog isOpen={isOaDialogOpen} onClose={() => setOaDialogOpen(false)} onSaved={loadData} oa={selectedOa} niveles={niveles} asignaturas={asignaturas} ejes={ejes} />
+      
+      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminarán permanentemente {bulkDeleteConfig?.count} {bulkDeleteConfig?.type}(s).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={bulkDeleteConfig?.onConfirm}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

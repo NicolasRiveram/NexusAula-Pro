@@ -181,6 +181,11 @@ export const deleteNivel = async (nivelId: string) => {
   if (error) throw new Error(`Error deleting nivel: ${error.message}`);
 };
 
+export const deleteMultipleNiveles = async (nivelIds: string[]) => {
+  const { error } = await supabase.from('niveles').delete().in('id', nivelIds);
+  if (error) throw new Error(`Error deleting niveles: ${error.message}`);
+};
+
 export const fetchAllAsignaturas = async (): Promise<Asignatura[]> => {
   const { data, error } = await supabase.from('asignaturas').select('*').order('nombre');
   if (error) throw new Error(`Error fetching asignaturas: ${error.message}`);
@@ -200,6 +205,11 @@ export const saveAsignatura = async (asignaturaData: AsignaturaData, asignaturaI
 export const deleteAsignatura = async (asignaturaId: string) => {
   const { error } = await supabase.from('asignaturas').delete().eq('id', asignaturaId);
   if (error) throw new Error(`Error deleting asignatura: ${error.message}`);
+};
+
+export const deleteMultipleAsignaturas = async (asignaturaIds: string[]) => {
+  const { error } = await supabase.from('asignaturas').delete().in('id', asignaturaIds);
+  if (error) throw new Error(`Error deleting asignaturas: ${error.message}`);
 };
 
 export const fetchAllEjes = async (): Promise<Eje[]> => {
@@ -223,6 +233,11 @@ export const deleteEje = async (ejeId: string) => {
   if (error) throw new Error(`Error deleting eje: ${error.message}`);
 };
 
+export const deleteMultipleEjes = async (ejeIds: string[]) => {
+  const { error } = await supabase.from('ejes').delete().in('id', ejeIds);
+  if (error) throw new Error(`Error deleting ejes: ${error.message}`);
+};
+
 export const fetchAllHabilidades = async (): Promise<Habilidad[]> => {
   const { data, error } = await supabase.from('habilidades').select('*').order('nombre');
   if (error) throw new Error(`Error fetching habilidades: ${error.message}`);
@@ -242,6 +257,11 @@ export const saveHabilidad = async (habilidadData: HabilidadData, habilidadId?: 
 export const deleteHabilidad = async (habilidadId: string) => {
   const { error } = await supabase.from('habilidades').delete().eq('id', habilidadId);
   if (error) throw new Error(`Error deleting habilidad: ${error.message}`);
+};
+
+export const deleteMultipleHabilidades = async (habilidadIds: string[]) => {
+  const { error } = await supabase.from('habilidades').delete().in('id', habilidadIds);
+  if (error) throw new Error(`Error deleting habilidades: ${error.message}`);
 };
 
 export const fetchAllObjetivosAprendizaje = async (): Promise<ObjetivoAprendizaje[]> => {
@@ -266,4 +286,9 @@ export const saveObjetivoAprendizaje = async (oaData: ObjetivoAprendizajeData, o
 export const deleteObjetivoAprendizaje = async (oaId: string) => {
   const { error } = await supabase.from('objetivos_aprendizaje').delete().eq('id', oaId);
   if (error) throw new Error(`Error deleting OA: ${error.message}`);
+};
+
+export const deleteMultipleObjetivosAprendizaje = async (oaIds: string[]) => {
+  const { error } = await supabase.from('objetivos_aprendizaje').delete().in('id', oaIds);
+  if (error) throw new Error(`Error deleting OAs: ${error.message}`);
 };
