@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as pdfjs from "https://esm.sh/pdfjs-dist@4.4.168";
+import * as pdfjs from "https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.mjs";
+
+// This is required for pdfjs to work in Deno/server-side environments
+pdfjs.GlobalWorkerOptions.workerSrc = "https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.worker.mjs";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
