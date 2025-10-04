@@ -210,55 +210,6 @@ const CurriculumManagement = () => {
 
   return (
     <>
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Carga Rápida de Objetivos por Texto</CardTitle>
-          <CardDescription>
-            Pega una lista de objetivos de aprendizaje en formato "CÓDIGO: Descripción" para guardarlos en lote.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>Nivel Educativo</Label>
-              <Select value={selectedBulkNivel} onValueChange={setSelectedBulkNivel}>
-                <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
-                <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Asignatura</Label>
-              <Select value={selectedBulkAsignatura} onValueChange={setSelectedBulkAsignatura}>
-                <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
-                <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Eje Temático</Label>
-              <Select value={selectedBulkEje} onValueChange={setSelectedBulkEje} disabled={!selectedBulkAsignatura}>
-                <SelectTrigger><SelectValue placeholder="Selecciona un eje" /></SelectTrigger>
-                <SelectContent>{filteredBulkEjes.map(e => <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label>Lista de Objetivos de Aprendizaje</Label>
-            <Textarea
-              value={bulkText}
-              onChange={(e) => setBulkText(e.target.value)}
-              placeholder="Pega aquí los objetivos, uno por línea. Ejemplo:&#10;OA 1: Leer y familiarizarse...&#10;OA 2: Comprender textos..."
-              rows={10}
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button onClick={handleBulkSave} disabled={isBulkSaving}>
-              {isBulkSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {isBulkSaving ? 'Guardando...' : 'Guardar Objetivos'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       <Accordion type="single" collapsible className="w-full mt-6" defaultValue="niveles">
         {/* NIVELES */}
         <AccordionItem value="niveles">
@@ -341,7 +292,55 @@ const CurriculumManagement = () => {
         <AccordionItem value="oas">
           <AccordionTrigger className="text-lg font-semibold">Objetivos de Aprendizaje (OAs)</AccordionTrigger>
           <AccordionContent>
-            <div className="flex justify-between items-center mb-4">
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Carga Rápida de Objetivos por Texto</CardTitle>
+                <CardDescription>
+                  Pega una lista de objetivos de aprendizaje en formato "CÓDIGO: Descripción" para guardarlos en lote.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Nivel Educativo</Label>
+                    <Select value={selectedBulkNivel} onValueChange={setSelectedBulkNivel}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                      <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Asignatura</Label>
+                    <Select value={selectedBulkAsignatura} onValueChange={setSelectedBulkAsignatura}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+                      <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Eje Temático</Label>
+                    <Select value={selectedBulkEje} onValueChange={setSelectedBulkEje} disabled={!selectedBulkAsignatura}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona un eje" /></SelectTrigger>
+                      <SelectContent>{filteredBulkEjes.map(e => <SelectItem key={e.id} value={e.id}>{e.nombre}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Lista de Objetivos de Aprendizaje</Label>
+                  <Textarea
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    placeholder="Pega aquí los objetivos, uno por línea. Ejemplo:&#10;OA 1: Leer y familiarizarse...&#10;OA 2: Comprender textos..."
+                    rows={10}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={handleBulkSave} disabled={isBulkSaving}>
+                    {isBulkSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    {isBulkSaving ? 'Guardando...' : 'Guardar Objetivos'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <div className="flex justify-between items-center my-4">
               <div className="flex gap-2">
                 <Select value={oaNivelFilter} onValueChange={setOaNivelFilter}>
                   <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filtrar por Nivel" /></SelectTrigger>
