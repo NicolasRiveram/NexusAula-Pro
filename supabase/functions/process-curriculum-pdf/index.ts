@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as pdfjs from "https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.mjs";
+import * as pdfjsLib from "https://esm.sh/pdfjs-dist@4.4.168/build/pdf.mjs";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,10 +19,11 @@ function cleanAndParseJson(text: string): any {
 }
 
 async function extractTextFromPdf(pdfBuffer: ArrayBuffer): Promise<string> {
-  const doc = await pdfjs.getDocument({
+  const doc = await pdfjsLib.getDocument({
     data: pdfBuffer,
-    disableWorker: true, // This forces single-threaded execution, avoiding the worker issue.
+    disableWorker: true, // This is the crucial part that should prevent the worker from being used.
   }).promise;
+  
   let text = '';
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
