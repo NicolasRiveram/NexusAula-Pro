@@ -11,20 +11,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
   try {
     const { nivelId, asignaturaId, ejeId, text } = await req.json();
     if (!nivelId || !asignaturaId || !ejeId || !text) {
       throw new Error("nivelId, asignaturaId, ejeId, y text son requeridos.");
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
     const lines = text.trim().split('\n').filter((line: string) => line.trim() !== '');
-    const objectivesToUpsert = [];
+    const objectivesFromText = [];
 
     for (const line of lines) {
       const match = line.match(/^([^:]+):\s*(.*)$/);
@@ -32,7 +32,7 @@ serve(async (req) => {
         const codigo = match[1].trim();
         const descripcion = match[2].trim();
         if (codigo && descripcion) {
-          objectivesToUpsert.push({
+          objectivesFromText.push({
             codigo,
             descripcion,
             nivel_id: nivelId,
@@ -43,20 +43,64 @@ serve(async (req) => {
       }
     }
 
-    if (objectivesToUpsert.length === 0) {
+    if (objectivesFromText.length === 0) {
       throw new Error("No se encontraron objetivos válidos en el formato 'CODIGO: Descripción'.");
     }
 
-    const { data, error } = await supabaseAdmin
+    // Fetch existing OAs to determine which to insert and which to update
+    const { data: existingOas, error: fetchError } = await supabaseAdmin
       .from('objetivos_aprendizaje')
-      .upsert(objectivesToUpsert, { onConflict: 'codigo, nivel_id, asignatura_id' })
-      .select();
+      .select('id, codigo')
+      .eq('nivel_id', nivelId)
+      .eq('asignatura_id', asignaturaId);
 
-    if (error) {
-      throw new Error(`Error al guardar los objetivos: ${error.message}`);
+    if (fetchError) {
+      throw new Error(`Error fetching existing objectives: ${fetchError.message}`);
     }
 
-    return new Response(JSON.stringify({ message: `${data.length} objetivos guardados correctamente.` }), {
+    const existingOaMap = new Map(existingOas.map((oa: any) => [oa.codigo, oa.id]));
+    const oasToInsert = [];
+    const oasToUpdate = [];
+
+    for (const oa of objectivesFromText) {
+      const existingId = existingOaMap.get(oa.codigo);
+      if (existingId) {
+        oasToUpdate.push({ ...oa, id: existingId });
+      } else {
+        oasToInsert.push(oa);
+      }
+    }
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Perform inserts
+    if (oasToInsert.length > 0) {
+      const { data, error: insertError } = await supabaseAdmin
+        .from('objetivos_aprendizaje')
+        .insert(oasToInsert)
+        .select();
+      if (insertError) {
+        throw new Error(`Error inserting new objectives: ${insertError.message}`);
+      }
+      insertedCount = data.length;
+    }
+
+    // Perform updates (using upsert with primary key)
+    if (oasToUpdate.length > 0) {
+      const { data, error: updateError } = await supabaseAdmin
+        .from('objetivos_aprendizaje')
+        .upsert(oasToUpdate)
+        .select();
+      if (updateError) {
+        throw new Error(`Error updating existing objectives: ${updateError.message}`);
+      }
+      updatedCount = data.length;
+    }
+
+    const message = `Proceso completado. ${insertedCount} objetivos creados, ${updatedCount} objetivos actualizados.`;
+
+    return new Response(JSON.stringify({ message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
