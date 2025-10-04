@@ -23,92 +23,58 @@ serve(async (req) => {
       throw new Error("nivelId, asignaturaId, ejeId, y text son requeridos.");
     }
 
-    const lines = text.trim().split('\n').filter((line: string) => line.trim() !== '');
-    const objectivesMap = new Map<string, any>();
+    const lines = text.trim().split('\n');
+    const objectives = [];
+    let currentObjective: { codigo: string; descripcion: string } | null = null;
 
     for (const line of lines) {
-      const match = line.match(/^([^:]+):\s*(.*)$/);
-      if (match) {
-        const codigo = match[1].trim();
-        const descripcion = match[2].trim();
-        if (codigo && descripcion) {
-          // Use a map to handle duplicates in the input text, keeping the last one.
-          objectivesMap.set(codigo, {
-            codigo,
-            descripcion,
-            nivel_id: nivelId,
-            asignatura_id: asignaturaId,
-            eje_id: ejeId,
-          });
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+
+      // Heuristic to detect a new objective code line
+      const isCodeLine = /^(OA|OI|AE|Objetivo)[\s-]?\d+/.test(trimmedLine) && trimmedLine.length < 20;
+
+      if (isCodeLine) {
+        if (currentObjective && currentObjective.descripcion) {
+          objectives.push(currentObjective);
         }
-      }
-    }
-
-    const objectivesFromText = Array.from(objectivesMap.values());
-
-    if (objectivesFromText.length === 0) {
-      throw new Error("No se encontraron objetivos válidos en el formato 'CODIGO: Descripción'.");
-    }
-
-    // Fetch existing OAs to determine which to insert and which to update
-    const { data: existingOas, error: fetchError } = await supabaseAdmin
-      .from('objetivos_aprendizaje')
-      .select('id, codigo')
-      .eq('nivel_id', nivelId)
-      .eq('asignatura_id', asignaturaId);
-
-    if (fetchError) {
-      throw new Error(`Error fetching existing objectives: ${fetchError.message}`);
-    }
-
-    const existingOaMap = new Map(existingOas.map((oa: any) => [oa.codigo, oa.id]));
-    const oasToInsert = [];
-    const oasToUpdate = [];
-
-    for (const oa of objectivesFromText) {
-      const existingId = existingOaMap.get(oa.codigo);
-      if (existingId) {
-        oasToUpdate.push({ ...oa, id: existingId });
+        currentObjective = {
+          codigo: trimmedLine.replace(/:$/, '').trim(),
+          descripcion: '',
+        };
       } else {
-        oasToInsert.push(oa);
-      }
-    }
-
-    let insertedCount = 0;
-    let updatedCount = 0;
-
-    // Perform inserts
-    if (oasToInsert.length > 0) {
-      const { data, error: insertError } = await supabaseAdmin
-        .from('objetivos_aprendizaje')
-        .insert(oasToInsert)
-        .select();
-      if (insertError) {
-        throw new Error(`Error inserting new objectives: ${insertError.message}`);
-      }
-      insertedCount = data.length;
-    }
-
-    // Perform updates
-    if (oasToUpdate.length > 0) {
-      for (const oaToUpdate of oasToUpdate) {
-        const { id, ...updateData } = oaToUpdate;
-        const { error: updateError } = await supabaseAdmin
-          .from('objetivos_aprendizaje')
-          .update(updateData)
-          .eq('id', id);
-        if (updateError) {
-          console.error(`Failed to update OA with id ${id}:`, updateError);
-          // Continue to next update, but log the error
-        } else {
-          updatedCount++;
+        if (currentObjective) {
+          const descriptionPart = trimmedLine.replace(/^:\s*/, '');
+          currentObjective.descripcion += (currentObjective.descripcion ? ' ' : '') + descriptionPart;
         }
       }
     }
 
-    const message = `Proceso completado. ${insertedCount} objetivos creados, ${updatedCount} objetivos actualizados.`;
+    if (currentObjective && currentObjective.descripcion) {
+      objectives.push(currentObjective);
+    }
 
-    return new Response(JSON.stringify({ message }), {
+    if (objectives.length === 0) {
+      throw new Error("No se encontraron objetivos válidos. Asegúrate de que cada objetivo tenga un código (ej: OA 1) en una línea y su descripción debajo.");
+    }
+
+    const objectivesToUpsert = objectives.map(obj => ({
+      ...obj,
+      nivel_id: nivelId,
+      asignatura_id: asignaturaId,
+      eje_id: ejeId,
+    }));
+
+    const { data, error } = await supabaseAdmin
+      .from('objetivos_aprendizaje')
+      .upsert(objectivesToUpsert, { onConflict: 'codigo, nivel_id, asignatura_id' })
+      .select();
+
+    if (error) {
+      throw new Error(`Error al guardar los objetivos: ${error.message}`);
+    }
+
+    return new Response(JSON.stringify({ message: `${data.length} objetivos guardados correctamente.` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
