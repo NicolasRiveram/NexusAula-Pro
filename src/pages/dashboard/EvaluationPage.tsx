@@ -203,7 +203,8 @@ const EvaluationPage = () => {
 
       printComponent(
         <div>{printableComponents}</div>,
-        `Evaluación: ${evaluationDetails.titulo}`
+        `Evaluación: ${evaluationDetails.titulo}`,
+        'portrait'
       );
 
       dismissToast(toastId);
@@ -274,7 +275,7 @@ const EvaluationPage = () => {
         />
       );
 
-      printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`);
+      printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`, 'portrait');
       dismissToast(toastId);
     } catch (error: any) {
       dismissToast(toastId);
@@ -474,13 +475,11 @@ const EvaluationPage = () => {
             <TabsTrigger value="todas">Todas</TabsTrigger>
             <TabsTrigger value="prueba">Pruebas</TabsTrigger>
             <TabsTrigger value="guia_de_trabajo">Guías</TabsTrigger>
-            <TabsTrigger value="disertacion">Disertaciones</TabsTrigger>
             <TabsTrigger value="otro">Otras</TabsTrigger>
           </TabsList>
           <TabsContent value="todas">{renderEvaluations()}</TabsContent>
           <TabsContent value="prueba">{renderEvaluations('prueba')}</TabsContent>
           <TabsContent value="guia_de_trabajo">{renderEvaluations('guia_de_trabajo')}</TabsContent>
-          <TabsContent value="disertacion">{renderEvaluations('disertacion')}</TabsContent>
           <TabsContent value="otro">{renderEvaluations('otro')}</TabsContent>
         </Tabs>
       </>

@@ -74,7 +74,6 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
               <SelectContent>
                 <SelectItem value="prueba">Prueba</SelectItem>
                 <SelectItem value="guia_de_trabajo">Guía de trabajo</SelectItem>
-                <SelectItem value="disertacion">Disertación</SelectItem>
                 <SelectItem value="otro">Otro</SelectItem>
               </SelectContent>
             </Select>

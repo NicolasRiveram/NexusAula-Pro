@@ -5,8 +5,6 @@ export const formatEvaluationType = (type: string | null | undefined): string =>
       return 'Prueba';
     case 'guia_de_trabajo':
       return 'Guía de trabajo';
-    case 'disertacion':
-      return 'Disertación';
     case 'otro':
       return 'Otro';
     default:
