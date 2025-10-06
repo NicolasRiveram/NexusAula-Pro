@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import * as pdfjs from 'https://esm.sh/pdfjs-dist@4.4.168'
+import * as pdfjs from 'https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.mjs'
 
-// Set the workerSrc for pdfjs
-pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.4.168/build/pdf.worker.mjs`
+// Set the workerSrc to the legacy worker script
+pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.worker.mjs`
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -167,4 +167,4 @@ serve(async (req) => {
       status: 500,
     });
   }
-});
+})
