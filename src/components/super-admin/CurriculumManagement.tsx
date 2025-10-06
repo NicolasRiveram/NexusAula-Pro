@@ -30,6 +30,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import UrlUploadForm from './curriculum/UrlUploadForm';
 
 const CurriculumUploadForm = ({ niveles, asignaturas, onUploadSuccess }: { niveles: Nivel[], asignaturas: Asignatura[], onUploadSuccess: () => void }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -168,7 +169,7 @@ const CurriculumJobsTable = ({ keyProp }: { keyProp: number }) => {
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Historial de Cargas</CardTitle>
-            <CardDescription>Estado de los archivos PDF subidos para procesamiento.</CardDescription>
+            <CardDescription>Estado de los archivos PDF y URLs procesados.</CardDescription>
           </div>
           <Button variant="outline" size="icon" onClick={loadJobs} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
@@ -179,7 +180,7 @@ const CurriculumJobsTable = ({ keyProp }: { keyProp: number }) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Archivo</TableHead>
+              <TableHead>Archivo/URL</TableHead>
               <TableHead>Nivel/Asignatura</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Estado</TableHead>
@@ -194,7 +195,7 @@ const CurriculumJobsTable = ({ keyProp }: { keyProp: number }) => {
             ) : (
               jobs.map(job => (
                 <TableRow key={job.id}>
-                  <TableCell className="font-medium">{job.file_name}</TableCell>
+                  <TableCell className="font-medium max-w-xs truncate">{job.file_name}</TableCell>
                   <TableCell>{job.niveles?.nombre} / {job.asignaturas?.nombre}</TableCell>
                   <TableCell>{format(parseISO(job.created_at), 'Pp', { locale: es })}</TableCell>
                   <TableCell>
@@ -316,6 +317,7 @@ const CurriculumManagement = () => {
         <AccordionItem value="upload">
           <AccordionTrigger className="text-lg font-semibold">Carga Masiva de Currículum</AccordionTrigger>
           <AccordionContent className="space-y-4">
+            <UrlUploadForm niveles={niveles} asignaturas={asignaturas} onUploadSuccess={loadData} />
             <CurriculumUploadForm niveles={niveles} asignaturas={asignaturas} onUploadSuccess={() => setUploadKey(k => k + 1)} />
             <CurriculumJobsTable keyProp={uploadKey} />
           </AccordionContent>
