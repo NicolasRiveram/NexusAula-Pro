@@ -48,11 +48,11 @@ const GeneratorResultsComponent: React.FC<GeneratorResultsComponentProps> = ({ r
             </AccordionContent>
           </AccordionItem>
         )}
-        {results.objetivos_aprendizaje_clave && (
+        {results.objetivos_aprendizaje && (
           <AccordionItem value="oas">
-            <AccordionTrigger className="text-lg font-semibold">Objetivos de Aprendizaje Clave</AccordionTrigger>
+            <AccordionTrigger className="text-lg font-semibold">Objetivos de Aprendizaje</AccordionTrigger>
             <AccordionContent className="space-y-3">
-              {results.objetivos_aprendizaje_clave.map((item: { codigo: string, descripcion: string }, i: number) => (
+              {results.objetivos_aprendizaje.map((item: { codigo: string, descripcion: string }, i: number) => (
                 <div key={i} className="p-2 border-b">
                   <p className="font-semibold">{item.codigo}</p>
                   <p className="text-sm text-muted-foreground">{item.descripcion}</p>
@@ -61,19 +61,19 @@ const GeneratorResultsComponent: React.FC<GeneratorResultsComponentProps> = ({ r
             </AccordionContent>
           </AccordionItem>
         )}
-        {results.habilidades_principales && (
+        {results.habilidades && (
           <AccordionItem value="habilidades">
-            <AccordionTrigger className="text-lg font-semibold">Habilidades Principales</AccordionTrigger>
+            <AccordionTrigger className="text-lg font-semibold">Habilidades</AccordionTrigger>
             <AccordionContent>
-              <ul className="list-disc list-inside space-y-1">{results.habilidades_principales.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
+              <ul className="list-disc list-inside space-y-1">{results.habilidades.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
             </AccordionContent>
           </AccordionItem>
         )}
-        {results.actitudes_a_fomentar && (
+        {results.actitudes && (
           <AccordionItem value="actitudes">
             <AccordionTrigger className="text-lg font-semibold">Actitudes a Fomentar</AccordionTrigger>
             <AccordionContent>
-              <ul className="list-disc list-inside space-y-1">{results.actitudes_a_fomentar.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
+              <ul className="list-disc list-inside space-y-1">{results.actitudes.map((item: string, i: number) => <li key={i}>{item}</li>)}</ul>
             </AccordionContent>
           </AccordionItem>
         )}

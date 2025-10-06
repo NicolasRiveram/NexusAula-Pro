@@ -62,29 +62,36 @@ serve(async (req) => {
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
-      Eres un experto en el currículum educativo chileno. Basado en el nivel y asignatura, genera un objeto JSON con los siguientes componentes pedagógicos:
-      - ejes: Array de strings con los nombres de los ejes.
-      - unidades_propuestas: Array de objetos con "nombre" y "descripcion".
-      - objetivos_aprendizaje_clave: Array de objetos con "codigo" y "descripcion".
-      - habilidades_principales: Array de strings.
-      - actitudes_a_fomentar: Array de strings.
-      - conocimientos_esenciales: Array de strings.
-      - ejemplos_indicadores: Array de strings.
-      - orientaciones_didacticas: Un string con un párrafo.
-      - sugerencias_evaluacion: Un string con un párrafo.
-      - oat_relevantes: Array de strings.
+      # ROL Y OBJETIVO
+      Eres un experto en el currículum educativo chileno. Tu función es extraer de forma exhaustiva y precisa todos los componentes pedagógicos oficiales para un nivel y asignatura específicos. El resultado final debe ser un único objeto JSON estructurado.
 
-      Nivel: "${nivelData.nombre}"
-      Asignatura: "${asignaturaData.nombre}"
+      # INSTRUCCIONES
+      1.  **Analizar:** Basado en tu conocimiento del currículum chileno, identifica todos los componentes para la [ASIGNATURA] y el [NIVEL] indicados.
+      2.  **Extraer Componentes:** Extrae la totalidad de los siguientes elementos, manteniendo su texto íntegro y oficial:
+          *   Ejes Temáticos.
+          *   Unidades propuestas por el MINEDUC.
+          *   Objetivos de Aprendizaje (OAs) con su código y descripción completa.
+          *   Habilidades específicas de la asignatura.
+          *   Actitudes a fomentar.
+          *   Conocimientos esenciales.
+          *   Ejemplos de indicadores de evaluación.
+          *   Orientaciones didácticas generales.
+          *   Sugerencias de evaluación generales.
+          *   Objetivos de Aprendizaje Transversales (OATs) relevantes.
+      3.  **Estructurar la Salida:** Organiza toda la información extraída en un solo objeto JSON. No agregues comentarios ni texto fuera del formato JSON.
 
-      Tu respuesta DEBE ser únicamente un objeto JSON dentro de un bloque de código.
+      # DATOS DE ENTRADA
+      [ASIGNATURA]: "${asignaturaData.nombre}"
+      [NIVEL]: "${nivelData.nombre}"
+
+      # FORMATO DE SALIDA
       \`\`\`json
       {
         "ejes": [],
         "unidades_propuestas": [],
-        "objetivos_aprendizaje_clave": [],
-        "habilidades_principales": [],
-        "actitudes_a_fomentar": [],
+        "objetivos_aprendizaje": [],
+        "habilidades": [],
+        "actitudes": [],
         "conocimientos_esenciales": [],
         "ejemplos_indicadores": [],
         "orientaciones_didacticas": "",
