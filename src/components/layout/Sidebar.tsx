@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette } from 'lucide-react';
+import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const teacherNavItems = [
@@ -33,6 +33,7 @@ const adminNavItems = [
 const superAdminNavItems = [
     { to: '/dashboard', icon: Building, label: 'Establecimientos' },
     { to: '/dashboard/gestion/diseno', icon: Palette, label: 'Diseño' },
+    { to: '/dashboard/generador-experto', icon: FlaskConical, label: 'Generador Experto' },
 ];
 
 interface SidebarProps {
