@@ -1,14 +1,14 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import * as pdfjs from 'https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.mjs'
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as pdfjs from 'https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.mjs';
 
 // Set the workerSrc to the legacy worker script
-pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.worker.mjs`
+pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.4.168/legacy/build/pdf.worker.mjs`;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 async function extractTextFromPdf(pdfBuffer: ArrayBuffer): Promise<string> {
   const loadingTask = pdfjs.getDocument({ data: pdfBuffer });
@@ -24,26 +24,52 @@ async function extractTextFromPdf(pdfBuffer: ArrayBuffer): Promise<string> {
 }
 
 function cleanAndParseJson(text: string): any {
-    const jsonMatch = text.match(/```json([\s\S]*?)```/);
-    if (!jsonMatch) {
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            throw new Error("La respuesta de la IA no contenía un bloque JSON válido y no pudo ser parseada directamente.");
-        }
-    }
-    const jsonString = jsonMatch[1].trim();
-    try {
-        return JSON.parse(jsonString);
-    } catch (error) {
-        console.error("Failed to parse JSON from AI response:", jsonString);
-        throw new Error("La respuesta de la IA no tenía un formato JSON válido.");
-    }
+  // Attempt to find JSON within markdown code blocks
+  const markdownMatch = text.match(/```json([\s\S]*?)```/);
+  let potentialJson = markdownMatch ? markdownMatch[1].trim() : text;
+
+  // Find the start of a JSON object or array
+  const firstBracket = potentialJson.indexOf('[');
+  const firstBrace = potentialJson.indexOf('{');
+  
+  let startIndex = -1;
+  if (firstBracket === -1) {
+    startIndex = firstBrace;
+  } else if (firstBrace === -1) {
+    startIndex = firstBracket;
+  } else {
+    startIndex = Math.min(firstBracket, firstBrace);
+  }
+
+  if (startIndex === -1) {
+    console.error("No JSON start character ([ or {) found in AI response:", potentialJson);
+    throw new Error("La respuesta de la IA no contenía un objeto o array JSON.");
+  }
+
+  // Find the end of the JSON object or array
+  const lastBracket = potentialJson.lastIndexOf(']');
+  const lastBrace = potentialJson.lastIndexOf('}');
+  const endIndex = Math.max(lastBracket, lastBrace);
+
+  if (endIndex === -1) {
+    console.error("No JSON end character (] or }) found in AI response:", potentialJson);
+    throw new Error("El objeto o array JSON en la respuesta de la IA estaba incompleto.");
+  }
+
+  const jsonString = potentialJson.substring(startIndex, endIndex + 1);
+
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("Failed to parse extracted JSON:", error);
+    console.error("Extracted string for parsing:", jsonString);
+    throw new Error("La respuesta de la IA no tenía un formato JSON válido, incluso después de intentar extraerlo.");
+  }
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   const supabaseAdmin = createClient(
