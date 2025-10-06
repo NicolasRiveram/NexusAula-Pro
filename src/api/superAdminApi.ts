@@ -72,6 +72,25 @@ export interface GlobalUser {
   }[];
 }
 
+export interface CurriculumUploadJob {
+  id: string;
+  created_at: string;
+  file_name: string;
+  status: 'processing' | 'completed' | 'failed';
+  error_message: string | null;
+  niveles: { nombre: string } | null;
+  asignaturas: { nombre: string } | null;
+}
+
+export const fetchCurriculumUploadJobs = async (): Promise<CurriculumUploadJob[]> => {
+  const { data, error } = await supabase
+    .from('curriculum_upload_jobs')
+    .select('*, niveles(nombre), asignaturas(nombre)')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`Error fetching curriculum upload jobs: ${error.message}`);
+  return data || [];
+};
+
 export const bulkInsertObjectives = async (nivelId: string, asignaturaId: string, ejeId: string, text: string) => {
   const { data, error } = await supabase.functions.invoke('bulk-insert-objectives', {
     body: { nivelId, asignaturaId, ejeId, text },
