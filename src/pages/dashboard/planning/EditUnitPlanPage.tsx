@@ -118,25 +118,27 @@ const EditUnitPlanPage = () => {
     try {
       const formData = getValues();
       
-      const { data: classesToDelete, error: fetchError } = await supabase
+      // Get all unit IDs associated with this master plan's classes before deleting them
+      const { data: unitsWithClasses, error: fetchError } = await supabase
         .from('planificaciones_clase')
         .select('unidad_id')
         .eq('unidad_maestra_id', planId);
       if (fetchError) throw fetchError;
-      
-      const unidadIdsToDelete = [...new Set(classesToDelete.map(c => c.unidad_id).filter(Boolean))];
-      
-      if (unidadIdsToDelete.length > 0) {
-        const { error: deleteClassesError } = await supabase
-          .from('planificaciones_clase')
-          .delete()
-          .in('unidad_id', unidadIdsToDelete);
-        if (deleteClassesError) throw new Error(`Error deleting old classes: ${deleteClassesError.message}`);
+      const unitIdsToDelete = [...new Set(unitsWithClasses.map(c => c.unidad_id).filter(Boolean))];
 
+      // Delete all classes associated with the master plan ID.
+      const { error: deleteClassesError } = await supabase
+        .from('planificaciones_clase')
+        .delete()
+        .eq('unidad_maestra_id', planId);
+      if (deleteClassesError) throw new Error(`Error deleting old classes: ${deleteClassesError.message}`);
+
+      // Now delete the old unit containers
+      if (unitIdsToDelete.length > 0) {
         const { error: deleteUnitsError } = await supabase
           .from('unidades')
           .delete()
-          .in('id', unidadIdsToDelete);
+          .in('id', unitIdsToDelete);
         if (deleteUnitsError) throw new Error(`Error deleting old units: ${deleteUnitsError.message}`);
       }
 
