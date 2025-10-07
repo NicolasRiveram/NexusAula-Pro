@@ -17,6 +17,7 @@ const rubricSchema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
   actividad_a_evaluar: z.string().min(3, "La actividad es requerida."),
   descripcion: z.string().min(10, "La descripción debe ser más detallada."),
+  categoria: z.string().min(3, "La categoría es requerida.").optional(),
   contenido_json: z.object({
     criterios: z.array(z.object({
       nombre: z.string().min(1),
@@ -52,6 +53,7 @@ const EditRubricPage = () => {
             nombre: data.nombre,
             actividad_a_evaluar: data.actividad_a_evaluar,
             descripcion: data.descripcion,
+            categoria: data.categoria || '',
             contenido_json: data.contenido_json || { criterios: [] },
           });
         })
@@ -94,10 +96,17 @@ const EditRubricPage = () => {
               <Controller name="nombre" control={control} render={({ field }) => <Input id="nombre" {...field} />} />
               {errors.nombre && <p className="text-red-500 text-sm mt-1">{errors.nombre.message}</p>}
             </div>
-            <div>
-              <Label htmlFor="actividad_a_evaluar">Actividad a Evaluar</Label>
-              <Controller name="actividad_a_evaluar" control={control} render={({ field }) => <Input id="actividad_a_evaluar" {...field} />} />
-              {errors.actividad_a_evaluar && <p className="text-red-500 text-sm mt-1">{errors.actividad_a_evaluar.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="actividad_a_evaluar">Actividad a Evaluar</Label>
+                <Controller name="actividad_a_evaluar" control={control} render={({ field }) => <Input id="actividad_a_evaluar" {...field} />} />
+                {errors.actividad_a_evaluar && <p className="text-red-500 text-sm mt-1">{errors.actividad_a_evaluar.message}</p>}
+              </div>
+              <div>
+                <Label htmlFor="categoria">Categoría</Label>
+                <Controller name="categoria" control={control} render={({ field }) => <Input id="categoria" placeholder="Ej: Trabajos Prácticos, Exposiciones..." {...field} />} />
+                {errors.categoria && <p className="text-red-500 text-sm mt-1">{errors.categoria.message}</p>}
+              </div>
             </div>
             <div>
               <Label htmlFor="descripcion">Descripción de la Actividad</Label>

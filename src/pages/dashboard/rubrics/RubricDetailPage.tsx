@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Download, Loader2, Save, Edit } from 'lucide-react';
-import { fetchRubricById, saveRubricEvaluation, Rubric } from '@/api/rubricsApi';
+import { ArrowLeft, Download, Loader2, Save, Edit, Trash2 } from 'lucide-react';
+import { fetchRubricById, saveRubricEvaluation, Rubric, deleteRubric } from '@/api/rubricsApi';
 import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura, Estudiante } from '@/api/coursesApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { printComponent } from '@/utils/printUtils';
 import PrintableRubric from '@/components/rubrics/PrintableRubric';
 import PrintableRubricForEvaluation from '@/components/rubrics/PrintableRubricForEvaluation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number => {
   if (puntajeMaximo <= 0) {
@@ -46,6 +56,7 @@ const RubricDetailPage = () => {
   const [comentarios, setComentarios] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -145,6 +156,19 @@ const RubricDetailPage = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!rubricId) return;
+    try {
+      await deleteRubric(rubricId);
+      showSuccess("Rúbrica eliminada.");
+      navigate('/dashboard/rubricas');
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsAlertOpen(false);
+    }
+  };
+
   const handleDownloadPauta = () => {
     if (rubric) {
         printComponent(
@@ -172,124 +196,142 @@ const RubricDetailPage = () => {
   const hasCriterios = Array.isArray(criterios) && criterios.length > 0;
 
   return (
-    <div className="container mx-auto space-y-6">
-      <Link to="/dashboard/rubricas" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Banco de Rúbricas
-      </Link>
+    <>
+      <div className="container mx-auto space-y-6">
+        <Link to="/dashboard/rubricas" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Banco de Rúbricas
+        </Link>
 
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-2xl">{rubric.nombre}</CardTitle>
-              <CardDescription>Actividad: {rubric.actividad_a_evaluar}</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Descargar</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDownloadPauta}>
-                    Descargar Pauta de Rúbrica
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDownloadInstrumento}>
-                    Descargar Instrumento para Evaluar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button onClick={() => navigate(`/dashboard/rubricas/editar/${rubric.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">{rubric.descripcion}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Evaluar Estudiante</CardTitle>
-          <CardDescription>Selecciona un curso y un estudiante para aplicar esta rúbrica.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select onValueChange={setSelectedCursoId} value={selectedCursoId}>
-            <SelectTrigger><SelectValue placeholder="Selecciona un curso..." /></SelectTrigger>
-            <SelectContent>{cursos.map(c => <SelectItem key={c.id} value={c.id}>{c.curso.nivel.nombre} {c.curso.nombre} - {c.asignatura.nombre}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select onValueChange={setSelectedEstudianteId} value={selectedEstudianteId} disabled={!selectedCursoId}>
-            <SelectTrigger><SelectValue placeholder="Selecciona un estudiante..." /></SelectTrigger>
-            <SelectContent>{estudiantes.map(e => <SelectItem key={e.id} value={e.id}>{e.nombre_completo}</SelectItem>)}</SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
-      {selectedEstudianteId && !hasCriterios && (
         <Card>
           <CardHeader>
-            <CardTitle>Rúbrica Incompleta</CardTitle>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="text-2xl">{rubric.nombre}</CardTitle>
+                <CardDescription>Actividad: {rubric.actividad_a_evaluar}</CardDescription>
+                {rubric.categoria && <Badge variant="outline" className="mt-2">{rubric.categoria}</Badge>}
+              </div>
+              <div className="flex gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleDownloadPauta}>
+                      Descargar Pauta de Rúbrica
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDownloadInstrumento}>
+                      Descargar Instrumento para Evaluar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button onClick={() => navigate(`/dashboard/rubricas/editar/${rubric.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
+                <Button variant="destructive" onClick={() => setIsAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar</Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <p className="text-center text-muted-foreground">Esta rúbrica no tiene criterios de evaluación definidos. Por favor, edita la rúbrica para añadir el contenido.</p>
+            <p className="text-sm text-muted-foreground">{rubric.descripcion}</p>
           </CardContent>
         </Card>
-      )}
 
-      {selectedEstudianteId && hasCriterios && (
         <Card>
           <CardHeader>
-            <CardTitle>Rúbrica de Evaluación</CardTitle>
+            <CardTitle>Evaluar Estudiante</CardTitle>
+            <CardDescription>Selecciona un curso y un estudiante para aplicar esta rúbrica.</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="border p-2 w-1/4 align-top text-left">Criterio de Evaluación</th>
-                  {criterios[0]?.niveles?.map((level, levelIndex) => (
-                    <th key={levelIndex} className="border p-2 align-top text-left">
-                      <p className="font-bold">{level.nombre}</p>
-                      <p className="font-normal text-sm">({level.puntaje} pts)</p>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {criterios.map((criterion, critIndex) => (
-                  <tr key={critIndex}>
-                    <td className="border p-2 align-top">
-                      <p className="font-semibold">{criterion.nombre}</p>
-                      <Badge variant="secondary" className="mt-1">{criterion.habilidad}</Badge>
-                      <p className="text-sm text-muted-foreground mt-2">{criterion.descripcion}</p>
-                    </td>
-                    {Array.isArray(criterion.niveles) && criterion.niveles.map((level, levelIndex) => (
-                      <td key={levelIndex} className={cn("border p-2 align-top cursor-pointer hover:bg-primary/10", evaluation[critIndex] === levelIndex && "bg-primary/20")} onClick={() => handleLevelSelect(critIndex, levelIndex)}>
-                        <p className="text-sm">{level.descripcion}</p>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-          <CardContent className="mt-6 space-y-4">
-            <div>
-              <Label htmlFor="comentarios">Comentarios Adicionales</Label>
-              <Textarea id="comentarios" value={comentarios} onChange={(e) => setComentarios(e.target.value)} />
-            </div>
-            <div className="flex justify-between items-center p-4 bg-muted rounded-md">
-              <div>
-                <p className="font-semibold">Puntaje Total: {puntajeTotal} / {puntajeMaximo}</p>
-                <p className="font-semibold">Calificación (60%): <span className={cn("text-xl", calificacionFinal < 4.0 ? "text-destructive" : "text-green-600")}>{calificacionFinal.toFixed(1)}</span></p>
-              </div>
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Guardar Evaluación
-              </Button>
-            </div>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select onValueChange={setSelectedCursoId} value={selectedCursoId}>
+              <SelectTrigger><SelectValue placeholder="Selecciona un curso..." /></SelectTrigger>
+              <SelectContent>{cursos.map(c => <SelectItem key={c.id} value={c.id}>{c.curso.nivel.nombre} {c.curso.nombre} - {c.asignatura.nombre}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select onValueChange={setSelectedEstudianteId} value={selectedEstudianteId} disabled={!selectedCursoId}>
+              <SelectTrigger><SelectValue placeholder="Selecciona un estudiante..." /></SelectTrigger>
+              <SelectContent>{estudiantes.map(e => <SelectItem key={e.id} value={e.id}>{e.nombre_completo}</SelectItem>)}</SelectContent>
+            </Select>
           </CardContent>
         </Card>
-      )}
-    </div>
+
+        {selectedEstudianteId && !hasCriterios && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Rúbrica Incompleta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-center text-muted-foreground">Esta rúbrica no tiene criterios de evaluación definidos. Por favor, edita la rúbrica para añadir el contenido.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {selectedEstudianteId && hasCriterios && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Rúbrica de Evaluación</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="border p-2 w-1/4 align-top text-left">Criterio de Evaluación</th>
+                    {criterios[0]?.niveles?.map((level, levelIndex) => (
+                      <th key={levelIndex} className="border p-2 align-top text-left">
+                        <p className="font-bold">{level.nombre}</p>
+                        <p className="font-normal text-sm">({level.puntaje} pts)</p>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {criterios.map((criterion, critIndex) => (
+                    <tr key={critIndex}>
+                      <td className="border p-2 align-top">
+                        <p className="font-semibold">{criterion.nombre}</p>
+                        <Badge variant="secondary" className="mt-1">{criterion.habilidad}</Badge>
+                        <p className="text-sm text-muted-foreground mt-2">{criterion.descripcion}</p>
+                      </td>
+                      {Array.isArray(criterion.niveles) && criterion.niveles.map((level, levelIndex) => (
+                        <td key={levelIndex} className={cn("border p-2 align-top cursor-pointer hover:bg-primary/10", evaluation[critIndex] === levelIndex && "bg-primary/20")} onClick={() => handleLevelSelect(critIndex, levelIndex)}>
+                          <p className="text-sm">{level.descripcion}</p>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+            <CardContent className="mt-6 space-y-4">
+              <div>
+                <Label htmlFor="comentarios">Comentarios Adicionales</Label>
+                <Textarea id="comentarios" value={comentarios} onChange={(e) => setComentarios(e.target.value)} />
+              </div>
+              <div className="flex justify-between items-center p-4 bg-muted rounded-md">
+                <div>
+                  <p className="font-semibold">Puntaje Total: {puntajeTotal} / {puntajeMaximo}</p>
+                  <p className="font-semibold">Calificación (60%): <span className={cn("text-xl", calificacionFinal < 4.0 ? "text-destructive" : "text-green-600")}>{calificacionFinal.toFixed(1)}</span></p>
+                </div>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Guardar Evaluación
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la rúbrica "{rubric?.nombre}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

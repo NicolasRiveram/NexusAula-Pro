@@ -8,6 +8,7 @@ export interface Rubric {
   descripcion: string;
   created_at: string;
   contenido_json?: RubricContent;
+  categoria?: string | null;
 }
 
 export interface RubricContent {
@@ -59,7 +60,7 @@ export const fetchRubrics = async (docenteId: string, establecimientoId: string)
 
   const { data, error } = await supabase
     .from('rubricas')
-    .select('*')
+    .select('*, categoria')
     .eq('creado_por', docenteId)
     .eq('establecimiento_id', establecimientoId)
     .order('created_at', { ascending: false });
@@ -71,7 +72,7 @@ export const fetchRubrics = async (docenteId: string, establecimientoId: string)
 export const fetchRubricById = async (rubricId: string): Promise<Rubric> => {
     const { data, error } = await supabase
         .from('rubricas')
-        .select('*')
+        .select('*, categoria')
         .eq('id', rubricId)
         .single();
     if (error) throw new Error(`Error al obtener la rúbrica: ${error.message}`);
@@ -82,7 +83,8 @@ export const createRubric = async (
   nombre: string,
   actividad: string,
   descripcion: string,
-  establecimientoId: string
+  establecimientoId: string,
+  categoria: string
 ): Promise<string> => {
   const { data, error } = await supabase
     .from('rubricas')
@@ -91,6 +93,7 @@ export const createRubric = async (
       actividad_a_evaluar: actividad,
       descripcion,
       establecimiento_id: establecimientoId,
+      categoria,
     })
     .select('id')
     .single();
@@ -105,6 +108,14 @@ export const updateRubric = async (rubricId: string, rubricData: Partial<Omit<Ru
     .update(rubricData)
     .eq('id', rubricId);
   if (error) throw new Error(`Error al actualizar la rúbrica: ${error.message}`);
+};
+
+export const deleteRubric = async (rubricId: string) => {
+  const { error } = await supabase
+    .from('rubricas')
+    .delete()
+    .eq('id', rubricId);
+  if (error) throw new Error(`Error al eliminar la rúbrica: ${error.message}`);
 };
 
 export const generateRubricWithAI = async (params: {

@@ -21,6 +21,7 @@ const step1Schema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
   actividad_a_evaluar: z.string().min(3, "La actividad es requerida."),
   descripcion: z.string().min(10, "La descripción debe ser más detallada."),
+  categoria: z.string().min(3, "La categoría es requerida."),
   nivelId: z.string().uuid("Debes seleccionar un nivel educativo."),
   asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
   cantidadCategorias: z.coerce.number().min(2, "Debe haber al menos 2 categorías.").max(7, "No puedes tener más de 7 categorías."),
@@ -99,7 +100,7 @@ const RubricBuilderPage = () => {
     }
     setIsLoading(true);
     try {
-      const newRubricId = await createRubric(data.nombre, data.actividad_a_evaluar, data.descripcion, activeEstablishment.id);
+      const newRubricId = await createRubric(data.nombre, data.actividad_a_evaluar, data.descripcion, activeEstablishment.id, data.categoria);
       setRubricId(newRubricId);
 
       const nivelNombre = niveles.find(n => n.id === data.nivelId)?.nombre || '';
@@ -182,10 +183,17 @@ const RubricBuilderPage = () => {
                 <Controller name="nombre" control={step1Control} render={({ field }) => <Input id="nombre" {...field} />} />
                 {step1Errors.nombre && <p className="text-red-500 text-sm mt-1">{step1Errors.nombre.message}</p>}
               </div>
-              <div>
-                <Label htmlFor="actividad_a_evaluar">Actividad a Evaluar</Label>
-                <Controller name="actividad_a_evaluar" control={step1Control} render={({ field }) => <Input id="actividad_a_evaluar" {...field} />} />
-                {step1Errors.actividad_a_evaluar && <p className="text-red-500 text-sm mt-1">{step1Errors.actividad_a_evaluar.message}</p>}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="actividad_a_evaluar">Actividad a Evaluar</Label>
+                  <Controller name="actividad_a_evaluar" control={step1Control} render={({ field }) => <Input id="actividad_a_evaluar" {...field} />} />
+                  {step1Errors.actividad_a_evaluar && <p className="text-red-500 text-sm mt-1">{step1Errors.actividad_a_evaluar.message}</p>}
+                </div>
+                <div>
+                  <Label htmlFor="categoria">Categoría</Label>
+                  <Controller name="categoria" control={step1Control} render={({ field }) => <Input id="categoria" placeholder="Ej: Trabajos Prácticos, Exposiciones..." {...field} />} />
+                  {step1Errors.categoria && <p className="text-red-500 text-sm mt-1">{step1Errors.categoria.message}</p>}
+                </div>
               </div>
               <div>
                 <Label htmlFor="descripcion">Descripción de la Actividad y Contenidos</Label>
