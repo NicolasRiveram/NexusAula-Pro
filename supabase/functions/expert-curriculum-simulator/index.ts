@@ -63,7 +63,7 @@ serve(async (req) => {
 
     const prompt = `
       # ROL Y OBJETIVO
-      Eres un experto en el currículum educativo chileno. Tu función es extraer de forma exhaustiva y precisa todos los componentes pedagógicos oficiales para un nivel y asignatura específicos. El resultado final debe ser un único objeto JSON estructurado.
+      Eres un experto en el currículum educativo chileno. Tu función es extraer de forma exhaustiva y precisa TODOS los componentes pedagógicos oficiales para un nivel y asignatura específicos. El resultado final debe ser un único objeto JSON estructurado. NO sintetices ni resumas la información.
 
       # INSTRUCCIONES
       1.  **Analizar:** Basado en tu conocimiento del currículum chileno, identifica todos los componentes para la [ASIGNATURA] y el [NIVEL] indicados.
@@ -71,14 +71,14 @@ serve(async (req) => {
           *   Ejes Temáticos.
           *   Unidades propuestas por el MINEDUC.
           *   Objetivos de Aprendizaje (OAs) con su código y descripción completa.
-          *   Habilidades específicas de la asignatura.
-          *   Actitudes a fomentar.
+          *   TODAS las Habilidades específicas de la asignatura.
+          *   TODAS las Actitudes a fomentar.
           *   Conocimientos esenciales.
           *   Ejemplos de indicadores de evaluación.
           *   Orientaciones didácticas generales.
           *   Sugerencias de evaluación generales.
           *   Objetivos de Aprendizaje Transversales (OATs) relevantes.
-      3.  **Estructurar la Salida:** Organiza toda la información extraída en un solo objeto JSON. No agregues comentarios ni texto fuera del formato JSON.
+      3.  **Estructurar la Salida:** Organiza la información en un solo objeto JSON. Los OAs, Habilidades y Actitudes deben estar ANIDADOS dentro de su Eje correspondiente.
 
       # DATOS DE ENTRADA
       [ASIGNATURA]: "${asignaturaData.nombre}"
@@ -87,11 +87,23 @@ serve(async (req) => {
       # FORMATO DE SALIDA
       \`\`\`json
       {
-        "ejes": [],
-        "unidades_propuestas": [],
-        "objetivos_aprendizaje": [],
-        "habilidades": [],
-        "actitudes": [],
+        "ejes": [
+          {
+            "nombre": "Nombre del Eje 1",
+            "habilidades": [
+              { "codigo": "A", "descripcion": "Descripción completa de la habilidad A." }
+            ],
+            "actitudes": [
+              { "codigo": "OA A", "descripcion": "Descripción completa de la actitud A." }
+            ],
+            "objetivos_aprendizaje": [
+              { "codigo": "OA 1", "descripcion": "Descripción completa del objetivo 1." }
+            ]
+          }
+        ],
+        "unidades_propuestas": [
+          { "nombre": "Unidad 1", "descripcion": "Descripción de la unidad." }
+        ],
         "conocimientos_esenciales": [],
         "ejemplos_indicadores": [],
         "orientaciones_didacticas": "",

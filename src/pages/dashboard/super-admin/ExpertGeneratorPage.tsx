@@ -24,6 +24,7 @@ const ExpertGeneratorPage = () => {
   const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any | null>(null);
+  const [currentSelection, setCurrentSelection] = useState<{ nivelId: string; asignaturaId: string } | null>(null);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -48,6 +49,7 @@ const ExpertGeneratorPage = () => {
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     setResults(null);
+    setCurrentSelection(data);
     try {
       const { data: resultData, error } = await supabase.functions.invoke('expert-curriculum-simulator', {
         body: {
@@ -123,7 +125,7 @@ const ExpertGeneratorPage = () => {
         </div>
       )}
 
-      {results && <GeneratorResultsComponent results={results} />}
+      {results && currentSelection && <GeneratorResultsComponent results={results} selection={currentSelection} />}
     </div>
   );
 };
