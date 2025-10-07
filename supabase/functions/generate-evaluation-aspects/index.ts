@@ -21,7 +21,7 @@ serve(async (req) => {
       throw new Error("El título y las preguntas de la evaluación son requeridos.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
     const questionsSummary = questions.map((q: any) => 
       `- Pregunta sobre "${q.enunciado.substring(0, 50)}..." (Habilidad: ${q.habilidad_evaluada || 'N/A'}, Nivel Bloom: ${q.nivel_comprension || 'N/A'})`
