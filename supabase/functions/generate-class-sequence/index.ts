@@ -1,52 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { FunctionsHttpError } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-function cleanAndParseJson(text: string): any {
-  // Attempt to find JSON within markdown code blocks
-  const markdownMatch = text.match(/```json([\s\S]*?)```/);
-  let potentialJson = markdownMatch ? markdownMatch[1].trim() : text;
-
-  // Find the start of a JSON object or array
-  const firstBracket = potentialJson.indexOf('[');
-  const firstBrace = potentialJson.indexOf('{');
-  
-  let startIndex = -1;
-  if (firstBracket === -1) {
-    startIndex = firstBrace;
-  } else if (firstBrace === -1) {
-    startIndex = firstBracket;
-  } else {
-    startIndex = Math.min(firstBracket, firstBrace);
-  }
-
-  if (startIndex === -1) {
-    console.error("No JSON start character ([ or {) found in AI response:", potentialJson);
-    throw new Error("La respuesta de la IA no contenía un objeto o array JSON.");
-  }
-
-  // Find the end of the JSON object or array
-  const lastBracket = potentialJson.lastIndexOf(']');
-  const lastBrace = potentialJson.lastIndexOf('}');
-  const endIndex = Math.max(lastBracket, lastBrace);
-
-  if (endIndex === -1) {
-    console.error("No JSON end character (] or }) found in AI response:", potentialJson);
-    throw new Error("El objeto o array JSON en la respuesta de la IA estaba incompleto.");
-  }
-
-  const jsonString = potentialJson.substring(startIndex, endIndex + 1);
-
-  try {
-    return JSON.parse(jsonString);
-  } catch (error) {
-    console.error("Failed to parse extracted JSON:", error);
-    console.error("Extracted string for parsing:", jsonString);
-    throw new Error("La respuesta de la IA no tenía un formato JSON válido, incluso después de intentar extraerlo.");
-  }
 }
 
 serve(async (req) => {
@@ -65,13 +22,12 @@ serve(async (req) => {
       throw new Error("El número de clases (classCount) debe ser un entero positivo.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const prompt = `
       Eres un asistente experto en planificación de clases y didáctica para la educación chilena.
       Basado en las sugerencias de la unidad, genera una secuencia de ${classCount} clases detalladas.
       Tu respuesta DEBE ser un array de objetos JSON, con la siguiente estructura para cada objeto:
-      \`\`\`json
       {
         "titulo": "string",
         "objetivos_clase": "string",
@@ -86,7 +42,6 @@ serve(async (req) => {
         "vinculo_interdisciplinario": "string",
         "aspectos_valoricos_actitudinales": "string"
       }
-      \`\`\`
       - **Exhaustividad Obligatoria:** DEBES rellenar TODOS los campos del JSON con contenido sustancial y detallado. No dejes campos vacíos o con texto genérico.
       - **Objetivo de Aprendizaje:** En 'objetivo_aprendizaje_texto', selecciona el OA más pertinente de la lista proporcionada y escríbelo completo.
       - **Habilidades:** En 'habilidades', lista al menos 2-3 habilidades concretas que se desarrollarán (ej: "Análisis de fuentes, Comparación, Argumentación").
@@ -94,7 +49,7 @@ serve(async (req) => {
       - **Aporte al Proyecto:** Si el contexto del proyecto es 'Sí', describe en 'aporte_proyecto' cómo esta clase contribuye de forma específica al proyecto ABP. Si es 'No', indica "No aplica".
       - **Actividades:** Para 'actividades_inicio', 'actividades_desarrollo' y 'actividades_cierre', detalla una secuencia de acciones, incluyendo ejemplos, posibles preguntas para guiar la discusión y una estimación de tiempo para cada fase.
       - **Vínculo y Aspectos:** Ofrece sugerencias concretas para 'vinculo_interdisciplinario' y 'aspectos_valoricos_actitudinales'.
-      - **Formato:** Tu respuesta DEBE ser únicamente el array de objetos JSON dentro de un bloque de código.
+      - **Formato:** Tu respuesta DEBE ser únicamente el array de objetos JSON. No incluyas markdown.
 
       Aquí están los detalles de la unidad:
       - Sugerencias de la unidad: ${JSON.stringify(suggestions)}
@@ -104,7 +59,12 @@ serve(async (req) => {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      body: JSON.stringify({ 
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          response_mime_type: "application/json",
+        }
+      }),
     });
 
     if (!res.ok) {
@@ -114,7 +74,7 @@ serve(async (req) => {
 
     const data = await res.json();
     const aiText = data.candidates[0].content.parts[0].text;
-    const aiResponseJson = cleanAndParseJson(aiText);
+    const aiResponseJson = JSON.parse(aiText);
 
     return new Response(JSON.stringify(aiResponseJson), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
