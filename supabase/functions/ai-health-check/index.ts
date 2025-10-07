@@ -16,7 +16,7 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada en los secretos del proyecto.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
     const prompt = "Genera una frase corta y optimista sobre el futuro de la educación.";
 
