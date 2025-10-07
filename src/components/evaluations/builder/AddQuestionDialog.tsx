@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Trash2 } from 'lucide-react';
-import { saveManualQuestion, ManualQuestionData, fetchSkills, Skill } from '@/api/evaluationsApi';
+import { saveManualQuestion, ManualQuestionData } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const alternativeSchema = z.object({
@@ -53,23 +53,14 @@ interface AddQuestionDialogProps {
 
 const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, onSave, evaluationId, blockId }) => {
   const [questionType, setQuestionType] = useState<'seleccion_multiple' | 'verdadero_falso' | 'desarrollo'>('seleccion_multiple');
-  const [skills, setSkills] = useState<Skill[]>([]);
   
-  const { control, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { control, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { tipo_item: 'seleccion_multiple', puntaje: 1, alternativas: [{ texto: '' }, { texto: '' }] },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "alternativas" });
   const correctAlternativeIndex = watch('correctAlternative');
-
-  useEffect(() => {
-    if (isOpen) {
-        fetchSkills()
-            .then(setSkills)
-            .catch(err => showError(`Error al cargar habilidades: ${err.message}`));
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     reset({
@@ -153,35 +144,17 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, 
               <Controller
                 name="habilidad_evaluada"
                 control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger><SelectValue placeholder="Selecciona una habilidad" /></SelectTrigger>
-                    <SelectContent>
-                      {skills.map(skill => (
-                        <SelectItem key={skill.id} value={skill.nombre}>{skill.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                render={({ field }) => <Input id="habilidad_evaluada" placeholder="Ej: Análisis de fuentes" {...field} />}
               />
               {errors.habilidad_evaluada && <p className="text-red-500 text-sm mt-1">{errors.habilidad_evaluada.message}</p>}
             </div>
           </div>
           <div>
             <Label htmlFor="nivel_comprension">Nivel de Comprensión (Bloom)</Label>
-            <Controller name="nivel_comprension" control={control} render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Recordar">Recordar</SelectItem>
-                  <SelectItem value="Comprender">Comprender</SelectItem>
-                  <SelectItem value="Aplicar">Aplicar</SelectItem>
-                  <SelectItem value="Analizar">Analizar</SelectItem>
-                  <SelectItem value="Evaluar">Evaluar</SelectItem>
-                  <SelectItem value="Crear">Crear</SelectItem>
-                </SelectContent>
-              </Select>
-            )} />
+            <Controller name="nivel_comprension" control={control} render={({ field }) => <Input id="nivel_comprension" placeholder="Ej: Analizar" {...field} />} />
+            <p className="text-xs text-muted-foreground mt-1">
+              Niveles: Recordar, Comprender, Aplicar, Analizar, Evaluar, Crear.
+            </p>
             {errors.nivel_comprension && <p className="text-red-500 text-sm mt-1">{errors.nivel_comprension.message}</p>}
           </div>
 
