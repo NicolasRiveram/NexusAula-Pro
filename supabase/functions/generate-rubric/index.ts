@@ -90,11 +90,11 @@ serve(async (req) => {
         ]
       }
       \`\`\`
-      - Genera exactamente ${cantidadCategorias} criterios de evaluación relevantes.
-      - Cada criterio debe tener 5 niveles de logro con puntajes de 5 a 1.
-      - Los descriptores de desempeño para cada nivel deben ser objetivamente muy diferentes para evidenciar diferencias graduales.
-      - La 'habilidad' debe ser una habilidad general asociada al criterio (ej: "Pensamiento Crítico", "Comunicación Efectiva").
-      - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
+      - **Exhaustividad y Calidad:** Genera exactamente ${cantidadCategorias} criterios de evaluación relevantes y detallados.
+      - **Vinculación Curricular:** Basa cada criterio en los Objetivos de Aprendizaje (OAs) proporcionados.
+      - **Descriptores Objetivos:** Para cada nivel de logro, escribe un descriptor de desempeño que describa una acción o resultado observable y medible. Los descriptores entre niveles deben ser objetivamente muy diferentes para evidenciar una progresión gradual y clara, evitando términos ambiguos como 'a veces' o 'casi siempre'.
+      - **Habilidad:** La 'habilidad' debe ser una habilidad general y relevante asociada al criterio (ej: "Pensamiento Crítico", "Comunicación Efectiva", "Análisis de Datos").
+      - **Formato:** Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
 
       Detalles de la actividad:
       - Nivel Educativo: ${nivelNombre}

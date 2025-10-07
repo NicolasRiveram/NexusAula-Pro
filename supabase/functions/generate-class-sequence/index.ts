@@ -69,7 +69,7 @@ serve(async (req) => {
 
     const prompt = `
       Eres un asistente experto en planificación de clases y didáctica para la educación chilena.
-      Basado en las sugerencias de la unidad (objetivos, propósito, proyecto), genera una secuencia de ${classCount} clases detalladas.
+      Basado en las sugerencias de la unidad, genera una secuencia de ${classCount} clases detalladas.
       Tu respuesta DEBE ser un array de objetos JSON, con la siguiente estructura para cada objeto:
       \`\`\`json
       {
@@ -87,9 +87,14 @@ serve(async (req) => {
         "aspectos_valoricos_actitudinales": "string"
       }
       \`\`\`
-      - Asegúrate de que el 'objetivo_aprendizaje_texto' se relacione con los OAs proporcionados.
-      - Si se proporciona un contexto de proyecto, asegúrate de que el campo 'aporte_proyecto' sea coherente con él.
-      - NO incluyas nada más en tu respuesta, solo el array de objetos JSON en un bloque de código.
+      - **Exhaustividad Obligatoria:** DEBES rellenar TODOS los campos del JSON con contenido sustancial y detallado. No dejes campos vacíos o con texto genérico.
+      - **Objetivo de Aprendizaje:** En 'objetivo_aprendizaje_texto', selecciona el OA más pertinente de la lista proporcionada y escríbelo completo.
+      - **Habilidades:** En 'habilidades', lista al menos 2-3 habilidades concretas que se desarrollarán (ej: "Análisis de fuentes, Comparación, Argumentación").
+      - **Objetivo Estudiante:** En 'objetivo_estudiante', redacta una meta clara y motivadora desde la perspectiva del alumno (ej: "Hoy aprenderé a identificar las causas de la Revolución Francesa.").
+      - **Aporte al Proyecto:** Si el contexto del proyecto es 'Sí', describe en 'aporte_proyecto' cómo esta clase contribuye de forma específica al proyecto ABP. Si es 'No', indica "No aplica".
+      - **Actividades:** Para 'actividades_inicio', 'actividades_desarrollo' y 'actividades_cierre', detalla una secuencia de acciones, incluyendo ejemplos, posibles preguntas para guiar la discusión y una estimación de tiempo para cada fase.
+      - **Vínculo y Aspectos:** Ofrece sugerencias concretas para 'vinculo_interdisciplinario' y 'aspectos_valoricos_actitudinales'.
+      - **Formato:** Tu respuesta DEBE ser únicamente el array de objetos JSON dentro de un bloque de código.
 
       Aquí están los detalles de la unidad:
       - Sugerencias de la unidad: ${JSON.stringify(suggestions)}
