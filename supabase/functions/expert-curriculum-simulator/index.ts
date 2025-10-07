@@ -59,7 +59,7 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = `
       # ROL Y OBJETIVO
