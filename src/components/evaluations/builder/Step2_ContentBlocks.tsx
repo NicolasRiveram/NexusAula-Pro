@@ -230,8 +230,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     setGeneratingForBlock(block.id);
     try {
         const generatedQuestions = await generateQuestionsFromBlock(block, count);
-        const totalItemsInEvaluation = Object.values(questionsByBlock).flat().length;
-        await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions, totalItemsInEvaluation);
+        await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions);
         showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
         loadBlocksAndQuestions();
     } catch (error: any) {
@@ -473,7 +472,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => { setAddTextDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
       <AddSyllabusBlockDialog isOpen={isAddSyllabusDialogOpen} onClose={() => { setAddSyllabusDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
       <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => { setAddImageDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
-      {activeBlockId && <AddQuestionDialog isOpen={isAddQuestionDialogOpen} onClose={() => setAddQuestionDialogOpen(false)} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} blockId={activeBlockId} currentOrder={(questionsByBlock[activeBlockId]?.length || 0) + 1} />}
+      {activeBlockId && <AddQuestionDialog isOpen={isAddQuestionDialogOpen} onClose={() => setAddQuestionDialogOpen(false)} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} blockId={activeBlockId} />}
       <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
       <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
       <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />

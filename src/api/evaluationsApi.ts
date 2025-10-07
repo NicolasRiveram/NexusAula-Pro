@@ -138,7 +138,6 @@ export interface ManualQuestionData {
   enunciado: string;
   tipo_item: 'seleccion_multiple' | 'desarrollo' | 'verdadero_falso';
   puntaje: number;
-  orden: number;
   habilidad_evaluada?: string;
   nivel_comprension?: string;
   alternativas?: Omit<ItemAlternative, 'id' | 'evaluacion_item_id'>[];
@@ -210,10 +209,22 @@ export const fetchSkills = async (): Promise<Skill[]> => {
 export const saveManualQuestion = async (evaluationId: string, blockId: string, questionData: ManualQuestionData) => {
   const { alternativas, ...itemData } = questionData;
 
+  const { count, error: countError } = await supabase
+    .from('evaluacion_items')
+    .select('*', { count: 'exact', head: true })
+    .eq('evaluacion_id', evaluationId);
+
+  if (countError) {
+    throw new Error(`Error fetching current question count: ${countError.message}`);
+  }
+  
+  const currentItemCount = count ?? 0;
+
   const { data: newItem, error: itemError } = await supabase
     .from('evaluacion_items')
     .insert({
       ...itemData,
+      orden: currentItemCount + 1,
       evaluacion_id: evaluationId,
       content_block_id: blockId,
     })
@@ -679,7 +690,18 @@ export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, 
   return data;
 };
 
-export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[], currentItemCount: number) => {
+export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[]) => {
+  const { count, error: countError } = await supabase
+    .from('evaluacion_items')
+    .select('*', { count: 'exact', head: true })
+    .eq('evaluacion_id', evaluationId);
+
+  if (countError) {
+    throw new Error(`Error fetching current question count: ${countError.message}`);
+  }
+  
+  const currentItemCount = count ?? 0;
+
   const itemsToInsert = questions.map((q, index) => ({
     evaluacion_id: evaluationId,
     content_block_id: blockId,

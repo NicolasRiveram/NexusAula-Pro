@@ -49,10 +49,9 @@ interface AddQuestionDialogProps {
   onSave: () => void;
   evaluationId: string;
   blockId: string;
-  currentOrder: number;
 }
 
-const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, onSave, evaluationId, blockId, currentOrder }) => {
+const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, onSave, evaluationId, blockId }) => {
   const [questionType, setQuestionType] = useState<'seleccion_multiple' | 'verdadero_falso' | 'desarrollo'>('seleccion_multiple');
   const [skills, setSkills] = useState<Skill[]>([]);
   
@@ -91,7 +90,6 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({ isOpen, onClose, 
         enunciado: data.enunciado,
         tipo_item: data.tipo_item,
         puntaje: data.puntaje,
-        orden: currentOrder,
         habilidad_evaluada: data.habilidad_evaluada,
         nivel_comprension: data.nivel_comprension,
       };
