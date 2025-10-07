@@ -60,10 +60,7 @@ serve(async (req) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          response_mime_type: "application/json",
-        }
+        contents: [{ parts: [{ text: prompt }] }]
       }),
     });
 
