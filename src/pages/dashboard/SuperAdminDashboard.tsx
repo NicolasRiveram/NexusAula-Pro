@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EstablishmentsManagement from '@/components/super-admin/EstablishmentsManagement';
 import CurriculumManagement from '@/components/super-admin/CurriculumManagement';
 import UsersManagement from '@/components/super-admin/UsersManagement';
+import PendingRequestsManagement from '@/components/super-admin/PendingRequestsManagement';
 
 const SuperAdminDashboard = () => {
   return (
@@ -12,17 +13,21 @@ const SuperAdminDashboard = () => {
       <Tabs defaultValue="establishments" className="w-full">
         <TabsList>
           <TabsTrigger value="establishments">Establecimientos</TabsTrigger>
-          <TabsTrigger value="curriculum">Currículum Base</TabsTrigger>
+          <TabsTrigger value="requests">Solicitudes</TabsTrigger>
           <TabsTrigger value="users">Usuarios Globales</TabsTrigger>
+          <TabsTrigger value="curriculum">Currículum Base</TabsTrigger>
         </TabsList>
         <TabsContent value="establishments" className="mt-4">
           <EstablishmentsManagement />
         </TabsContent>
-        <TabsContent value="curriculum" className="mt-4">
-          <CurriculumManagement />
+        <TabsContent value="requests" className="mt-4">
+          <PendingRequestsManagement />
         </TabsContent>
         <TabsContent value="users" className="mt-4">
           <UsersManagement />
+        </TabsContent>
+        <TabsContent value="curriculum" className="mt-4">
+          <CurriculumManagement />
         </TabsContent>
       </Tabs>
     </div>

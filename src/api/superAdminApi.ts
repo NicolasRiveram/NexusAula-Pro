@@ -82,6 +82,31 @@ export interface CurriculumUploadJob {
   asignaturas: { nombre: string } | null;
 }
 
+export interface AllPendingRequest {
+  perfil_id: string;
+  nombre_completo: string;
+  email: string;
+  rol_solicitado: string;
+  fecha_solicitud: string;
+  establecimiento_id: string;
+  establecimiento_nombre: string;
+}
+
+export const fetchAllPendingRequests = async (): Promise<AllPendingRequest[]> => {
+  const { data, error } = await supabase.rpc('get_all_pending_requests');
+  if (error) throw new Error(`Error fetching all pending requests: ${error.message}`);
+  return data || [];
+};
+
+export const superAdminUpdateRequestStatus = async (perfilId: string, establecimientoId: string, newStatus: 'aprobado' | 'rechazado') => {
+  const { error } = await supabase.rpc('super_admin_update_request_status', {
+    p_perfil_id: perfilId,
+    p_establecimiento_id: establecimientoId,
+    p_new_status: newStatus,
+  });
+  if (error) throw new Error(`Error updating request status: ${error.message}`);
+};
+
 export const fetchCurriculumUploadJobs = async (): Promise<CurriculumUploadJob[]> => {
   const { data, error } = await supabase
     .from('curriculum_upload_jobs')

@@ -16,6 +16,7 @@ const UsersManagement = () => {
   const [users, setUsers] = useState<GlobalUser[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [selectedEstablishment, setSelectedEstablishment] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [isUserDialogOpen, setUserDialogOpen] = useState(false);
   const [isSubDialogOpen, setSubDialogOpen] = useState(false);
@@ -39,11 +40,18 @@ const UsersManagement = () => {
   }, []);
 
   const filteredUsers = useMemo(() => {
-    if (selectedEstablishment === 'all') {
-      return users;
+    let filtered = users;
+
+    if (selectedEstablishment !== 'all') {
+      filtered = filtered.filter(user => user.establecimientos.some(est => est.id === selectedEstablishment));
     }
-    return users.filter(user => user.establecimientos.some(est => est.id === selectedEstablishment));
-  }, [users, selectedEstablishment]);
+
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(user => user.rol === roleFilter);
+    }
+
+    return filtered;
+  }, [users, selectedEstablishment, roleFilter]);
 
   const handleEditRole = (user: GlobalUser) => {
     setSelectedUser(user);
@@ -64,18 +72,34 @@ const UsersManagement = () => {
               <CardTitle>Gestión de Usuarios Globales</CardTitle>
               <CardDescription>Administra todos los usuarios de la plataforma.</CardDescription>
             </div>
-            <div className="w-64">
-              <Select value={selectedEstablishment} onValueChange={setSelectedEstablishment}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por establecimiento..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los establecimientos</SelectItem>
-                  {establishments.map(est => (
-                    <SelectItem key={est.id} value={est.id}>{est.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex gap-2">
+              <div className="w-64">
+                <Select value={selectedEstablishment} onValueChange={setSelectedEstablishment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por establecimiento..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los establecimientos</SelectItem>
+                    {establishments.map(est => (
+                      <SelectItem key={est.id} value={est.id}>{est.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-56">
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por rol..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los roles</SelectItem>
+                    <SelectItem value="super_administrador">Super Administrador</SelectItem>
+                    <SelectItem value="coordinador">Coordinador</SelectItem>
+                    <SelectItem value="docente">Docente</SelectItem>
+                    <SelectItem value="estudiante">Estudiante</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardHeader>
