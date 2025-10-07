@@ -694,7 +694,7 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
   const { count, error: countError } = await supabase
     .from('evaluacion_items')
     .select('*', { count: 'exact', head: true })
-    .eq('evaluacion_id', evaluationId);
+    .eq('evaluation_id', evaluationId);
 
   if (countError) {
     throw new Error(`Error fetching current question count: ${countError.message}`);
@@ -806,7 +806,7 @@ export const savePIEAdaptation = async (parentItemId: string, adaptationData: an
     }
 };
 
-export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; habilidad_evaluada: string; nivel_comprension: string; alternativas: any[] }) => {
+export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; habilidad_evaluada: string | null; nivel_comprension: string | null; alternativas: any[] }) => {
     const { error } = await supabase.rpc('actualizar_pregunta_y_alternativas', {
         p_item_id: itemId,
         p_enunciado: data.enunciado,
@@ -821,7 +821,7 @@ export const updateEvaluationItem = async (itemId: string, data: { enunciado: st
 export const increaseQuestionDifficulty = async (itemId: string) => {
     const { data: item, error: fetchError } = await supabase
         .from('evaluacion_items')
-        .select('enunciado, puntaje, item_alternativas(*)')
+        .select('enunciado, puntaje, habilidad_evaluada, nivel_comprension, item_alternativas(*)')
         .eq('id', itemId)
         .single();
 
@@ -841,6 +841,8 @@ export const increaseQuestionDifficulty = async (itemId: string) => {
     await updateEvaluationItem(itemId, {
         enunciado: newData.enunciado,
         puntaje: item.puntaje,
+        habilidad_evaluada: item.habilidad_evaluada,
+        nivel_comprension: item.nivel_comprension,
         alternativas: newData.alternativas,
     });
 };

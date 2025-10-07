@@ -49,7 +49,7 @@ const ExpertGeneratorPage = () => {
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     setResults(null);
-    setCurrentSelection(data);
+    setCurrentSelection({ nivelId: data.nivelId, asignaturaId: data.asignaturaId });
     try {
       const { data: resultData, error } = await supabase.functions.invoke('expert-curriculum-simulator', {
         body: {

@@ -48,7 +48,7 @@ const EvaluationBuilderPage = () => {
             momento_evaluativo: data.momento_evaluativo,
             descripcion: data.descripcion || '',
             fecha_aplicacion: parseISO(data.fecha_aplicacion),
-            cursoAsignaturaIds: data.evaluacion_curso_asignaturas.map((link: any) => link.curso_asignatura_id),
+            cursoAsignaturaIds: data.curso_asignaturas.map((link: any) => link.id),
             objetivos_aprendizaje_ids: data.evaluacion_objetivos.map(eo => eo.oa_id),
             randomizar_preguntas: data.randomizar_preguntas,
             randomizar_alternativas: data.randomizar_alternativas,

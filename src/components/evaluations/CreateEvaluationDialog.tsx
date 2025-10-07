@@ -24,6 +24,7 @@ const schema = z.object({
   cursoAsignaturaId: z.string().uuid("Debes seleccionar un curso."),
   titulo: z.string().min(3, "El título es requerido."),
   tipo: z.string().min(1, "El tipo de evaluación es requerido."),
+  momento_evaluativo: z.string().min(1, "El momento evaluativo es requerido."),
   descripcion: z.string().optional(),
   fecha_aplicacion: z.date({ required_error: "La fecha de aplicación es requerida." }),
 });
@@ -69,9 +70,11 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
       const newEvaluationId = await createEvaluation({
         titulo: data.titulo,
         tipo: data.tipo,
+        momento_evaluativo: data.momento_evaluativo,
         descripcion: data.descripcion || '',
         fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
         cursoAsignaturaIds: [data.cursoAsignaturaId],
+        objetivos_aprendizaje_ids: [],
       });
       dismissToast(toastId);
       showSuccess("Evaluación creada. Ahora puedes añadirle preguntas.");
@@ -110,19 +113,35 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
             <Controller name="titulo" control={control} render={({ field }) => <Input id="titulo" {...field} />} />
             {errors.titulo && <p className="text-red-500 text-sm">{errors.titulo.message}</p>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="tipo">Tipo</Label>
-            <Controller name="tipo" control={control} render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="prueba">Prueba</SelectItem>
-                  <SelectItem value="guia_de_trabajo">Guía de trabajo</SelectItem>
-                  <SelectItem value="otro">Otro</SelectItem>
-                </SelectContent>
-              </Select>
-            )} />
-            {errors.tipo && <p className="text-red-500 text-sm">{errors.tipo.message}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="tipo">Tipo</Label>
+              <Controller name="tipo" control={control} render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prueba">Prueba</SelectItem>
+                    <SelectItem value="guia_de_trabajo">Guía de trabajo</SelectItem>
+                    <SelectItem value="otro">Otro</SelectItem>
+                  </SelectContent>
+                </Select>
+              )} />
+              {errors.tipo && <p className="text-red-500 text-sm">{errors.tipo.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="momento_evaluativo">Momento Evaluativo</Label>
+              <Controller name="momento_evaluativo" control={control} render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona un momento" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="diagnostica">Diagnóstica</SelectItem>
+                    <SelectItem value="formativa">Formativa</SelectItem>
+                    <SelectItem value="sumativa">Sumativa</SelectItem>
+                  </SelectContent>
+                </Select>
+              )} />
+              {errors.momento_evaluativo && <p className="text-red-500 text-sm">{errors.momento_evaluativo.message}</p>}
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="fecha_aplicacion">Fecha de Aplicación</Label>
