@@ -153,7 +153,13 @@ const EditUnitPlanPage = () => {
         throw new Error("No se encontraron bloques de horario disponibles para los cursos y fechas seleccionados. Por favor, revisa tu horario o el rango de fechas y vuelve a intentarlo.");
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No hay sesión de usuario activa.");
+
       const { data: sequence, error: sequenceError } = await supabase.functions.invoke('generate-class-sequence', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: { 
           suggestions: plan.sugerencias_ia, 
           projectContext: null,

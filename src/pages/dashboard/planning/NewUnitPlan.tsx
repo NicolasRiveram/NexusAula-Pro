@@ -29,8 +29,8 @@ const NewUnitPlan = () => {
     setIsLoading(true);
     setUnitPlanData(data);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado.");
+      const { data: { user, session } } = await supabase.auth.getUser();
+      if (!user || !session) throw new Error("Usuario no autenticado.");
 
       const newUnitId = await createUnitPlan(data, user.id);
       setUnitMasterId(newUnitId);
@@ -42,6 +42,9 @@ const NewUnitPlan = () => {
       }
       
       const { data: suggestions, error } = await supabase.functions.invoke('generate-unit-suggestions', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: { 
           title: data.titulo, 
           description: data.descripcionContenidos, 
@@ -93,7 +96,13 @@ const NewUnitPlan = () => {
 
       showSuccess(`Se planificarán ${classCount} clases según tu horario.`);
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No hay sesión de usuario activa.");
+
       const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: { suggestions: data, projectContext: proyectoId, classCount },
       });
 

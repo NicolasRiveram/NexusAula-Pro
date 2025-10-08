@@ -263,7 +263,13 @@ export const crearCurso = async (
 };
 
 export const inscribirYCrearEstudiantes = async (cursoId: string, estudiantesData: any[]) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("No hay sesión de usuario activa.");
+
   const { data, error } = await supabase.functions.invoke('enroll-students', {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
     body: {
       cursoId: cursoId,
       estudiantesData: estudiantesData,

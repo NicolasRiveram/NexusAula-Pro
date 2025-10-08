@@ -138,7 +138,13 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
 
     setIsSuggestingContent(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No hay sesión de usuario activa.");
+
       const { data, error } = await supabase.functions.invoke('suggest-unit-content', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: { 
           nivelId: firstCurso.nivelId, 
           asignaturaId: firstCurso.asignaturaId, 

@@ -17,7 +17,14 @@ const AIStatusCheck = () => {
     setIsLoading(true);
     setTestResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-health-check');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No hay sesión de usuario activa.");
+
+      const { data, error } = await supabase.functions.invoke('ai-health-check', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
       if (error) throw error;
 
       if (data.status === 'ok') {

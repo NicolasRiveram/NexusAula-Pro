@@ -80,7 +80,13 @@ const RubricBuilderPage = () => {
     }
     setIsSuggestingOAs(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No hay sesión de usuario activa.");
+
       const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: { nivelId, asignaturaId, tema: descripcion },
       });
       if (error) throw error;
