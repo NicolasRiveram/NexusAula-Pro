@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks } from '@/api/evaluationsApi';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -27,12 +27,38 @@ interface Step2ContentBlocksProps {
   onNextStep: () => void;
 }
 
-const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, isAdapting, isIncreasingDifficulty }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, onEdit: (item: EvaluationItem) => void, onIncreaseDifficulty: (itemId: string) => void, isAdapting: boolean, isIncreasingDifficulty: boolean }) => {
+const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onScoreChange, isAdapting, isIncreasingDifficulty }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, onEdit: (item: EvaluationItem) => void, onIncreaseDifficulty: (itemId: string) => void, onScoreChange: (itemId: string, newScore: number) => void, isAdapting: boolean, isIncreasingDifficulty: boolean }) => {
     const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
+    const [localScore, setLocalScore] = useState(item.puntaje);
+
+    useEffect(() => {
+        setLocalScore(item.puntaje);
+    }, [item.puntaje]);
+
+    const handleScoreBlur = () => {
+        const newScore = Number(localScore);
+        if (newScore !== item.puntaje && !isNaN(newScore) && newScore >= 0) {
+            onScoreChange(item.id, newScore);
+        } else {
+            setLocalScore(item.puntaje); // Revert if invalid
+        }
+    };
 
     return (
         <div className="p-3 border rounded-md bg-background">
-            <p className="text-sm font-medium">{item.orden}. {item.enunciado}</p>
+            <div className="flex justify-between items-start">
+                <p className="text-sm font-medium flex-1 pr-4">{item.orden}. {item.enunciado}</p>
+                <div className="flex items-center gap-1">
+                    <Input
+                        type="number"
+                        value={localScore}
+                        onChange={(e) => setLocalScore(Number(e.target.value))}
+                        onBlur={handleScoreBlur}
+                        className="w-16 h-8 text-center"
+                    />
+                    <span className="text-sm text-muted-foreground">pts.</span>
+                </div>
+            </div>
             {item.tipo_item === 'seleccion_multiple' && (
                 <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                     {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
@@ -344,6 +370,27 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
+  const handleScoreChange = async (itemId: string, newScore: number) => {
+    setQuestionsByBlock(prev => {
+        const newQuestions = { ...prev };
+        for (const blockId in newQuestions) {
+            const itemIndex = newQuestions[blockId].findIndex(i => i.id === itemId);
+            if (itemIndex !== -1) {
+                newQuestions[blockId][itemIndex] = { ...newQuestions[blockId][itemIndex], puntaje: newScore };
+                break;
+            }
+        }
+        return newQuestions;
+    });
+
+    try {
+        await updateEvaluationItemDetails(itemId, { puntaje: newScore });
+    } catch (error: any) {
+        showError(error.message);
+        loadBlocksAndQuestions();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
@@ -442,6 +489,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                                   onAdaptPIE={handleAdaptPIE}
                                   onEdit={setEditingItem}
                                   onIncreaseDifficulty={handleIncreaseDifficulty}
+                                  onScoreChange={handleScoreChange}
                                   isAdapting={adaptingItemId === item.id}
                                   isIncreasingDifficulty={increasingDifficultyId === item.id}
                               />

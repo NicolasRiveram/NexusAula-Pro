@@ -64,6 +64,7 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .print-header-info p { font-size: 1rem; margin: 4px 0 0 0; color: #333; }
 
           /* Evaluation Specific Header */
+          .header-center { text-align: center; }
           .evaluation-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
           .teacher-name { font-size: 1rem; margin-top: 4px; color: #333; }
           .header-divider { border: none; border-top: 1px solid #000; margin-bottom: 20px; }
@@ -80,10 +81,11 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .info-item .line { flex-grow: 1; border-bottom: 1px solid #000; min-height: 20px; }
 
           /* Evaluation Content */
+          .content-block-title { font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
           .question-item { page-break-inside: avoid; margin-bottom: 20px; }
           .alternatives-list { list-style-type: none; padding-left: 0; }
           .alternatives-list li { margin-bottom: 5px; }
-          .content-block { page-break-inside: avoid; border: 1px solid #eee; padding: 15px; border-radius: 5px; margin-bottom: 20px; background-color: #f9f9f9 !important; }
+          .content-block { page-break-inside: avoid; border: 1px solid #eee; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
           .content-block p { text-align: justify; white-space: pre-wrap; }
           .content-block img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 

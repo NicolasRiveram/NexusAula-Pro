@@ -32,7 +32,7 @@ const EvaluationBuilderPage = () => {
   const [evaluationDetails, setEvaluationDetails] = useState<EvaluationDetail | null>(null);
   const [loadingInitialData, setLoadingInitialData] = useState(isEditMode);
 
-  const { control, handleSubmit, formState: { isSubmitting }, reset, getValues } = useForm<EvaluationBuilderFormData>({
+  const { control, handleSubmit, formState: { isSubmitting }, reset, getValues, setValue } = useForm<EvaluationBuilderFormData>({
     resolver: zodResolver(evaluationBuilderSchema),
   });
 
@@ -97,13 +97,37 @@ const EvaluationBuilderPage = () => {
 
   const handleNextFromContent = async () => {
     if (!evaluationId) return;
-    const toastId = showLoading("Cargando resumen de la evaluación...");
+    const toastId = showLoading("Cargando y preparando revisión final...");
     try {
       const data = await fetchEvaluationDetails(evaluationId);
       setEvaluationDetails(data);
+
+      // Auto-generate standard if empty
+      if (!data.estandar_esperado) {
+        const questions = data.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
+        if (questions.length > 0) {
+          const questionsSummary = questions.map(q => ({
+            enunciado: q.enunciado,
+            habilidad_evaluada: q.habilidad_evaluada,
+            nivel_comprension: q.nivel_comprension,
+          }));
+
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) throw new Error("No hay sesión de usuario activa.");
+
+          const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-expected-standard', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            body: { evaluationTitle: data.titulo, questions: questionsSummary },
+          });
+          if (aiError) throw aiError;
+          
+          setValue('estandar_esperado', aiData.standard);
+        }
+      }
+
       setStep(3);
     } catch (error: any) {
-      showError(`Error al cargar el resumen: ${error.message}`);
+      showError(`Error al preparar la revisión: ${error.message}`);
     } finally {
       dismissToast(toastId);
     }

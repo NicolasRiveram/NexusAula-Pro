@@ -148,6 +148,14 @@ export interface Skill {
   nombre: string;
 }
 
+export const updateEvaluationItemDetails = async (itemId: string, updates: { puntaje: number }) => {
+  const { error } = await supabase
+    .from('evaluacion_items')
+    .update(updates)
+    .eq('id', itemId);
+  if (error) throw new Error(`Error al actualizar el puntaje: ${error.message}`);
+};
+
 export const fetchObjetivosAprendizaje = async (nivelIds: string[], asignaturaIds: string[]): Promise<ObjetivoAprendizaje[]> => {
   if (nivelIds.length === 0 || asignaturaIds.length === 0) {
     return [];

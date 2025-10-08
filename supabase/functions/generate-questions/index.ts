@@ -84,7 +84,7 @@ serve(async (req) => {
       {
         "enunciado": "string",
         "tipo_item": "seleccion_multiple",
-        "puntaje": 5,
+        "puntaje": 1,
         "habilidad_evaluada": "string",
         "nivel_comprension": "string",
         "alternativas": [
