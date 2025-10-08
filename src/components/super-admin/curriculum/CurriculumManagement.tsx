@@ -51,8 +51,8 @@ const CurriculumUploadForm = ({ niveles, asignaturas, onUploadSuccess }: { nivel
     setIsUploading(true);
     const toastId = showLoading("Subiendo archivo y iniciando proceso...");
     try {
-      const { data: { user, session } } = await supabase.auth.getUser();
-      if (!user || !session) throw new Error("Usuario no autenticado.");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuario no autenticado.");
 
       const file = data.file[0];
       const filePath = `public/${user.id}/${Date.now()}-${file.name}`;
@@ -77,9 +77,6 @@ const CurriculumUploadForm = ({ niveles, asignaturas, onUploadSuccess }: { nivel
       if (jobError) throw jobError;
 
       const { error: functionError } = await supabase.functions.invoke('process-curriculum-upload', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: { jobId: jobData.id },
       });
       if (functionError) throw functionError;

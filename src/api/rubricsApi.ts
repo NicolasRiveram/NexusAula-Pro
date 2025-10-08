@@ -126,13 +126,7 @@ export const generateRubricWithAI = async (params: {
   cantidadCategorias: number;
   objetivos: string;
 }): Promise<RubricContent> => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("No hay sesión de usuario activa.");
-
   const { data, error } = await supabase.functions.invoke('generate-rubric', {
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
     body: params,
   });
 

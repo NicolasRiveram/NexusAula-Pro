@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { fetchNiveles, fetchDocenteAsignaturas, Nivel, Asignatura } from '@/api/coursesApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const step1Schema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
@@ -80,13 +81,7 @@ const RubricBuilderPage = () => {
     }
     setIsSuggestingOAs(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No hay sesión de usuario activa.");
-
       const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: { nivelId, asignaturaId, tema: descripcion },
       });
       if (error) throw error;

@@ -37,13 +37,7 @@ const UrlUploadForm: React.FC<UrlUploadFormProps> = ({ niveles, asignaturas, onU
     setIsProcessing(true);
     const toastId = showLoading("Accediendo a la URL y analizando con IA... Esto puede tardar un momento.");
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No hay sesión de usuario activa.");
-
       const { data: result, error } = await supabase.functions.invoke('process-curriculum-url', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: {
           url: data.url,
           nivelId: data.nivelId,

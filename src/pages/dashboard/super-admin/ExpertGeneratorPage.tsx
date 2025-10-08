@@ -51,13 +51,7 @@ const ExpertGeneratorPage = () => {
     setResults(null);
     setCurrentSelection({ nivelId: data.nivelId, asignaturaId: data.asignaturaId });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No hay sesión de usuario activa.");
-
       const { data: resultData, error } = await supabase.functions.invoke('expert-curriculum-simulator', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: {
           nivelId: data.nivelId,
           asignaturaId: data.asignaturaId,

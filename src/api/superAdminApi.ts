@@ -117,13 +117,7 @@ export const fetchCurriculumUploadJobs = async (): Promise<CurriculumUploadJob[]
 };
 
 export const bulkInsertObjectives = async (nivelId: string, asignaturaId: string, ejeId: string, text: string) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("No hay sesión de usuario activa.");
-
   const { data, error } = await supabase.functions.invoke('bulk-insert-objectives', {
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
     body: { nivelId, asignaturaId, ejeId, text },
   });
   if (error) throw new Error(error.message);

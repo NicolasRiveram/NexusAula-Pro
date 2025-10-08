@@ -682,13 +682,7 @@ export const getPublicImageUrl = (path: string): string => {
 };
 
 export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, questionCount: number) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("No hay sesión de usuario activa.");
-
   const { data, error } = await supabase.functions.invoke('generate-questions', {
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
     body: {
       block_content: block.content,
       block_type: block.block_type,
@@ -775,9 +769,6 @@ export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationIte
 };
 
 export const generatePIEAdaptation = async (itemId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("No hay sesión de usuario activa.");
-
     const { data: item, error: fetchError } = await supabase
         .from('evaluacion_items')
         .select('enunciado, item_alternativas(*)')
@@ -788,9 +779,6 @@ export const generatePIEAdaptation = async (itemId: string) => {
     if (!item) throw new Error('Pregunta no encontrada.');
 
     const { data, error } = await supabase.functions.invoke('adapt-question-pie', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: { item }
     });
     if (error instanceof FunctionsHttpError) {
@@ -839,9 +827,6 @@ export const updateEvaluationItem = async (itemId: string, data: { enunciado: st
 };
 
 export const increaseQuestionDifficulty = async (itemId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("No hay sesión de usuario activa.");
-
     const { data: item, error: fetchError } = await supabase
         .from('evaluacion_items')
         .select('enunciado, puntaje, habilidad_evaluada, nivel_comprension, item_alternativas(*)')
@@ -852,9 +837,6 @@ export const increaseQuestionDifficulty = async (itemId: string) => {
     if (!item) throw new Error('Pregunta no encontrada.');
 
     const { data: newData, error } = await supabase.functions.invoke('increase-question-difficulty', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: { item }
     });
     if (error instanceof FunctionsHttpError) {

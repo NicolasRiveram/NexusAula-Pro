@@ -112,11 +112,7 @@ const EvaluationBuilderPage = () => {
             nivel_comprension: q.nivel_comprension,
           }));
 
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) throw new Error("No hay sesión de usuario activa.");
-
           const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-expected-standard', {
-            headers: { Authorization: `Bearer ${session.access_token}` },
             body: { evaluationTitle: data.titulo, questions: questionsSummary },
           });
           if (aiError) throw aiError;
@@ -161,13 +157,7 @@ const EvaluationBuilderPage = () => {
           nivel_comprension: q.nivel_comprension,
         }));
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("No hay sesión de usuario activa.");
-
         const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-evaluation-aspects', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
           body: { evaluationTitle: evaluationDetails.titulo, questions: questionsSummary },
         });
 

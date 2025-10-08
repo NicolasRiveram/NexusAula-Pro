@@ -55,13 +55,7 @@ export const checkReportEligibility = async (studentId: string) => {
 };
 
 export const generateReport = async (studentId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("No hay sesión de usuario activa.");
-
     const { data, error } = await supabase.functions.invoke('generate-student-report', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: { studentId },
     });
     if (error) throw new Error(error.message);
