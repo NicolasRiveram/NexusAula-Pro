@@ -16,7 +16,7 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada en los secretos del proyecto.");
     }
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = "Genera una frase corta y optimista sobre el futuro de la educación.";
 
@@ -34,7 +34,12 @@ serve(async (req) => {
     }
 
     const data = await res.json();
-    const aiText = data.candidates[0].content.parts[0].text;
+    const candidate = data.candidates?.[0];
+    if (!candidate || !candidate.content?.parts?.[0]?.text) {
+      console.error("Invalid AI response structure from health check:", JSON.stringify(data, null, 2));
+      throw new Error("La IA devolvió una respuesta inesperada durante la verificación de estado.");
+    }
+    const aiText = candidate.content.parts[0].text;
 
     return new Response(JSON.stringify({ status: 'ok', message: aiText }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

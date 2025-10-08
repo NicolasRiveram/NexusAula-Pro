@@ -114,7 +114,7 @@ serve(async (req) => {
     // 3. Call Gemini AI
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) throw new Error("GEMINI_API_KEY not set.");
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = `
       # ROL Y OBJETIVO
@@ -169,7 +169,12 @@ serve(async (req) => {
     }
 
     const data = await res.json();
-    const aiText = data.candidates[0].content.parts[0].text;
+    const candidate = data.candidates?.[0];
+    if (!candidate || !candidate.content?.parts?.[0]?.text) {
+      console.error("Invalid AI response structure:", JSON.stringify(data, null, 2));
+      throw new Error("La IA devolvió una respuesta con una estructura inesperada.");
+    }
+    const aiText = candidate.content.parts[0].text;
     const curriculumData = cleanAndParseJson(aiText);
 
     // 4. Store data in database

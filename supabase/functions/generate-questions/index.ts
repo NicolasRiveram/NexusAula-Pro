@@ -63,7 +63,7 @@ serve(async (req) => {
     const { block_content, block_type, questionCount } = await req.json();
     const count = questionCount > 0 && questionCount <= 5 ? questionCount : 3;
     
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
     let contentPrompt;
     if (block_type === 'text') {
@@ -113,7 +113,12 @@ serve(async (req) => {
     }
 
     const data = await res.json();
-    const aiText = data.candidates[0].content.parts[0].text;
+    const candidate = data.candidates?.[0];
+    if (!candidate || !candidate.content?.parts?.[0]?.text) {
+      console.error("Invalid AI response structure:", JSON.stringify(data, null, 2));
+      throw new Error("La IA devolvió una respuesta con una estructura inesperada.");
+    }
+    const aiText = candidate.content.parts[0].text;
     const aiResponseJson = cleanAndParseJson(aiText);
 
     return new Response(JSON.stringify(aiResponseJson), {
