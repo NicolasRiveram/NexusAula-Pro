@@ -81,6 +81,7 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .info-item .line { flex-grow: 1; border-bottom: 1px solid #000; min-height: 20px; }
 
           /* Evaluation Content */
+          .content-header-group { page-break-inside: avoid; }
           .content-block-title { font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
           .question-item { page-break-inside: avoid; margin-bottom: 20px; }
           .alternatives-list { list-style-type: none; padding-left: 0; }

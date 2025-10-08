@@ -71,8 +71,10 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
 
           return (
             <div key={block.id} className="content-block-wrapper">
-              {block.visible_en_evaluacion && block.title && <h2 className="content-block-title">{block.title}</h2>}
-              {contentElement && <div className="content-block">{contentElement}</div>}
+              <div className="content-header-group">
+                {block.visible_en_evaluacion && block.title && <h2 className="content-block-title">{block.title}</h2>}
+                {contentElement && <div className="content-block">{contentElement}</div>}
+              </div>
               {(block.evaluacion_items || []).map(item => (
                 <div key={item.id} className="question-item">
                   <p className="question-enunciado">{item.orden}. {item.enunciado || ''} ({item.puntaje || 0} pts.)</p>
