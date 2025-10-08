@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Controller, Control, useFormState, useWatch } from 'react-hook-form';
+import { Controller, Control, useFormState, useWatch, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
@@ -10,14 +10,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import { fetchObjetivosAprendizaje, ObjetivoAprendizaje } from '@/api/evaluationsApi';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, Sparkles } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MultiSelect } from '@/components/MultiSelect';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 export const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
@@ -27,24 +28,29 @@ export const schema = z.object({
   fecha_aplicacion: z.date({ required_error: "La fecha de aplicación es requerida." }),
   cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos un curso."),
   objetivos_aprendizaje_ids: z.array(z.string().uuid()).optional(),
+  objetivosSugeridos: z.string().optional(),
 });
 
 export type EvaluationStep1Data = z.infer<typeof schema>;
 
 interface Step1GeneralInfoProps {
   onFormSubmit: (e: React.BaseSyntheticEvent) => Promise<void>;
-  control: Control<any>; // Usamos 'any' para acomodar el schema extendido del padre
+  control: Control<any>;
   isSubmitting: boolean;
+  setValue: UseFormSetValue<any>;
+  getValues: UseFormGetValues<any>;
 }
 
-const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, control, isSubmitting }) => {
+const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, control, isSubmitting, setValue, getValues }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
   const [objetivos, setObjetivos] = useState<ObjetivoAprendizaje[]>([]);
   const [loadingOAs, setLoadingOAs] = useState(false);
+  const [isSuggestingOAs, setIsSuggestingOAs] = useState(false);
   
   const { errors } = useFormState({ control });
   const cursoAsignaturaIds = useWatch({ control, name: 'cursoAsignaturaIds' });
+  const descripcion = useWatch({ control, name: 'descripcion' });
 
   useEffect(() => {
     const loadData = async () => {
@@ -90,6 +96,48 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
     };
     loadOAs();
   }, [cursoAsignaturaIds, cursosAsignaturas]);
+
+  const handleSuggestOAs = async () => {
+    const { cursoAsignaturaIds, descripcion } = getValues();
+    if (!cursoAsignaturaIds || cursoAsignaturaIds.length === 0 || !descripcion) {
+      showError("Por favor, selecciona al menos un curso y escribe una descripción para obtener sugerencias.");
+      return;
+    }
+    
+    const firstCurso = cursosAsignaturas.find(c => c.id === cursoAsignaturaIds[0]);
+    if (!firstCurso) return;
+
+    setIsSuggestingOAs(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No hay sesión de usuario activa.");
+
+      const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: { 
+          nivelId: firstCurso.curso.nivel.id, 
+          asignaturaId: firstCurso.asignatura.id, 
+          tema: descripcion 
+        },
+      });
+
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        throw new Error(errorMessage.error);
+      } else if (error) {
+        throw error;
+      }
+
+      setValue('objetivosSugeridos', data.suggestions);
+      showSuccess("Objetivos de aprendizaje sugeridos por la IA.");
+    } catch (error: any) {
+      showError(`Error al sugerir OAs: ${error.message}`);
+    } finally {
+      setIsSuggestingOAs(false);
+    }
+  };
 
   return (
     <form onSubmit={onFormSubmit} className="space-y-6">
@@ -188,6 +236,33 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
           )}
         />
         {errors.objetivos_aprendizaje_ids && <p className="text-red-500 text-sm">{errors.objetivos_aprendizaje_ids.message as string}</p>}
+        
+        {!loadingOAs && objetivos.length === 0 && cursoAsignaturaIds && cursoAsignaturaIds.length > 0 && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md dark:bg-blue-900/20 dark:border-blue-800">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-semibold text-blue-800 dark:text-blue-300">¿Necesitas ayuda con los Objetivos?</h4>
+              <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs || !descripcion}>
+                {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Sugerir OAs con IA
+              </Button>
+            </div>
+            <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">
+              No se encontraron OAs en la base de datos para los cursos seleccionados. Escribe una descripción de la evaluación y la IA te sugerirá los objetivos pertinentes.
+            </p>
+            <Controller
+              name="objetivosSugeridos"
+              control={control}
+              render={({ field }) => (
+                <Textarea
+                  {...field}
+                  placeholder="Las sugerencias de la IA aparecerán aquí..."
+                  rows={5}
+                  readOnly={isSuggestingOAs}
+                />
+              )}
+            />
+          </div>
+        )}
       </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={isSubmitting}>

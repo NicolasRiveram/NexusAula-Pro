@@ -215,7 +215,13 @@ const EvaluationBuilderPage = () => {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : step === 1 ? (
-            <Step1GeneralInfo onFormSubmit={handleSubmit(handleStep1Submit)} control={control} isSubmitting={isSubmitting} />
+            <Step1GeneralInfo 
+              onFormSubmit={handleSubmit(handleStep1Submit)} 
+              control={control} 
+              isSubmitting={isSubmitting}
+              setValue={setValue}
+              getValues={getValues}
+            />
           ) : step === 2 && evaluationId ? (
             <Step2ContentBlocks 
               evaluationId={evaluationId} 
