@@ -63,7 +63,7 @@ serve(async (req) => {
     const { block_content, block_type, questionCount } = await req.json();
     const count = questionCount > 0 && questionCount <= 5 ? questionCount : 3;
     
-    const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
     let contentPrompt;
     if (block_type === 'text') {
