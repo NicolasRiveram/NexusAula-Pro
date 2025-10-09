@@ -419,3 +419,10 @@ export const updateClassDetails = async (classId: string, details: UpdateClassPa
         .eq('id', classId);
     if (error) throw new Error(`Error al actualizar los detalles de la clase: ${error.message}`);
 };
+
+export const deleteUnitPlan = async (unitMasterId: string) => {
+  const { error } = await supabase.rpc('delete_unidad_maestra', {
+    p_unidad_maestra_id: unitMasterId,
+  });
+  if (error) throw new Error(`Error al eliminar el plan de unidad: ${error.message}`);
+};
