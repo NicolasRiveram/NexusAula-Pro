@@ -91,7 +91,7 @@ serve(async (req) => {
       - **Habilidades:** En 'habilidades', lista al menos 2-3 habilidades concretas que se desarrollarán (ej: "Análisis de fuentes, Comparación, Argumentación").
       - **Objetivo Estudiante:** En 'objetivo_estudiante', redacta una meta clara y motivadora desde la perspectiva del alumno (ej: "Hoy aprenderé a identificar las causas de la Revolución Francesa.").
       - **Aporte al Proyecto:** Si el contexto del proyecto es 'Sí', describe en 'aporte_proyecto' cómo esta clase contribuye de forma específica al proyecto ABP. Si es 'No', indica "No aplica".
-      - **Actividades:** Para 'actividades_inicio', 'actividades_desarrollo' y 'actividades_cierre', detalla una secuencia de acciones, incluyendo ejemplos, posibles preguntas para guiar la discusión y una estimación de tiempo para cada fase.
+      - **Actividades:** Para 'actividades_inicio', 'actividades_desarrollo' y 'actividades_cierre', detalla una secuencia de acciones claras y concisas para cada fase de la clase.
       - **Vínculo y Aspectos:** Ofrece sugerencias concretas para 'vinculo_interdisciplinario' y 'aspectos_valoricos_actitudinales'.
       - **Formato:** Tu respuesta DEBE ser únicamente el array de objetos JSON. No incluyas markdown.
 
