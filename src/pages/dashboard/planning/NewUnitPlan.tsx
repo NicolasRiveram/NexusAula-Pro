@@ -29,10 +29,10 @@ const NewUnitPlan = () => {
     setIsLoading(true);
     setUnitPlanData(data);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Usuario no autenticado.");
 
-      const newUnitId = await createUnitPlan(data, user.id);
+      const newUnitId = await createUnitPlan(data, session.user.id);
       setUnitMasterId(newUnitId);
       
       if (data.proyectoId && data.proyectoId !== 'none') {
@@ -42,6 +42,7 @@ const NewUnitPlan = () => {
       }
       
       const { data: suggestions, error } = await supabase.functions.invoke('generate-unit-suggestions', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { 
           title: data.titulo, 
           description: data.descripcionContenidos, 
@@ -49,18 +50,18 @@ const NewUnitPlan = () => {
         },
       });
 
-      if (error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json();
-        throw new Error(errorMessage.error);
-      } else if (error) {
-        throw error;
-      }
+      if (error) throw error;
       
       setAiSuggestions(suggestions);
       showSuccess("Sugerencias de Objetivos y Proyecto generadas.");
       setStep(2);
     } catch (error: any) {
-      showError(`Error en el paso 1: ${error.message}`);
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        showError(`Error en el paso 1: ${errorMessage.error}`);
+      } else {
+        showError(`Error en el paso 1: ${error.message}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -93,16 +94,15 @@ const NewUnitPlan = () => {
 
       showSuccess(`Se planificarán ${classCount} clases según tu horario.`);
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Usuario no autenticado.");
+
       const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { suggestions: data, projectContext: proyectoId, classCount },
       });
 
-      if (error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json();
-        throw new Error(errorMessage.error);
-      } else if (error) {
-        throw error;
-      }
+      if (error) throw error;
       
       const sequenceWithTempIds = sequence.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
         ...cls,
@@ -114,7 +114,12 @@ const NewUnitPlan = () => {
       showSuccess("Secuencia de clases generada.");
       setStep(3);
     } catch (error: any) {
-      showError(`Error en el paso 2: ${error.message}`);
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        showError(`Error en el paso 2: ${errorMessage.error}`);
+      } else {
+        showError(`Error en el paso 2: ${error.message}`);
+      }
     } finally {
       setIsLoading(false);
     }

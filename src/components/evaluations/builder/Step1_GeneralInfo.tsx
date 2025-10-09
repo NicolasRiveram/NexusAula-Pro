@@ -243,7 +243,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
               <h4 className="font-semibold text-blue-800 dark:text-blue-300">¿Necesitas ayuda con los Objetivos?</h4>
               <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs || !descripcion}>
                 {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Sugerir OAs con IA
+                Sugerir OAs
               </Button>
             </div>
             <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">

@@ -81,7 +81,11 @@ const RubricBuilderPage = () => {
     }
     setIsSuggestingOAs(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Usuario no autenticado.");
+
       const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { nivelId, asignaturaId, tema: descripcion },
       });
       if (error) throw error;

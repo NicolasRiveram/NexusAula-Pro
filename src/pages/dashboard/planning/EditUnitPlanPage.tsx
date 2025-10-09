@@ -153,20 +153,18 @@ const EditUnitPlanPage = () => {
         throw new Error("No se encontraron bloques de horario disponibles para los cursos y fechas seleccionados. Por favor, revisa tu horario o el rango de fechas y vuelve a intentarlo.");
       }
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Usuario no autenticado.");
+
       const { data: sequence, error: sequenceError } = await supabase.functions.invoke('generate-class-sequence', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { 
           suggestions: plan.sugerencias_ia, 
           projectContext: null,
           classCount 
         },
       });
-      if (sequenceError) {
-        if (sequenceError instanceof FunctionsHttpError) {
-            const errorMessage = await sequenceError.context.json();
-            throw new Error(`Error en la IA: ${errorMessage.error}`);
-        }
-        throw sequenceError;
-      }
+      if (sequenceError) throw sequenceError;
       
       const classesToSave = sequence.map(({ id, fecha, ...rest }: any) => rest);
       await scheduleClassesFromUnitPlan(planId, classesToSave);
@@ -177,7 +175,12 @@ const EditUnitPlanPage = () => {
 
     } catch (error: any) {
       dismissToast(toastId);
-      showError(`Error al reprogramar: ${error.message}`);
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        showError(`Error al reprogramar: ${errorMessage.error}`);
+      } else {
+        showError(`Error al reprogramar: ${error.message}`);
+      }
     } finally {
       setIsReprogramming(false);
     }
