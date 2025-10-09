@@ -302,7 +302,7 @@ const EditUnitPlanPage = () => {
             <div className="pt-4 text-center">
               <Button onClick={() => setReprogramConfirmOpen(true)} disabled={isReprogramming}>
                 {isReprogramming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Reprogramar Clases con IA
+                {plan?.clases && plan.clases.length > 0 ? 'Reprogramar Clases con IA' : 'Generar Clases con IA'}
               </Button>
             </div>
           </CardContent>
