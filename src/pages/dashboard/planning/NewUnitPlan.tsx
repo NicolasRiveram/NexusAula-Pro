@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import Step1UnitConfig, { UnitPlanFormData } from './Step1_UnitConfig';
 import Step2ReviewSuggestions, { AISuggestions } from './Step2_ReviewSuggestions';
 import Step3ClassSequence, { ClassPlan } from './Step3_ClassSequence';
-import { createUnitPlan, updateUnitPlanSuggestions, scheduleClassesFromUnitPlan, linkNewUnitsToProject } from '@/api/planningApi';
+import { createUnitPlan, updateUnitPlanSuggestions, saveMasterPlanClasses, linkNewUnitsToProject } from '@/api/planningApi';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { FunctionsHttpError } from '@supabase/supabase-js';
@@ -86,20 +86,19 @@ const NewUnitPlan = () => {
 
       if (countError) throw countError;
 
-      if (!classCount || classCount <= 0) {
-        showError("No se encontraron bloques de horario disponibles para los cursos y fechas seleccionados. Por favor, revisa tu horario o el rango de fechas y vuelve a intentarlo.");
-        setIsLoading(false);
-        return;
+      const effectiveClassCount = classCount > 0 ? classCount : 10; // Default to 10 if no slots, to generate content anyway
+      if (classCount <= 0) {
+        showSuccess("No se encontraron bloques de horario. Se generará una secuencia de 10 clases de ejemplo que podrás programar más tarde.");
+      } else {
+        showSuccess(`Se generará una secuencia de ${classCount} clases.`);
       }
-
-      showSuccess(`Se planificarán ${classCount} clases según tu horario.`);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Usuario no autenticado.");
 
       const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
         headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { suggestions: data, projectContext: proyectoId, classCount },
+        body: { suggestions: data, projectContext: proyectoId, classCount: effectiveClassCount },
       });
 
       if (error) throw error;
@@ -133,13 +132,9 @@ const NewUnitPlan = () => {
     setIsLoading(true);
     try {
       const classesToSave = data.classes.map(({ id, fecha, ...rest }) => rest);
-      await scheduleClassesFromUnitPlan(unitMasterId, classesToSave);
+      await saveMasterPlanClasses(unitMasterId, classesToSave);
       
-      if (proyectoId) {
-        await linkNewUnitsToProject(unitMasterId, proyectoId);
-      }
-      
-      showSuccess("¡Planificación guardada y clases programadas exitosamente!");
+      showSuccess("¡Planificación guardada exitosamente! Ahora puedes programarla desde la página de edición.");
       setTimeout(() => navigate('/dashboard/planificacion'), 2000);
     } catch (error: any) {
       showError(`Error al guardar la planificación: ${error.message}`);

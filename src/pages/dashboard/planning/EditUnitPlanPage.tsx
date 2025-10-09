@@ -23,7 +23,6 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { supabase } from '@/integrations/supabase/client';
 import EditClassDialog from '@/components/planning/EditClassDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
@@ -49,9 +48,8 @@ const EditUnitPlanPage = () => {
   const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
   const [isReprogramming, setIsReprogramming] = useState(false);
   const [isReprogramConfirmOpen, setReprogramConfirmOpen] = useState(false);
-  const [showReprogramPrompt, setShowReprogramPrompt] = useState(false);
 
-  const { control, handleSubmit, reset, formState: { errors }, getValues } = useForm<FormData>({
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -90,75 +88,17 @@ const EditUnitPlanPage = () => {
   }, [loadData]);
 
   const doReprogram = async () => {
-    if (!planId || !plan || !plan.sugerencias_ia || !activeEstablishment) {
-      showError("Faltan datos para reprogramar. Asegúrate de que el plan tenga sugerencias de IA guardadas.");
-      return;
-    }
+    if (!planId) return;
     setIsReprogramming(true);
-    const toastId = showLoading("Reprogramando clases con IA... (Esto puede tardar)");
+    const toastId = showLoading("Programando clases según tu horario...");
     try {
-      const formData = getValues();
-      
-      const { data: unitsWithClasses, error: fetchError } = await supabase
-        .from('planificaciones_clase')
-        .select('unidad_id')
-        .eq('unidad_maestra_id', planId);
-      if (fetchError) throw fetchError;
-      const unitIdsToDelete = [...new Set(unitsWithClasses.map(c => c.unidad_id).filter(Boolean))];
-
-      const { error: deleteClassesError } = await supabase
-        .from('planificaciones_clase')
-        .delete()
-        .eq('unidad_maestra_id', planId);
-      if (deleteClassesError) throw new Error(`Error deleting old classes: ${deleteClassesError.message}`);
-
-      if (unitIdsToDelete.length > 0) {
-        const { error: deleteUnitsError } = await supabase
-          .from('unidades')
-          .delete()
-          .in('id', unitIdsToDelete);
-        if (deleteUnitsError) throw new Error(`Error deleting old units: ${deleteUnitsError.message}`);
-      }
-
-      const { data: classCount, error: countError } = await supabase.rpc('calculate_class_slots', {
-        p_start_date: format(formData.fechas.from, 'yyyy-MM-dd'),
-        p_end_date: format(formData.fechas.to, 'yyyy-MM-dd'),
-        p_curso_asignatura_ids: formData.cursoAsignaturaIds,
-        p_establecimiento_id: activeEstablishment.id,
-      });
-      if (countError) throw countError;
-      if (!classCount || classCount <= 0) {
-        throw new Error("No se encontraron bloques de horario disponibles para los cursos y fechas seleccionados. Por favor, revisa tu horario o el rango de fechas y vuelve a intentarlo.");
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Usuario no autenticado.");
-
-      const { data: sequence, error: sequenceError } = await supabase.functions.invoke('generate-class-sequence', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { 
-          suggestions: plan.sugerencias_ia, 
-          projectContext: null,
-          classCount 
-        },
-      });
-      if (sequenceError) throw sequenceError;
-      
-      const classesToSave = sequence.map(({ id, fecha, ...rest }: any) => rest);
-      await scheduleClassesFromUnitPlan(planId, classesToSave);
-
+      await scheduleClassesFromUnitPlan(planId);
       dismissToast(toastId);
-      showSuccess("Clases reprogramadas exitosamente.");
+      showSuccess("Clases programadas/reprogramadas exitosamente.");
       loadData();
-
     } catch (error: any) {
       dismissToast(toastId);
-      if (error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json();
-        showError(`Error al reprogramar: ${errorMessage.error}`);
-      } else {
-        showError(`Error al reprogramar: ${error.message}`);
-      }
+      showError(`Error al programar: ${error.message}`);
     } finally {
       setIsReprogramming(false);
       setReprogramConfirmOpen(false);
@@ -169,10 +109,6 @@ const EditUnitPlanPage = () => {
     if (!planId || !plan) return;
     setIsSaving(true);
     try {
-      const originalStartDate = format(parseISO(plan.fecha_inicio), 'yyyy-MM-dd');
-      const originalEndDate = format(parseISO(plan.fecha_fin), 'yyyy-MM-dd');
-      const originalCourseIds = plan.unidad_maestra_curso_asignatura_link.map((link: any) => link.curso_asignaturas.id).sort();
-
       await updateUnitPlanDetails(planId, {
         titulo: data.titulo,
         descripcion_contenidos: data.descripcionContenidos,
@@ -181,19 +117,8 @@ const EditUnitPlanPage = () => {
         cursoAsignaturaIds: data.cursoAsignaturaIds,
       });
       showSuccess("Plan de unidad actualizado.");
-
-      const newStartDate = format(data.fechas.from, 'yyyy-MM-dd');
-      const newEndDate = format(data.fechas.to, 'yyyy-MM-dd');
-      const newCourseIds = [...data.cursoAsignaturaIds].sort();
-
-      const datesChanged = originalStartDate !== newStartDate || originalEndDate !== newEndDate;
-      const coursesChanged = JSON.stringify(originalCourseIds) !== JSON.stringify(newCourseIds);
-
-      if (datesChanged || coursesChanged) {
-        setShowReprogramPrompt(true);
-      }
-      
       loadData();
+      setReprogramConfirmOpen(true); // Prompt to reprogram after saving changes
     } catch (error: any) {
       showError(error.message);
     } finally {
@@ -302,7 +227,7 @@ const EditUnitPlanPage = () => {
             <div className="pt-4 text-center">
               <Button onClick={() => setReprogramConfirmOpen(true)} disabled={isReprogramming}>
                 {isReprogramming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {plan?.clases && plan.clases.length > 0 ? 'Reprogramar Clases con IA' : 'Generar Clases con IA'}
+                {plan?.clases && plan.clases.length > 0 ? 'Reprogramar Clases' : 'Programar Clases'}
               </Button>
             </div>
           </CardContent>
@@ -317,31 +242,14 @@ const EditUnitPlanPage = () => {
       <AlertDialog open={isReprogramConfirmOpen} onOpenChange={setReprogramConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Reprogramar la secuencia de clases?</AlertDialogTitle>
+            <AlertDialogTitle>¿Programar/Reprogramar la secuencia de clases?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará todas las clases programadas actualmente para esta unidad y generará una nueva secuencia usando IA. Esto es útil si has cambiado las fechas, los cursos, o el contenido de la unidad. ¿Deseas continuar?
+              Esta acción eliminará las clases previamente programadas para esta unidad y generará una nueva secuencia en el calendario basada en los cursos, fechas y horarios disponibles. ¿Deseas continuar?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={doReprogram}>Sí, Reprogramar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={showReprogramPrompt} onOpenChange={setShowReprogramPrompt}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Reprogramar clases?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Has modificado las fechas o los cursos de esta unidad. Para que los cambios se reflejen en las clases programadas, es necesario reprogramar la secuencia. ¿Quieres hacerlo ahora?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>No, más tarde</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              setShowReprogramPrompt(false);
-              doReprogram();
-            }}>Sí, Reprogramar Ahora</AlertDialogAction>
+            <AlertDialogAction onClick={doReprogram}>Sí, Programar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
