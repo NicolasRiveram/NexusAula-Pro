@@ -118,6 +118,10 @@ const EditUnitPlanPage = () => {
     try {
       const formData = getValues();
       
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session) throw new Error("Usuario no autenticado.");
+
       // Get all unit IDs associated with this master plan's classes before deleting them
       const { data: unitsWithClasses, error: fetchError } = await supabase
         .from('planificaciones_clase')
@@ -154,6 +158,7 @@ const EditUnitPlanPage = () => {
       }
 
       const { data: sequence, error: sequenceError } = await supabase.functions.invoke('generate-class-sequence', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { 
           suggestions: plan.sugerencias_ia, 
           projectContext: null,
