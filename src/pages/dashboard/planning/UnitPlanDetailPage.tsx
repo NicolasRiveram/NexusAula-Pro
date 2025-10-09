@@ -2,14 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb } from 'lucide-react';
-import { fetchUnitPlanDetails, updateClassStatus, updateClassDetails, UnitPlanDetail, ScheduledClass, UpdateClassPayload } from '@/api/planningApi';
+import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb, Calendar } from 'lucide-react';
+import { fetchUnitPlanDetails, updateClassStatus, updateClassDetails, UnitPlanDetail, ScheduledClass, UpdateClassPayload, updateMasterClassDetails } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ClassCard from '@/components/planning/ClassCard';
 import ClassDetailDialog from '@/components/planning/ClassDetailDialog';
 import EditClassDialog from '@/components/planning/EditClassDialog';
+import { Button } from '@/components/ui/button';
 
 const UnitPlanDetailPage = () => {
   const { planId } = useParams<{ planId: string }>();
@@ -50,11 +51,19 @@ const UnitPlanDetailPage = () => {
   const handleSaveEdit = async (classId: string, data: UpdateClassPayload) => {
     const toastId = showLoading('Guardando cambios...');
     try {
-      await updateClassDetails(classId, data);
+      const classToEdit = plan?.clases.find(c => c.id === classId);
+      if (!classToEdit) throw new Error("Clase no encontrada");
+
+      if (classToEdit.estado === 'sin_programar') {
+        await updateMasterClassDetails(classId, data);
+      } else {
+        await updateClassDetails(classId, data);
+      }
+      
       showSuccess('Clase actualizada correctamente.');
-      loadPlan();
       setEditOpen(false);
       setDetailOpen(false);
+      loadPlan();
     } catch (error: any) {
       showError(error.message);
     } finally {
@@ -102,7 +111,8 @@ const UnitPlanDetailPage = () => {
     );
   }
 
-  const groupedClasses = groupClassesByCourse(plan.clases);
+  const areClassesScheduled = plan.clases.length > 0 && plan.clases[0].fecha !== '';
+  const groupedClasses = areClassesScheduled ? groupClassesByCourse(plan.clases) : {};
 
   return (
     <div className="container mx-auto space-y-6">
@@ -149,9 +159,9 @@ const UnitPlanDetailPage = () => {
             </section>
           )}
 
-          <section>
-            <h2 className="text-xl font-semibold mb-4">Secuencia de Clases Programadas</h2>
-            {Object.keys(groupedClasses).length > 0 ? (
+          {areClassesScheduled ? (
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Secuencia de Clases Programadas</h2>
               <Accordion type="single" collapsible className="w-full" defaultValue={Object.keys(groupedClasses)[0]}>
                 {Object.entries(groupedClasses).map(([courseName, classes]) => (
                   <AccordionItem key={courseName} value={courseName}>
@@ -166,10 +176,25 @@ const UnitPlanDetailPage = () => {
                   </AccordionItem>
                 ))}
               </Accordion>
-            ) : (
-              <p className="text-muted-foreground">No se encontraron clases programadas para esta unidad.</p>
-            )}
-          </section>
+            </section>
+          ) : (
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Plantillas de Clase (Sin Programar)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-2">
+                {plan.clases.map((cls) => (
+                  <ClassCard key={cls.id} clase={cls} onClick={() => handleCardClick(cls)} />
+                ))}
+              </div>
+              <div className="text-center mt-6">
+                  <p className="text-muted-foreground mb-2">Estas clases son plantillas. Para usarlas, debes programarlas en tu calendario.</p>
+                  <Button asChild>
+                      <Link to={`/dashboard/planificacion/editar/${plan.id}`}>
+                          <Calendar className="mr-2 h-4 w-4" /> Ir a Programar
+                      </Link>
+                  </Button>
+              </div>
+            </section>
+          )}
         </CardContent>
       </Card>
 

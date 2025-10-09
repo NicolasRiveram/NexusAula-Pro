@@ -21,7 +21,7 @@ const ClassDetailDialog: React.FC<ClassDetailDialogProps> = ({ isOpen, onOpenCha
   const handleCopy = () => {
     const content = `
 Título: ${clase.titulo}
-Fecha: ${clase.fecha}
+Fecha: ${clase.fecha || 'Sin programar'}
 ---
 Objetivo de Aprendizaje:
 ${clase.objetivo_aprendizaje_texto || 'No especificado'}
@@ -75,7 +75,10 @@ ${clase.aspectos_valoricos_actitudinales || 'No especificado'}
         <DialogHeader>
           <DialogTitle>{clase.titulo}</DialogTitle>
           <DialogDescription>
-            Detalles de la clase para {clase.curso_info.nivel} {clase.curso_info.nombre} - {clase.curso_info.asignatura}
+            {clase.curso_info.nombre 
+              ? `Detalles de la clase para ${clase.curso_info.nivel} ${clase.curso_info.nombre} - ${clase.curso_info.asignatura}`
+              : 'Detalles de la plantilla de clase (sin programar)'
+            }
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
@@ -98,14 +101,16 @@ ${clase.aspectos_valoricos_actitudinales || 'No especificado'}
         </ScrollArea>
         <DialogFooter className="sm:justify-between gap-2">
           <div>
-            {clase.estado === 'programada' ? (
-              <Button variant="outline" onClick={() => onStatusChange(clase.id, 'realizada')}>
-                <CheckCircle className="mr-2 h-4 w-4" /> Marcar como Realizada
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={() => onStatusChange(clase.id, 'programada')}>
-                <XCircle className="mr-2 h-4 w-4" /> Marcar como Programada
-              </Button>
+            {clase.estado !== 'sin_programar' && (
+              clase.estado === 'programada' ? (
+                <Button variant="outline" onClick={() => onStatusChange(clase.id, 'realizada')}>
+                  <CheckCircle className="mr-2 h-4 w-4" /> Marcar como Realizada
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => onStatusChange(clase.id, 'programada')}>
+                  <XCircle className="mr-2 h-4 w-4" /> Marcar como Programada
+                </Button>
+              )
             )}
           </div>
           <div className="flex gap-2">
