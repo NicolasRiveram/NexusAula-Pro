@@ -29,11 +29,10 @@ const NewUnitPlan = () => {
     setIsLoading(true);
     setUnitPlanData(data);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error("Usuario no autenticado.");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuario no autenticado.");
 
-      const newUnitId = await createUnitPlan(data, session.user.id);
+      const newUnitId = await createUnitPlan(data, user.id);
       setUnitMasterId(newUnitId);
       
       if (data.proyectoId && data.proyectoId !== 'none') {
@@ -43,7 +42,6 @@ const NewUnitPlan = () => {
       }
       
       const { data: suggestions, error } = await supabase.functions.invoke('generate-unit-suggestions', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { 
           title: data.titulo, 
           description: data.descripcionContenidos, 
@@ -78,10 +76,6 @@ const NewUnitPlan = () => {
       await updateUnitPlanSuggestions(unitMasterId, data);
       setAiSuggestions(data);
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session) throw new Error("Usuario no autenticado.");
-
       const { data: classCount, error: countError } = await supabase.rpc('calculate_class_slots', {
         p_start_date: format(unitPlanData.fechas.from, 'yyyy-MM-dd'),
         p_end_date: format(unitPlanData.fechas.to, 'yyyy-MM-dd'),
@@ -100,7 +94,6 @@ const NewUnitPlan = () => {
       showSuccess(`Se planificarán ${classCount} clases según tu horario.`);
 
       const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { suggestions: data, projectContext: proyectoId, classCount },
       });
 
