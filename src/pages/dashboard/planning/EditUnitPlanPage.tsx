@@ -49,6 +49,7 @@ const EditUnitPlanPage = () => {
   const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
   const [isReprogramming, setIsReprogramming] = useState(false);
   const [isReprogramConfirmOpen, setReprogramConfirmOpen] = useState(false);
+  const [showReprogramPrompt, setShowReprogramPrompt] = useState(false);
 
   const { control, handleSubmit, reset, formState: { errors }, getValues } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -88,27 +89,7 @@ const EditUnitPlanPage = () => {
     loadData();
   }, [loadData]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!planId) return;
-    setIsSaving(true);
-    try {
-      await updateUnitPlanDetails(planId, {
-        titulo: data.titulo,
-        descripcion_contenidos: data.descripcionContenidos,
-        fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
-        fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
-        cursoAsignaturaIds: data.cursoAsignaturaIds,
-      });
-      showSuccess("Plan de unidad actualizado. Si cambiaste fechas o cursos, considera reprogramar las clases.");
-      loadData();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleReprogram = async () => {
+  const doReprogram = async () => {
     if (!planId || !plan || !plan.sugerencias_ia || !activeEstablishment) {
       showError("Faltan datos para reprogramar. Asegúrate de que el plan tenga sugerencias de IA guardadas.");
       return;
@@ -118,7 +99,6 @@ const EditUnitPlanPage = () => {
     try {
       const formData = getValues();
       
-      // Get all unit IDs associated with this master plan's classes before deleting them
       const { data: unitsWithClasses, error: fetchError } = await supabase
         .from('planificaciones_clase')
         .select('unidad_id')
@@ -126,14 +106,12 @@ const EditUnitPlanPage = () => {
       if (fetchError) throw fetchError;
       const unitIdsToDelete = [...new Set(unitsWithClasses.map(c => c.unidad_id).filter(Boolean))];
 
-      // Delete all classes associated with the master plan ID.
       const { error: deleteClassesError } = await supabase
         .from('planificaciones_clase')
         .delete()
         .eq('unidad_maestra_id', planId);
       if (deleteClassesError) throw new Error(`Error deleting old classes: ${deleteClassesError.message}`);
 
-      // Now delete the old unit containers
       if (unitIdsToDelete.length > 0) {
         const { error: deleteUnitsError } = await supabase
           .from('unidades')
@@ -183,6 +161,43 @@ const EditUnitPlanPage = () => {
       }
     } finally {
       setIsReprogramming(false);
+      setReprogramConfirmOpen(false);
+    }
+  };
+
+  const onSubmit = async (data: FormData) => {
+    if (!planId || !plan) return;
+    setIsSaving(true);
+    try {
+      const originalStartDate = format(parseISO(plan.fecha_inicio), 'yyyy-MM-dd');
+      const originalEndDate = format(parseISO(plan.fecha_fin), 'yyyy-MM-dd');
+      const originalCourseIds = plan.unidad_maestra_curso_asignatura_link.map((link: any) => link.curso_asignaturas.id).sort();
+
+      await updateUnitPlanDetails(planId, {
+        titulo: data.titulo,
+        descripcion_contenidos: data.descripcionContenidos,
+        fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
+        fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
+        cursoAsignaturaIds: data.cursoAsignaturaIds,
+      });
+      showSuccess("Plan de unidad actualizado.");
+
+      const newStartDate = format(data.fechas.from, 'yyyy-MM-dd');
+      const newEndDate = format(data.fechas.to, 'yyyy-MM-dd');
+      const newCourseIds = [...data.cursoAsignaturaIds].sort();
+
+      const datesChanged = originalStartDate !== newStartDate || originalEndDate !== newEndDate;
+      const coursesChanged = JSON.stringify(originalCourseIds) !== JSON.stringify(newCourseIds);
+
+      if (datesChanged || coursesChanged) {
+        setShowReprogramPrompt(true);
+      }
+      
+      loadData();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -309,7 +324,24 @@ const EditUnitPlanPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleReprogram}>Sí, Reprogramar</AlertDialogAction>
+            <AlertDialogAction onClick={doReprogram}>Sí, Reprogramar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showReprogramPrompt} onOpenChange={setShowReprogramPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reprogramar clases?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Has modificado las fechas o los cursos de esta unidad. Para que los cambios se reflejen en las clases programadas, es necesario reprogramar la secuencia. ¿Quieres hacerlo ahora?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, más tarde</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowReprogramPrompt(false);
+              doReprogram();
+            }}>Sí, Reprogramar Ahora</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
