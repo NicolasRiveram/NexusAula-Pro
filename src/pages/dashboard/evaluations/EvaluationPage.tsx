@@ -3,7 +3,7 @@ import { useNavigate, Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -417,9 +417,6 @@ const EvaluationPage = () => {
                               <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
                                 <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
-                                <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
-                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
@@ -443,6 +440,11 @@ const EvaluationPage = () => {
                           </div>
                         </div>
                       </CardContent>
+                      <CardFooter>
+                        <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)} variant="secondary" className="w-full">
+                          <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
+                        </Button>
+                      </CardFooter>
                     </Card>
                   </div>
                 ))}
