@@ -304,7 +304,7 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       fecha_aplicacion,
       randomizar_preguntas,
       randomizar_alternativas,
-      evaluacion_curso_asignaturas!inner (
+      evaluacion_curso_asignaturas!left (
         curso_asignatura_id,
         curso_asignaturas!inner (
           docente_id,
@@ -313,8 +313,8 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
         )
       )
     `)
-    .eq('evaluacion_curso_asignaturas.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
-    .eq('evaluacion_curso_asignaturas.curso_asignaturas.docente_id', docenteId)
+    .eq('creado_por', docenteId)
+    .or(`evaluacion_curso_asignaturas.curso_asignaturas.cursos.establecimiento_id.eq.${establecimientoId},evaluacion_curso_asignaturas.id.is.null`)
     .order('fecha_aplicacion', { ascending: false });
 
   if (error) throw new Error(`Error al cargar las evaluaciones: ${error.message}`);
@@ -327,7 +327,7 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
     fecha_aplicacion: e.fecha_aplicacion,
     randomizar_preguntas: e.randomizar_preguntas,
     randomizar_alternativas: e.randomizar_alternativas,
-    curso_asignaturas: e.evaluacion_curso_asignaturas.map((link: any) => ({
+    curso_asignaturas: (e.evaluacion_curso_asignaturas || []).map((link: any) => ({
       id: link.curso_asignatura_id,
       curso: {
         nombre: link.curso_asignaturas.cursos.nombre,
