@@ -498,7 +498,7 @@ const EvaluationPage = () => {
   };
 
   const renderStudentView = () => {
-    const pending = studentEvaluations.filter(e => e.status === 'Pendiente' && !isPast(parseISO(e.fecha_aplicacion!)));
+    const pending = studentEvaluations.filter(e => e.status === 'Pendiente' && e.fecha_aplicacion && !isPast(parseISO(e.fecha_aplicacion)));
     const completed = studentEvaluations.filter(e => e.status === 'Completado');
 
     return (

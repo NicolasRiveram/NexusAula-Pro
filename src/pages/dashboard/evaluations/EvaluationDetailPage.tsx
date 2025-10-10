@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, Copy } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -194,7 +194,7 @@ const EvaluationDetailPage = () => {
                 <Badge variant="secondary" className="mb-2">{formatEvaluationType(evaluation.tipo)}</Badge>
                 <CardTitle className="text-3xl">{evaluation.titulo}</CardTitle>
                 <CardDescription className="mt-2">
-                  Fecha de Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
+                  Fecha de Aplicación: {evaluation.fecha_aplicacion ? format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es }) : 'Sin fecha definida'}
                 </CardDescription>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {evaluation.curso_asignaturas.map((ca, index) => (
