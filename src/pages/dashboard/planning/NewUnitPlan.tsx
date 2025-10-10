@@ -12,6 +12,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { format } from 'date-fns';
+import AskClassCountDialog from '@/components/planning/AskClassCountDialog';
 
 const NewUnitPlan = () => {
   const navigate = useNavigate();
@@ -24,6 +25,8 @@ const NewUnitPlan = () => {
   const [unitPlanData, setUnitPlanData] = useState<UnitPlanFormData | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
   const [classSequence, setClassSequence] = useState<ClassPlan[] | null>(null);
+  const [isAskCountDialogOpen, setIsAskCountDialogOpen] = useState(false);
+  const [tempAiSuggestions, setTempAiSuggestions] = useState<AISuggestions | null>(null);
 
   const handleStep1Submit = async (data: UnitPlanFormData) => {
     setIsLoading(true);
@@ -67,48 +70,30 @@ const NewUnitPlan = () => {
     }
   };
 
-  const handleStep2Confirm = async (data: AISuggestions) => {
-    if (!unitMasterId || !unitPlanData || !activeEstablishment) {
-      showError("Faltan datos de la unidad o del establecimiento.");
+  const handleGenerateWithManualCount = async (count: number) => {
+    setIsAskCountDialogOpen(false);
+    if (!unitMasterId || !tempAiSuggestions) {
+      showError("Faltan datos para generar las clases.");
       return;
     }
     setIsLoading(true);
     try {
-      await updateUnitPlanSuggestions(unitMasterId, data);
-      setAiSuggestions(data);
-
-      const { data: classCount, error: countError } = await supabase.rpc('calculate_class_slots', {
-        p_start_date: format(unitPlanData.fechas.from, 'yyyy-MM-dd'),
-        p_end_date: format(unitPlanData.fechas.to, 'yyyy-MM-dd'),
-        p_curso_asignatura_ids: unitPlanData.cursoAsignaturaIds,
-        p_establecimiento_id: activeEstablishment.id,
-      });
-
-      if (countError) throw countError;
-
-      const effectiveClassCount = classCount > 0 ? classCount : 10;
-      if (classCount <= 0) {
-        showSuccess("No se encontraron bloques de horario. Se generará una secuencia de 10 clases de ejemplo que podrás programar más tarde.");
-      } else {
-        showSuccess(`Se generará una secuencia de ${classCount} clases.`);
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Usuario no autenticado.");
 
       const BATCH_SIZE = 8;
-      const totalBatches = Math.ceil(effectiveClassCount / BATCH_SIZE);
+      const totalBatches = Math.ceil(count / BATCH_SIZE);
       let allSequences: ClassPlan[] = [];
 
-      for (let i = 0; i < effectiveClassCount; i += BATCH_SIZE) {
+      for (let i = 0; i < count; i += BATCH_SIZE) {
         const batchNumber = (i / BATCH_SIZE) + 1;
-        const countInBatch = Math.min(BATCH_SIZE, effectiveClassCount - i);
+        const countInBatch = Math.min(BATCH_SIZE, count - i);
         const batchToastId = showLoading(`Generando clases ${i + 1} a ${i + countInBatch} (lote ${batchNumber}/${totalBatches})...`);
 
         const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: { 
-            suggestions: data, 
+            suggestions: tempAiSuggestions, 
             projectContext: proyectoId, 
             classCount: countInBatch,
             batchNumber,
@@ -129,8 +114,83 @@ const NewUnitPlan = () => {
       }));
 
       setClassSequence(sequenceWithTempIds);
-      showSuccess("Secuencia de clases generada.");
+      showSuccess("Secuencia de clases generada como plantillas.");
       setStep(3);
+    } catch (error: any) {
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        showError(`Error al generar secuencia: ${errorMessage.error}`);
+      } else {
+        showError(`Error al generar secuencia: ${error.message}`);
+      }
+    } finally {
+      setIsLoading(false);
+      setTempAiSuggestions(null);
+    }
+  };
+
+  const handleStep2Confirm = async (data: AISuggestions) => {
+    if (!unitMasterId || !unitPlanData || !activeEstablishment) {
+      showError("Faltan datos de la unidad o del establecimiento.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await updateUnitPlanSuggestions(unitMasterId, data);
+      setAiSuggestions(data);
+
+      const { data: classCount, error: countError } = await supabase.rpc('calculate_class_slots', {
+        p_start_date: format(unitPlanData.fechas.from, 'yyyy-MM-dd'),
+        p_end_date: format(unitPlanData.fechas.to, 'yyyy-MM-dd'),
+        p_curso_asignatura_ids: unitPlanData.cursoAsignaturaIds,
+        p_establecimiento_id: activeEstablishment.id,
+      });
+
+      if (countError) throw countError;
+
+      if (classCount > 0) {
+        showSuccess(`Se generará una secuencia de ${classCount} clases.`);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error("Usuario no autenticado.");
+
+        const BATCH_SIZE = 8;
+        const totalBatches = Math.ceil(classCount / BATCH_SIZE);
+        let allSequences: ClassPlan[] = [];
+
+        for (let i = 0; i < classCount; i += BATCH_SIZE) {
+          const batchNumber = (i / BATCH_SIZE) + 1;
+          const countInBatch = Math.min(BATCH_SIZE, classCount - i);
+          const batchToastId = showLoading(`Generando clases ${i + 1} a ${i + countInBatch} (lote ${batchNumber}/${totalBatches})...`);
+
+          const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            body: { 
+              suggestions: data, 
+              projectContext: proyectoId, 
+              classCount: countInBatch,
+              batchNumber,
+              totalBatches,
+            },
+          });
+          
+          dismissToast(batchToastId);
+          if (error) throw error;
+
+          allSequences = [...allSequences, ...sequence];
+        }
+        
+        const sequenceWithTempIds = allSequences.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
+          ...cls,
+          id: `temp_${index}`,
+          fecha: '',
+        }));
+
+        setClassSequence(sequenceWithTempIds);
+        setStep(3);
+      } else {
+        setTempAiSuggestions(data);
+        setIsAskCountDialogOpen(true);
+      }
     } catch (error: any) {
       if (error instanceof FunctionsHttpError) {
         const errorMessage = await error.context.json();
@@ -197,6 +257,11 @@ const NewUnitPlan = () => {
           {!isLoading && step === 3 && classSequence && <Step3ClassSequence classSequence={classSequence} onSave={handleStep3Save} isLoading={isLoading} />}
         </CardContent>
       </Card>
+      <AskClassCountDialog
+        isOpen={isAskCountDialogOpen}
+        onClose={() => setIsAskCountDialogOpen(false)}
+        onConfirm={handleGenerateWithManualCount}
+      />
     </div>
   );
 };
