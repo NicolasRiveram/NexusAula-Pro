@@ -26,10 +26,14 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           }
           @page {
             size: A4 ${orientation};
-            margin: 15mm;
+            margin: 10mm;
           }
           .printable-container {
             page-break-after: always;
+            width: 190mm;
+            height: 277mm;
+            margin: 0 auto;
+            position: relative;
           }
           .printable-container:last-child {
             page-break-after: auto;
@@ -80,17 +84,54 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .info-item span { font-weight: normal; }
           .info-item .line { flex-grow: 1; border-bottom: 1px solid #000; min-height: 20px; }
 
-          /* Answer Sheet */
-          .answer-sheet-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-          .qr-code-container { text-align: center; }
-          .qr-code-container p { font-size: 8px; margin-top: 4px; }
-          .answer-sheet-title { text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
-          .answer-sheet-instructions { text-align: center; font-size: 0.9rem; color: #555; margin-bottom: 20px; }
-          .answer-grid { width: 100%; border-collapse: collapse; }
-          .answer-grid .question-number { font-weight: bold; text-align: right; padding-right: 10px; width: 40px; }
-          .answer-grid .alternative-cell { text-align: center; padding: 8px 0; }
-          .answer-grid .bubble { width: 20px; height: 20px; border: 1px solid #000; border-radius: 50%; margin: 0 auto; }
-          .answer-grid .alt-label { font-size: 10px; margin-top: 2px; }
+          /* NEW OMR Answer Sheet Styles */
+          .answer-sheet-container {
+            border: 1px solid #333;
+            padding: 10mm;
+            position: relative;
+            height: 100%;
+            box-sizing: border-box;
+          }
+          .omr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+          }
+          .omr-header .logo { max-height: 40px; max-width: 120px; object-fit: contain; }
+          .omr-header .titles { text-align: center; }
+          .omr-header .titles h1 { font-size: 14pt; font-weight: bold; margin: 0; }
+          .omr-header .titles h2 { font-size: 11pt; font-weight: normal; margin: 2px 0 0 0; color: #444; }
+          .omr-student-info {
+            display: grid;
+            grid-template-columns: 1fr 100px;
+            gap: 10px;
+            border: 1px solid #999;
+            padding: 10px;
+            margin: 15px 0;
+            border-radius: 4px;
+          }
+          .omr-student-info .data-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .omr-student-info .field { display: flex; align-items: baseline; font-size: 9pt; }
+          .omr-student-info .field label { font-weight: bold; margin-right: 5px; white-space: nowrap; }
+          .omr-student-info .field span { border-bottom: 1px solid #999; width: 100%; }
+          .omr-qr-container { text-align: right; }
+          .omr-qr-container p { font-size: 6pt; margin: 2px 0 0 0; letter-spacing: -0.5px; }
+          .omr-instructions { text-align: center; font-size: 8pt; color: #555; margin-bottom: 15px; }
+          .omr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+          .omr-column h3 { font-size: 9pt; font-weight: bold; text-align: center; margin: 0 0 5px 0; padding-bottom: 3px; border-bottom: 1px solid #ccc; }
+          .omr-question-row { display: flex; align-items: center; margin-bottom: 4px; }
+          .omr-question-row .q-number { font-size: 9pt; font-weight: bold; width: 25px; text-align: right; margin-right: 5px; }
+          .omr-question-row .bubbles { display: flex; }
+          .omr-question-row .bubble-container { display: flex; flex-direction: column; align-items: center; margin: 0 3px; }
+          .omr-question-row .alt-label { font-size: 7pt; font-weight: bold; }
+          .omr-question-row .bubble { width: 16px; height: 16px; border: 1px solid #000; border-radius: 50%; }
+          .fiducial-marker { position: absolute; width: 10mm; height: 10mm; border: 3px solid #000; }
+          .fm-top-left { top: 5mm; left: 5mm; border-right: none; border-bottom: none; }
+          .fm-top-right { top: 5mm; right: 5mm; border-left: none; border-bottom: none; }
+          .fm-bottom-left { bottom: 5mm; left: 5mm; border-right: none; border-top: none; }
+          .fm-bottom-right { bottom: 5mm; right: 5mm; border-left: none; border-top: none; }
 
           /* Answer Key */
           .answer-key-title { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 10px; }

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Camera, CheckCircle, Loader2, XCircle } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
 import { seededShuffle } from '@/utils/shuffleUtils';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -14,9 +14,10 @@ import { cn } from '@/lib/utils';
 const EvaluationScannerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
+  const [students, setStudents] = useState<{ id: string; nombre_completo: string }[]>([]);
   const [seed, setSeed] = useState('nexus-2024');
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<{ studentName: string; score: string; message: string } | null>(null);
+  const [scanResult, setScanResult] = useState<{ studentName: string; score: string; message: string; isError: boolean } | null>(null);
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,9 +25,13 @@ const EvaluationScannerPage = () => {
 
   useEffect(() => {
     if (evaluationId) {
-      fetchEvaluationDetails(evaluationId)
-        .then(setEvaluation)
-        .catch(err => showError(`Error al cargar la evaluación: ${err.message}`));
+      Promise.all([
+        fetchEvaluationDetails(evaluationId),
+        fetchStudentsForEvaluation(evaluationId)
+      ]).then(([evalData, studentData]) => {
+        setEvaluation(evalData);
+        setStudents(studentData.map(s => ({ id: s.id, nombre_completo: s.nombre_completo })));
+      }).catch(err => showError(`Error al cargar datos: ${err.message}`));
     }
     return () => {
       stopScan();
@@ -62,6 +67,114 @@ const EvaluationScannerPage = () => {
     setIsScanning(false);
   };
 
+  const getBubbleDarkness = (imageData: ImageData, cx: number, cy: number, radius: number) => {
+    let totalBrightness = 0;
+    let pixelCount = 0;
+    const startX = Math.floor(cx - radius);
+    const startY = Math.floor(cy - radius);
+    const endX = Math.ceil(cx + radius);
+    const endY = Math.ceil(cy + radius);
+
+    for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
+            if (Math.pow(x - cx, 2) + Math.pow(y - cy, 2) <= Math.pow(radius, 2)) {
+                const i = (y * imageData.width + x) * 4;
+                const r = imageData.data[i];
+                const g = imageData.data[i + 1];
+                const b = imageData.data[i + 2];
+                const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+                totalBrightness += brightness;
+                pixelCount++;
+            }
+        }
+    }
+    if (pixelCount === 0) return 255; // White
+    return totalBrightness / pixelCount; // Lower is darker
+  };
+
+  const processQrCode = async (code: any, imageData: ImageData) => {
+    const qrData = code.data;
+    if (lastScannedId === qrData) {
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    const [evalId, studentId, rowLabel] = qrData.split('|');
+    if (evalId !== evaluationId) {
+      setScanResult({ studentName: 'Error', score: '', message: 'Este QR no pertenece a la evaluación actual.', isError: true });
+      setTimeout(() => setScanResult(null), 3000);
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    setIsScanning(false);
+    const student = students.find(s => s.id === studentId);
+    const studentName = student ? student.nombre_completo : `Fila ${rowLabel}`;
+    const toastId = showLoading(`QR de ${studentName} detectado. Analizando...`);
+    setLastScannedId(qrData);
+
+    try {
+      const allQuestions = (evaluation!.evaluation_content_blocks || []).flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
+      const answers: { itemId: string; selectedAlternativeId: string }[] = [];
+      
+      const qrSize = Math.max(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
+      const bubbleRadius = qrSize * 0.1;
+      const rowHeight = qrSize * 0.35;
+      const colWidth = qrSize * 0.35;
+      const startX = code.location.bottomLeftCorner.x - qrSize * 1.2;
+      const startY = code.location.bottomLeftCorner.y + qrSize * 2.8;
+      const columnSpacing = qrSize * 3.2;
+      const questionsPerColumn = Math.ceil(allQuestions.length / 3);
+
+      allQuestions.forEach(q => {
+        const shuffledAlts = seededShuffle(q.item_alternativas, `${seed}-${rowLabel}-${q.id}`);
+        let minBrightness = 255;
+        let selectedIndex = -1;
+
+        const colIndex = Math.floor((q.orden - 1) / questionsPerColumn);
+        const rowIndex = (q.orden - 1) % questionsPerColumn;
+
+        for (let i = 0; i < q.item_alternativas.length; i++) {
+          const bubbleX = startX + colIndex * columnSpacing + i * colWidth;
+          const bubbleY = startY + rowIndex * rowHeight;
+          const brightness = getBubbleDarkness(imageData, bubbleX, bubbleY, bubbleRadius);
+          if (brightness < minBrightness) {
+            minBrightness = brightness;
+            selectedIndex = i;
+          }
+        }
+        
+        if (selectedIndex > -1 && minBrightness < 120) { // Threshold for considering a bubble "filled"
+          answers.push({ itemId: q.id, selectedAlternativeId: shuffledAlts[selectedIndex].id });
+        }
+      });
+
+      if (answers.length !== allQuestions.length) {
+        throw new Error(`Solo se leyeron ${answers.length} de ${allQuestions.length} respuestas. Intenta de nuevo con mejor iluminación y alineación.`);
+      }
+
+      await submitEvaluationResponse(evaluationId, answers);
+      
+      dismissToast(toastId);
+      showSuccess(`Respuestas de ${studentName} enviadas.`);
+      setScanResult({ studentName, score: '', message: 'Respuestas enviadas con éxito.', isError: false });
+
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
+      setScanResult({ studentName: 'Error', score: '', message: error.message, isError: true });
+    } finally {
+      setTimeout(() => {
+        setScanResult(null);
+        setLastScannedId(null);
+        if (!isScanning) {
+          setIsScanning(true);
+          requestAnimationFrame(tick);
+        }
+      }, 4000);
+    }
+  };
+
   const tick = useCallback(() => {
     if (!isScanning || !videoRef.current || !canvasRef.current || videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
       if (isScanning) requestAnimationFrame(tick);
@@ -84,99 +197,7 @@ const EvaluationScannerPage = () => {
     } else {
       requestAnimationFrame(tick);
     }
-  }, [isScanning, evaluation, seed]);
-
-  const processQrCode = async (code: any, imageData: ImageData) => {
-    const qrData = code.data;
-    if (lastScannedId === qrData) {
-      requestAnimationFrame(tick); // Avoid re-scanning the same sheet immediately
-      return;
-    }
-
-    const [evalId, studentId, rowLabel] = qrData.split('|');
-    if (evalId !== evaluationId) {
-      setScanResult({ studentName: 'Error', score: '', message: 'Este QR no pertenece a la evaluación actual.' });
-      setTimeout(() => setScanResult(null), 3000);
-      requestAnimationFrame(tick);
-      return;
-    }
-
-    setIsScanning(false); // Pause scanning while processing
-    const toastId = showLoading(`QR de ${rowLabel} detectado. Analizando respuestas...`);
-    setLastScannedId(qrData);
-
-    try {
-      const allQuestions = (evaluation!.evaluation_content_blocks || []).flatMap(b => b.evaluacion_items);
-      const answers: { itemId: string; selectedAlternativeId: string }[] = [];
-
-      // This is a simplified OMR logic assuming a fixed layout relative to the QR code.
-      // A real-world app would need more robust image processing (perspective correction, etc.)
-      const qrSize = Math.max(code.location.topRightCorner.x - code.location.topLeftCorner.x, code.location.bottomLeftCorner.y - code.location.topLeftCorner.y);
-      const bubbleRadius = qrSize * 0.1;
-      const rowHeight = qrSize * 0.35;
-      const colWidth = qrSize * 0.35;
-      const startX = code.location.topLeftCorner.x + qrSize * 1.5;
-      const startY = code.location.topLeftCorner.y + qrSize * 0.5;
-
-      allQuestions.forEach(q => {
-        const shuffledAlts = seededShuffle(q.item_alternativas, `${seed}-${rowLabel}-${q.id}`);
-        let maxDarkness = 0;
-        let selectedIndex = -1;
-
-        for (let i = 0; i < q.item_alternativas.length; i++) {
-          const bubbleX = startX + i * colWidth;
-          const bubbleY = startY + (q.orden - 1) * rowHeight;
-          const darkness = getBubbleDarkness(imageData, bubbleX, bubbleY, bubbleRadius);
-          if (darkness > maxDarkness) {
-            maxDarkness = darkness;
-            selectedIndex = i;
-          }
-        }
-        
-        if (selectedIndex > -1 && maxDarkness > 50) { // Threshold for considering a bubble "filled"
-          answers.push({ itemId: q.id, selectedAlternativeId: shuffledAlts[selectedIndex].id });
-        }
-      });
-
-      if (answers.length !== allQuestions.length) {
-        throw new Error("No se pudieron leer todas las respuestas. Intenta de nuevo con mejor iluminación.");
-      }
-
-      await submitEvaluationResponse(evaluationId, answers);
-      
-      dismissToast(toastId);
-      showSuccess(`Respuestas de la Fila ${rowLabel} enviadas.`);
-      setScanResult({ studentName: `Fila ${rowLabel}`, score: '', message: 'Respuestas enviadas con éxito.' });
-
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-      setScanResult({ studentName: 'Error', score: '', message: error.message });
-    } finally {
-      setTimeout(() => {
-        setScanResult(null);
-        setLastScannedId(null);
-        if (!isScanning) setIsScanning(true);
-        requestAnimationFrame(tick);
-      }, 3000); // Cooldown before next scan
-    }
-  };
-
-  const getBubbleDarkness = (imageData: ImageData, cx: number, cy: number, radius: number) => {
-    let darkPixels = 0;
-    const ctx = canvasRef.current!.getContext('2d')!;
-    const data = ctx.getImageData(cx - radius, cy - radius, radius * 2, radius * 2).data;
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const brightness = (r + g + b) / 3;
-      if (brightness < 128) { // Simple threshold for darkness
-        darkPixels++;
-      }
-    }
-    return darkPixels;
-  };
+  }, [isScanning, evaluation, seed, students]);
 
   return (
     <div className="container mx-auto space-y-6">
@@ -210,13 +231,13 @@ const EvaluationScannerPage = () => {
             {isScanning && (
               <div className="absolute inset-0 border-8 border-dashed border-white/50 rounded-md flex items-center justify-center pointer-events-none">
                 <div className="bg-black/50 text-white p-2 rounded-md">
-                  Alinea el código QR con el recuadro
+                  Alinea la hoja para que los 4 marcadores de las esquinas estén visibles
                 </div>
               </div>
             )}
             {scanResult && (
-              <div className={cn("absolute inset-0 flex flex-col items-center justify-center p-4 text-center", scanResult.message.includes('Error') ? 'bg-red-500/90' : 'bg-green-500/90')}>
-                {scanResult.message.includes('Error') ? <XCircle className="h-16 w-16 text-white mb-4" /> : <CheckCircle className="h-16 w-16 text-white mb-4" />}
+              <div className={cn("absolute inset-0 flex flex-col items-center justify-center p-4 text-center", scanResult.isError ? 'bg-red-500/90' : 'bg-green-500/90')}>
+                {scanResult.isError ? <XCircle className="h-16 w-16 text-white mb-4" /> : <CheckCircle className="h-16 w-16 text-white mb-4" />}
                 <p className="text-2xl font-bold text-white">{scanResult.studentName}</p>
                 <p className="text-lg text-white">{scanResult.message}</p>
               </div>
