@@ -31,7 +31,7 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .printable-container {
             page-break-after: always;
             width: 190mm;
-            height: 277mm;
+            min-height: 277mm;
             margin: 0 auto;
             position: relative;
           }
@@ -55,22 +55,18 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             align-items: center;
             justify-content: space-between;
             padding-bottom: 10px;
-            border-bottom: 1px solid #ccc;
             margin-bottom: 20px;
           }
+          .header-left { width: 150px; }
           .print-header img {
             max-height: 50px;
             max-width: 150px;
             object-fit: contain;
           }
-          .print-header-info { text-align: center; }
-          .print-header-info h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
-          .print-header-info p { font-size: 1rem; margin: 4px 0 0 0; color: #333; }
-
-          /* Evaluation Specific Header */
-          .header-center { text-align: center; }
+          .header-center { text-align: center; flex-grow: 1; }
           .evaluation-title { font-size: 1.8rem; font-weight: 700; margin: 0; }
           .teacher-name { font-size: 1rem; margin-top: 4px; color: #333; }
+          .header-right { width: 150px; display: flex; justify-content: flex-end; }
           .header-divider { border: none; border-top: 1px solid #000; margin-bottom: 20px; }
           .fila-indicator { border: 3px solid #000; padding: 5px 10px; text-align: center; }
           .fila-indicator span { display: block; }
@@ -84,7 +80,61 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .info-item span { font-weight: normal; }
           .info-item .line { flex-grow: 1; border-bottom: 1px solid #000; min-height: 20px; }
 
-          /* NEW OMR Answer Sheet Styles */
+          /* Evaluation Content */
+          .question-item { margin-top: 1.5rem; page-break-inside: avoid; }
+          .question-enunciado { font-weight: 600; margin-bottom: 0.5rem; }
+          .alternatives-list { list-style-type: none; padding-left: 1.25rem; margin: 0; }
+          .alternatives-list li { margin-bottom: 0.25rem; }
+
+          /* NEW STYLES FOR EVALUATION CONTAINERS */
+          .info-block {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9 !important;
+            page-break-inside: avoid;
+          }
+          .info-block h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 8px;
+          }
+          .info-block p {
+            font-size: 0.9rem;
+            margin: 0;
+            color: #333;
+          }
+          .content-block-container {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9 !important;
+            page-break-inside: avoid;
+          }
+          .content-block-container .content-block-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 10px;
+          }
+          .content-block-container .content-block {
+            font-size: 0.9rem;
+            color: #333;
+          }
+          .content-block-container .content-block p {
+            white-space: pre-wrap;
+            margin: 0;
+          }
+          .content-block-container .content-block img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+          }
+
+          /* OMR Answer Sheet Styles */
           .answer-sheet-container {
             border: 1px solid #333;
             padding: 10mm;
