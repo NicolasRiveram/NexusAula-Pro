@@ -328,20 +328,28 @@ const EvaluationPage = () => {
       const groups: Record<string, Evaluation[]> = {};
       evals.forEach(evaluation => {
         const levels = new Set<string>();
-        evaluation.curso_asignaturas.forEach(ca => {
-          if (ca.curso?.nivel?.nombre) {
-            levels.add(ca.curso.nivel.nombre);
-          }
-        });
+        if (evaluation.curso_asignaturas && evaluation.curso_asignaturas.length > 0) {
+          evaluation.curso_asignaturas.forEach(ca => {
+            if (ca.curso?.nivel?.nombre) {
+              levels.add(ca.curso.nivel.nombre);
+            }
+          });
+        }
 
-        levels.forEach(levelName => {
-          if (!groups[levelName]) {
-            groups[levelName] = [];
+        if (levels.size === 0) {
+          const key = 'Sin Asignar';
+          if (!groups[key]) groups[key] = [];
+          if (!groups[key].some(e => e.id === evaluation.id)) {
+            groups[key].push(evaluation);
           }
-          if (!groups[levelName].some(e => e.id === evaluation.id)) {
+        } else {
+          levels.forEach(levelName => {
+            if (!groups[levelName]) groups[levelName] = [];
+            if (!groups[levelName].some(e => e.id === evaluation.id)) {
               groups[levelName].push(evaluation);
-          }
-        });
+            }
+          });
+        }
       });
       return groups;
     };
@@ -382,7 +390,7 @@ const EvaluationPage = () => {
                           <div className="flex-1 pr-8">
                             <CardTitle>{evaluation.titulo}</CardTitle>
                             <CardDescription>
-                              Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
+                              Aplicación: {evaluation.fecha_aplicacion ? format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es }) : 'Sin fecha definida'}
                             </CardDescription>
                           </div>
                           <DropdownMenu>
@@ -490,7 +498,7 @@ const EvaluationPage = () => {
   };
 
   const renderStudentView = () => {
-    const pending = studentEvaluations.filter(e => e.status === 'Pendiente' && !isPast(parseISO(e.fecha_aplicacion)));
+    const pending = studentEvaluations.filter(e => e.status === 'Pendiente' && !isPast(parseISO(e.fecha_aplicacion!)));
     const completed = studentEvaluations.filter(e => e.status === 'Completado');
 
     return (
@@ -514,7 +522,7 @@ const EvaluationPage = () => {
                       <CardDescription>{e.asignatura_nombre} - {e.curso_nombre}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground">Fecha de aplicación: {format(parseISO(e.fecha_aplicacion), "d 'de' LLLL", { locale: es })}</p>
+                      <p className="text-sm text-muted-foreground">Fecha de aplicación: {e.fecha_aplicacion ? format(parseISO(e.fecha_aplicacion), "d 'de' LLLL", { locale: es }) : 'Sin fecha'}</p>
                       <Button asChild className="w-full mt-4">
                         <Link to={`/dashboard/evaluacion/${e.id}/responder`}>
                           <Send className="mr-2 h-4 w-4" /> Responder
