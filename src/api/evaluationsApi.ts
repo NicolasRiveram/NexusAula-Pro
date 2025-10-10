@@ -20,10 +20,12 @@ export interface Evaluation {
     curso: {
       nombre: string;
       nivel: {
+        id: string;
         nombre: string;
       };
     };
     asignatura: {
+      id: string;
       nombre: string;
     };
   }[];
@@ -307,8 +309,8 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       evaluacion_curso_asignaturas!left (
         curso_asignatura_id,
         curso_asignaturas (
-          cursos ( establecimiento_id, nombre, niveles ( nombre ) ),
-          asignaturas ( nombre )
+          cursos ( establecimiento_id, nombre, niveles ( id, nombre ) ),
+          asignaturas ( id, nombre )
         )
       )
     `)
@@ -317,39 +319,40 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
 
   if (error) throw new Error(`Error al cargar las evaluaciones: ${error.message}`);
 
-  const evaluations = (data || [])
-    .map((e: any) => {
-      const isTemplate = e.evaluacion_curso_asignaturas.length === 0;
-      const relevantLinks = (e.evaluacion_curso_asignaturas || []).filter(
-        (link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
-      );
-      const isRelevant = relevantLinks.length > 0;
+  const filteredData = (data || []).filter((evaluation: any) => {
+    if (evaluation.evaluacion_curso_asignaturas.length === 0) {
+      return true; // Keep unassigned evaluations (templates)
+    }
+    return evaluation.evaluacion_curso_asignaturas.some((link: any) => 
+      link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
+    );
+  });
 
-      if (!isTemplate && !isRelevant) {
-        return null;
-      }
-
-      return {
-        id: e.id,
-        titulo: e.titulo,
-        tipo: e.tipo,
-        momento_evaluativo: e.momento_evaluativo,
-        fecha_aplicacion: e.fecha_aplicacion,
-        randomizar_preguntas: e.randomizar_preguntas,
-        randomizar_alternativas: e.randomizar_alternativas,
-        curso_asignaturas: relevantLinks.map((link: any) => ({
-          id: link.curso_asignatura_id,
-          curso: {
-            nombre: link.curso_asignaturas.cursos.nombre,
-            nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre },
+  return filteredData.map((e: any) => ({
+    id: e.id,
+    titulo: e.titulo,
+    tipo: e.tipo,
+    momento_evaluativo: e.momento_evaluativo,
+    fecha_aplicacion: e.fecha_aplicacion,
+    randomizar_preguntas: e.randomizar_preguntas,
+    randomizar_alternativas: e.randomizar_alternativas,
+    curso_asignaturas: (e.evaluacion_curso_asignaturas || [])
+      .filter((link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId)
+      .map((link: any) => ({
+        id: link.curso_asignatura_id,
+        curso: {
+          nombre: link.curso_asignaturas.cursos.nombre,
+          nivel: { 
+            id: link.curso_asignaturas.cursos.niveles.id,
+            nombre: link.curso_asignaturas.cursos.niveles.nombre 
           },
-          asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre },
-        })),
-      };
-    })
-    .filter(Boolean);
-
-  return evaluations as Evaluation[];
+        },
+        asignatura: { 
+          id: link.curso_asignaturas.asignaturas.id,
+          nombre: link.curso_asignaturas.asignaturas.nombre 
+        },
+      }))
+  }));
 };
 
 export const fetchStudentEvaluations = async (studentId: string, establecimientoId: string): Promise<StudentEvaluation[]> => {
@@ -566,8 +569,8 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       evaluacion_curso_asignaturas (
         curso_asignatura_id,
         curso_asignaturas (
-          cursos ( nombre, niveles ( nombre ) ),
-          asignaturas ( nombre )
+          cursos ( nombre, niveles ( id, nombre ) ),
+          asignaturas ( id, nombre )
         )
       ),
       evaluation_content_blocks (
@@ -594,9 +597,15 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
       id: link.curso_asignatura_id,
       curso: {
         nombre: link.curso_asignaturas.cursos.nombre,
-        nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }
+        nivel: { 
+          id: link.curso_asignaturas.cursos.niveles.id,
+          nombre: link.curso_asignaturas.cursos.niveles.nombre 
+        }
       },
-      asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre }
+      asignatura: { 
+        id: link.curso_asignaturas.asignaturas.id,
+        nombre: link.curso_asignaturas.asignaturas.nombre 
+      }
     }))
   };
 
