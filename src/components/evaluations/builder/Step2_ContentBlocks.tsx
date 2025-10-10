@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList } from 'lucide-react';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy } from 'lucide-react';
 import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
@@ -20,11 +20,13 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import AddSyllabusBlockDialog from './AddSyllabusBlockDialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Step2ContentBlocksProps {
   evaluationId: string;
   evaluationTitle: string;
   onNextStep: () => void;
+  temario: string;
 }
 
 const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onScoreChange, isAdapting, isIncreasingDifficulty }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, onEdit: (item: EvaluationItem) => void, onIncreaseDifficulty: (itemId: string) => void, onScoreChange: (itemId: string, newScore: number) => void, isAdapting: boolean, isIncreasingDifficulty: boolean }) => {
@@ -138,7 +140,7 @@ function SortableItem({ id, children }: { id: string, children: (props: any) => 
   return children({ ref: setNodeRef, style, attributes, listeners });
 }
 
-const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep }) => {
+const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep, temario }) => {
   const [blocks, setBlocks] = useState<EvaluationContentBlock[]>([]);
   const [questionsByBlock, setQuestionsByBlock] = useState<Record<string, EvaluationItem[]>>({});
   const [loading, setLoading] = useState(true);
@@ -391,8 +393,28 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
+  const handleCopyToClipboard = () => {
+    navigator.clipboard.writeText(temario);
+    showSuccess("Temario copiado al portapapeles.");
+  };
+
   return (
     <div className="space-y-6">
+      <Card className="bg-muted/30">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg">Temario de la Evaluación</CardTitle>
+            <CardDescription>Este es el temario que definiste en el paso anterior. Úsalo como referencia.</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
+            <Copy className="h-4 w-4 mr-2" /> Copiar
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Textarea value={temario} readOnly rows={4} className="bg-background" />
+        </CardContent>
+      </Card>
+
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setAddSyllabusDialogOpen(true)}><ClipboardList className="mr-2 h-4 w-4" /> Añadir Temario</Button>

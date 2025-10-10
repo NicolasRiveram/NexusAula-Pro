@@ -12,7 +12,7 @@ export interface Evaluation {
   titulo: string;
   tipo: string;
   momento_evaluativo: string;
-  fecha_aplicacion: string;
+  fecha_aplicacion: string | null;
   randomizar_preguntas: boolean;
   randomizar_alternativas: boolean;
   curso_asignaturas: {
@@ -383,7 +383,7 @@ export interface CreateEvaluationData {
   titulo: string;
   tipo: string;
   descripcion?: string;
-  fecha_aplicacion: string;
+  fecha_aplicacion: string | null;
   cursoAsignaturaIds: string[];
   randomizar_preguntas?: boolean;
   randomizar_alternativas?: boolean;
@@ -402,18 +402,20 @@ export const createEvaluation = async (evalData: CreateEvaluationData & { objeti
   if (error) throw new Error(`Error al crear la evaluación: ${error.message}`);
   const newEvaluationId = data.id;
 
-  const links = evalData.cursoAsignaturaIds.map(id => ({
-    evaluacion_id: newEvaluationId,
-    curso_asignatura_id: id,
-  }));
+  if (cursoAsignaturaIds && cursoAsignaturaIds.length > 0) {
+    const links = cursoAsignaturaIds.map(id => ({
+      evaluacion_id: newEvaluationId,
+      curso_asignatura_id: id,
+    }));
 
-  const { error: linkError } = await supabase
-    .from('evaluacion_curso_asignaturas')
-    .insert(links);
+    const { error: linkError } = await supabase
+      .from('evaluacion_curso_asignaturas')
+      .insert(links);
 
-  if (linkError) {
-    await supabase.from('evaluaciones').delete().eq('id', newEvaluationId);
-    throw new Error(`Error al vincular la evaluación a los cursos: ${linkError.message}`);
+    if (linkError) {
+      await supabase.from('evaluaciones').delete().eq('id', newEvaluationId);
+      throw new Error(`Error al vincular la evaluación a los cursos: ${linkError.message}`);
+    }
   }
   
   if (objetivos_aprendizaje_ids && objetivos_aprendizaje_ids.length > 0) {
@@ -450,7 +452,7 @@ export const updateEvaluation = async (evaluationId: string, evalData: CreateEva
   if (fetchError) throw new Error(`Error fetching existing links: ${fetchError.message}`);
 
   const existingIds = existingLinks.map(l => l.curso_asignatura_id);
-  const newIds = evalData.cursoAsignaturaIds;
+  const newIds = evalData.cursoAsignaturaIds || [];
 
   const idsToRemove = existingIds.filter(id => !newIds.includes(id));
   const idsToAdd = newIds.filter(id => !existingIds.includes(id));

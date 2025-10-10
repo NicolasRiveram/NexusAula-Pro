@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
+import { fetchCursosAsignaturasDocente, CursoAsignatura, fetchDocenteAsignaturas, Asignatura, fetchNiveles, Nivel } from '@/api/coursesApi';
 import { fetchObjetivosAprendizaje, ObjetivoAprendizaje } from '@/api/evaluationsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,9 +24,11 @@ export const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
   tipo: z.string().min(1, "El tipo de evaluación es requerido."),
   momento_evaluativo: z.string().min(1, "El momento evaluativo es requerido."),
-  descripcion: z.string().optional(),
-  fecha_aplicacion: z.date({ required_error: "La fecha de aplicación es requerida." }),
-  cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos un curso."),
+  temario: z.string().min(10, "El temario es requerido para las sugerencias de IA."),
+  fecha_aplicacion: z.date().optional(),
+  asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
+  nivelId: z.string().uuid("Debes seleccionar un nivel."),
+  cursoAsignaturaIds: z.array(z.string().uuid()).optional(),
   objetivos_aprendizaje_ids: z.array(z.string().uuid()).optional(),
   objetivosSugeridos: z.string().optional(),
 });
@@ -44,13 +46,14 @@ interface Step1GeneralInfoProps {
 const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, control, isSubmitting, setValue, getValues }) => {
   const { activeEstablishment } = useEstablishment();
   const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
+  const [niveles, setNiveles] = useState<Nivel[]>([]);
   const [objetivos, setObjetivos] = useState<ObjetivoAprendizaje[]>([]);
   const [loadingOAs, setLoadingOAs] = useState(false);
   const [isSuggestingOAs, setIsSuggestingOAs] = useState(false);
   
   const { errors } = useFormState({ control });
-  const cursoAsignaturaIds = useWatch({ control, name: 'cursoAsignaturaIds' });
-  const descripcion = useWatch({ control, name: 'descripcion' });
+  const [asignaturaId, nivelId, temario] = useWatch({ control, name: ['asignaturaId', 'nivelId', 'temario'] });
 
   useEffect(() => {
     const loadData = async () => {
@@ -58,10 +61,16 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           try {
-            const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-            setCursosAsignaturas(data);
+            const [asignaturasData, nivelesData, cursosData] = await Promise.all([
+              fetchDocenteAsignaturas(user.id),
+              fetchNiveles(),
+              fetchCursosAsignaturasDocente(user.id, activeEstablishment.id)
+            ]);
+            setAsignaturas(asignaturasData);
+            setNiveles(nivelesData);
+            setCursosAsignaturas(cursosData);
           } catch (err: any) {
-            showError(`Error al cargar cursos: ${err.message}`);
+            showError(`Error al cargar datos: ${err.message}`);
           }
         }
       }
@@ -71,22 +80,13 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
 
   useEffect(() => {
     const loadOAs = async () => {
-      if (cursoAsignaturaIds && cursoAsignaturaIds.length > 0) {
+      if (nivelId && asignaturaId) {
         setLoadingOAs(true);
         try {
-          const selectedCourses = cursosAsignaturas.filter(ca => cursoAsignaturaIds.includes(ca.id));
-          const nivelIds = [...new Set(selectedCourses.map(c => c.curso.nivel.id))];
-          const asignaturaIds = [...new Set(selectedCourses.map(c => c.asignatura.id))];
-          
-          if (nivelIds.length > 0 && asignaturaIds.length > 0) {
-            const oasData = await fetchObjetivosAprendizaje(nivelIds, asignaturaIds);
-            setObjetivos(oasData);
-          } else {
-            setObjetivos([]);
-          }
+          const oasData = await fetchObjetivosAprendizaje([nivelId], [asignaturaId]);
+          setObjetivos(oasData);
         } catch (err: any) {
-          showError(`Error al cargar Objetivos de Aprendizaje: ${err.message}`);
-          setObjetivos([]);
+          showError(`Error al cargar OAs: ${err.message}`);
         } finally {
           setLoadingOAs(false);
         }
@@ -95,32 +95,22 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
       }
     };
     loadOAs();
-  }, [cursoAsignaturaIds, cursosAsignaturas]);
+  }, [nivelId, asignaturaId]);
 
   const handleSuggestOAs = async () => {
-    const { cursoAsignaturaIds, descripcion } = getValues();
-    if (!cursoAsignaturaIds || cursoAsignaturaIds.length === 0 || !descripcion) {
-      showError("Por favor, selecciona al menos un curso y escribe una descripción para obtener sugerencias.");
+    if (!nivelId || !asignaturaId || !temario) {
+      showError("Por favor, selecciona nivel, asignatura y escribe un temario para obtener sugerencias.");
       return;
     }
     
-    const firstCurso = cursosAsignaturas.find(c => c.id === cursoAsignaturaIds[0]);
-    if (!firstCurso) return;
-
     setIsSuggestingOAs(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No hay sesión de usuario activa.");
 
       const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: { 
-          nivelId: firstCurso.curso.nivel.id, 
-          asignaturaId: firstCurso.asignatura.id, 
-          tema: descripcion 
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { nivelId, asignaturaId, tema: temario },
       });
 
       if (error instanceof FunctionsHttpError) {
@@ -162,9 +152,32 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
           {errors.tipo && <p className="text-red-500 text-sm">{errors.tipo.message as string}</p>}
         </div>
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="asignaturaId">Asignatura</Label>
+          <Controller name="asignaturaId" control={control} render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+              <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
+            </Select>
+          )} />
+          {errors.asignaturaId && <p className="text-red-500 text-sm">{errors.asignaturaId.message as string}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="nivelId">Nivel</Label>
+          <Controller name="nivelId" control={control} render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+              <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
+            </Select>
+          )} />
+          {errors.nivelId && <p className="text-red-500 text-sm">{errors.nivelId.message as string}</p>}
+        </div>
+      </div>
       <div className="space-y-2">
-        <Label htmlFor="descripcion">Descripción (Opcional)</Label>
-        <Controller name="descripcion" control={control} render={({ field }) => <Textarea id="descripcion" {...field} />} />
+        <Label htmlFor="temario">Temario</Label>
+        <Controller name="temario" control={control} render={({ field }) => <Textarea id="temario" placeholder="Describe los temas, conceptos y habilidades que quieres evaluar." {...field} />} />
+        {errors.temario && <p className="text-red-500 text-sm">{errors.temario.message as string}</p>}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -182,7 +195,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
           {errors.momento_evaluativo && <p className="text-red-500 text-sm">{errors.momento_evaluativo.message as string}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="fecha_aplicacion">Fecha de Aplicación</Label>
+          <Label htmlFor="fecha_aplicacion">Fecha de Aplicación (Opcional)</Label>
           <Controller name="fecha_aplicacion" control={control} render={({ field }) => (
             <Popover>
               <PopoverTrigger asChild>
@@ -198,7 +211,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="cursoAsignaturaIds">Asignar a Cursos</Label>
+        <Label htmlFor="cursoAsignaturaIds">Asignar a Cursos (Opcional)</Label>
         <Controller
           name="cursoAsignaturaIds"
           control={control}
@@ -214,10 +227,17 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
             />
           )}
         />
-        {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm">{errors.cursoAsignaturaIds.message as string}</p>}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="objetivos_aprendizaje_ids">Objetivos de Aprendizaje (OA) Principales</Label>
+        <div className="flex justify-between items-center mb-1">
+          <Label htmlFor="objetivosSugeridos">Objetivos de Aprendizaje (Opcional)</Label>
+          <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs || !temario || !nivelId || !asignaturaId}>
+            {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            Sugerir OAs
+          </Button>
+        </div>
+        <Controller name="objetivosSugeridos" control={control} render={({ field }) => <Textarea id="objetivosSugeridos" rows={4} placeholder="Las sugerencias de la IA aparecerán aquí..." {...field} />} />
+        
         {loadingOAs && <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando OAs...</div>}
         <Controller
           name="objetivos_aprendizaje_ids"
@@ -231,38 +251,10 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
               selected={field.value || []}
               onValueChange={field.onChange}
               placeholder="Selecciona los OAs que aborda esta evaluación"
-              disabled={loadingOAs || !cursoAsignaturaIds || cursoAsignaturaIds.length === 0}
+              disabled={loadingOAs || !nivelId || !asignaturaId}
             />
           )}
         />
-        {errors.objetivos_aprendizaje_ids && <p className="text-red-500 text-sm">{errors.objetivos_aprendizaje_ids.message as string}</p>}
-        
-        {!loadingOAs && objetivos.length === 0 && cursoAsignaturaIds && cursoAsignaturaIds.length > 0 && (
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md dark:bg-blue-900/20 dark:border-blue-800">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-semibold text-blue-800 dark:text-blue-300">¿Necesitas ayuda con los Objetivos?</h4>
-              <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs || !descripcion}>
-                {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Sugerir OAs
-              </Button>
-            </div>
-            <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">
-              No se encontraron OAs en la base de datos para los cursos seleccionados. Escribe una descripción de la evaluación y la IA te sugerirá los objetivos pertinentes.
-            </p>
-            <Controller
-              name="objetivosSugeridos"
-              control={control}
-              render={({ field }) => (
-                <Textarea
-                  {...field}
-                  placeholder="Las sugerencias de la IA aparecerán aquí..."
-                  rows={5}
-                  readOnly={isSuggestingOAs}
-                />
-              )}
-            />
-          </div>
-        )}
       </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={isSubmitting}>
