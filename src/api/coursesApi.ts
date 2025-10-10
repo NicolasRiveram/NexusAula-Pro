@@ -67,6 +67,17 @@ export const fetchNiveles = async (): Promise<Nivel[]> => {
   return data;
 };
 
+export const fetchDocenteNiveles = async (docenteId: string): Promise<Nivel[]> => {
+    const { data, error } = await supabase
+        .from('docente_niveles')
+        .select('niveles(id, nombre, orden)')
+        .eq('docente_id', docenteId)
+        .order('orden', { referencedTable: 'niveles' });
+    
+    if (error) throw new Error(error.message);
+    return data.map((item: any) => item.niveles).filter(Boolean);
+};
+
 export const fetchAsignaturas = async (): Promise<Asignatura[]> => {
   const { data, error } = await supabase.from('asignaturas').select('id, nombre').order('nombre');
   if (error) throw new Error(error.message);

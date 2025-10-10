@@ -21,7 +21,7 @@ import { fetchRelevantProjects, SimpleProject } from '@/api/projectsApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { fetchDocenteAsignaturas, Asignatura, Nivel, fetchNiveles } from '@/api/coursesApi';
+import { fetchDocenteAsignaturas, Asignatura, Nivel, fetchDocenteNiveles } from '@/api/coursesApi';
 
 const schema = z.object({
   asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
@@ -79,7 +79,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
       try {
         const [asignaturasData, nivelesData, cursosData] = await Promise.all([
           fetchDocenteAsignaturas(user.id),
-          fetchNiveles(),
+          fetchDocenteNiveles(user.id),
           supabase.from('curso_asignaturas').select('id, asignatura_id, cursos!inner(nombre, nivel_id, niveles(nombre))').eq('docente_id', user.id).eq('cursos.establecimiento_id', activeEstablishment.id)
         ]);
 
