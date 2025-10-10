@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatEvaluationType } from '@/utils/evaluationUtils';
 import { printComponent } from '@/utils/printUtils';
 import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
-import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/PrintAnswerSheetDialog';
+import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/printable/PrintAnswerSheetDialog';
 import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
 import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
 import { seededShuffle } from '@/utils/shuffleUtils';
@@ -242,15 +242,16 @@ const EvaluationPage = () => {
         const rowLabel = String.fromCharCode(65 + i);
         answerKey[rowLabel] = {};
 
-        for (const student of students) {
-          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
-          const shuffledQuestions = allQuestions.map(q => {
+        allQuestions.forEach(q => {
+          if (q.tipo_item === 'seleccion_multiple') {
             const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
             const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
             answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
-            return { ...q, item_alternativas: shuffledAlts };
-          });
+          }
+        });
 
+        for (const student of students) {
+          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
           printableComponents.push(
             <PrintableAnswerSheet
               key={`${student.id}-${rowLabel}`}
@@ -261,7 +262,7 @@ const EvaluationPage = () => {
               courseName={student.curso_nombre}
               rowLabel={rowLabel}
               qrCodeData={qrCodeData}
-              questions={shuffledQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
             />
           );
         }
@@ -328,20 +329,28 @@ const EvaluationPage = () => {
       const groups: Record<string, Evaluation[]> = {};
       evals.forEach(evaluation => {
         const levels = new Set<string>();
-        evaluation.curso_asignaturas.forEach(ca => {
-          if (ca.curso?.nivel?.nombre) {
-            levels.add(ca.curso.nivel.nombre);
-          }
-        });
+        if (evaluation.curso_asignaturas && evaluation.curso_asignaturas.length > 0) {
+          evaluation.curso_asignaturas.forEach(ca => {
+            if (ca.curso?.nivel?.nombre) {
+              levels.add(ca.curso.nivel.nombre);
+            }
+          });
+        }
 
-        levels.forEach(levelName => {
-          if (!groups[levelName]) {
-            groups[levelName] = [];
+        if (levels.size === 0) {
+          const key = 'Sin Asignar';
+          if (!groups[key]) groups[key] = [];
+          if (!groups[key].some(e => e.id === evaluation.id)) {
+            groups[key].push(evaluation);
           }
-          if (!groups[levelName].some(e => e.id === evaluation.id)) {
+        } else {
+          levels.forEach(levelName => {
+            if (!groups[levelName]) groups[levelName] = [];
+            if (!groups[levelName].some(e => e.id === evaluation.id)) {
               groups[levelName].push(evaluation);
-          }
-        });
+            }
+          });
+        }
       });
       return groups;
     };
@@ -382,7 +391,7 @@ const EvaluationPage = () => {
                           <div className="flex-1 pr-8">
                             <CardTitle>{evaluation.titulo}</CardTitle>
                             <CardDescription>
-                              Aplicación: {format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es })}
+                              Aplicación: {evaluation.fecha_aplicacion ? format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es }) : 'Sin fecha definida'}
                             </CardDescription>
                           </div>
                           <DropdownMenu>
@@ -421,7 +430,10 @@ const EvaluationPage = () => {
                       </CardHeader>
                       <CardContent className="flex-grow">
                         <div className="space-y-2">
-                          <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
+                          <div className="flex gap-2">
+                            <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
+                            {evaluation.momento_evaluativo && <Badge variant="outline" className="capitalize">{evaluation.momento_evaluativo}</Badge>}
+                          </div>
                           <div className="flex flex-wrap gap-1">
                             {evaluation.curso_asignaturas.map((ca, index) => (
                               <Badge key={index} variant="outline">
@@ -475,13 +487,11 @@ const EvaluationPage = () => {
             <TabsTrigger value="todas">Todas</TabsTrigger>
             <TabsTrigger value="prueba">Pruebas</TabsTrigger>
             <TabsTrigger value="guia_de_trabajo">Guías</TabsTrigger>
-            <TabsTrigger value="disertacion">Disertaciones</TabsTrigger>
             <TabsTrigger value="otro">Otras</TabsTrigger>
           </TabsList>
           <TabsContent value="todas">{renderEvaluations()}</TabsContent>
           <TabsContent value="prueba">{renderEvaluations('prueba')}</TabsContent>
           <TabsContent value="guia_de_trabajo">{renderEvaluations('guia_de_trabajo')}</TabsContent>
-          <TabsContent value="disertacion">{renderEvaluations('disertacion')}</TabsContent>
           <TabsContent value="otro">{renderEvaluations('otro')}</TabsContent>
         </Tabs>
       </>
@@ -489,7 +499,7 @@ const EvaluationPage = () => {
   };
 
   const renderStudentView = () => {
-    const pending = studentEvaluations.filter(e => e.status === 'Pendiente' && !isPast(parseISO(e.fecha_aplicacion)));
+    const pending = studentEvaluations.filter(e => e.status === 'Pendiente' && e.fecha_aplicacion && !isPast(parseISO(e.fecha_aplicacion)));
     const completed = studentEvaluations.filter(e => e.status === 'Completado');
 
     return (
@@ -513,7 +523,7 @@ const EvaluationPage = () => {
                       <CardDescription>{e.asignatura_nombre} - {e.curso_nombre}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-sm text-muted-foreground">Fecha de aplicación: {format(parseISO(e.fecha_aplicacion), "d 'de' LLLL", { locale: es })}</p>
+                      <p className="text-sm text-muted-foreground">Fecha de aplicación: {e.fecha_aplicacion ? format(parseISO(e.fecha_aplicacion), "d 'de' LLLL", { locale: es }) : 'Sin fecha'}</p>
                       <Button asChild className="w-full mt-4">
                         <Link to={`/dashboard/evaluacion/${e.id}/responder`}>
                           <Send className="mr-2 h-4 w-4" /> Responder
