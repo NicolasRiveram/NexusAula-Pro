@@ -7,6 +7,7 @@ import { UnitPlanFormData } from '@/pages/dashboard/planning/Step1_UnitConfig';
 // --- Tipos para leer datos ---
 export interface LinkedCourse {
   curso_asignaturas: {
+    id: string;
     cursos: {
       establecimiento_id: string;
       nombre: string;
