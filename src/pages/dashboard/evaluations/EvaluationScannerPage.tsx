@@ -24,7 +24,6 @@ const EvaluationScannerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [overlayDimensions, setOverlayDimensions] = useState({ width: 0, height: 0, top: 0, left: 0 });
 
   useEffect(() => {
     if (evaluationId) {
@@ -179,6 +178,46 @@ const EvaluationScannerPage = () => {
     }
   };
 
+  const drawFiducialGuides = (ctx: CanvasRenderingContext2D, color: string) => {
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    const marginX = w * 0.05;
+    const marginY = h * 0.05;
+    const size = Math.min(w, h) * 0.05;
+
+    const positions = [
+      { x: marginX, y: marginY }, // Top-left
+      { x: w / 2, y: marginY }, // Top-center
+      { x: w - marginX, y: marginY }, // Top-right
+      { x: marginX, y: h / 2 }, // Middle-left
+      { x: w - marginX, y: h / 2 }, // Middle-right
+      { x: marginX, y: h - marginY }, // Bottom-left
+      { x: w / 2, y: h - marginY }, // Bottom-center
+      { x: w - marginX, y: h - marginY }, // Bottom-right
+    ];
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+
+    positions.forEach(pos => {
+      // Draw L-shape guides
+      ctx.beginPath();
+      // Top-left like
+      if (pos.x < w/2 && pos.y < h/2) { ctx.moveTo(pos.x + size, pos.y); ctx.lineTo(pos.x, pos.y); ctx.lineTo(pos.x, pos.y + size); }
+      // Top-right like
+      if (pos.x > w/2 && pos.y < h/2) { ctx.moveTo(pos.x - size, pos.y); ctx.lineTo(pos.x, pos.y); ctx.lineTo(pos.x, pos.y + size); }
+      // Bottom-left like
+      if (pos.x < w/2 && pos.y > h/2) { ctx.moveTo(pos.x + size, pos.y); ctx.lineTo(pos.x, pos.y); ctx.lineTo(pos.x, pos.y - size); }
+      // Bottom-right like
+      if (pos.x > w/2 && pos.y > h/2) { ctx.moveTo(pos.x - size, pos.y); ctx.lineTo(pos.x, pos.y); ctx.lineTo(pos.x, pos.y - size); }
+      // Top/Bottom-center
+      if (pos.x === w/2) { ctx.moveTo(pos.x - size/2, pos.y); ctx.lineTo(pos.x + size/2, pos.y); }
+      // Middle-left/right
+      if (pos.y === h/2) { ctx.moveTo(pos.x, pos.y - size/2); ctx.lineTo(pos.x, pos.y + size/2); }
+      ctx.stroke();
+    });
+  };
+
   const tick = useCallback(() => {
     if (!isScanning || isProcessing || !videoRef.current || !canvasRef.current || !overlayCanvasRef.current || videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
       return;
@@ -201,42 +240,29 @@ const EvaluationScannerPage = () => {
     const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
 
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-    // Draw static guide
-    const padding = 0.1 * Math.min(overlayCanvas.width, overlayCanvas.height);
-    const guideWidth = overlayCanvas.width - 2 * padding;
-    const guideHeight = overlayCanvas.height - 2 * padding;
-    const guideX = padding;
-    const guideY = padding;
     
-    overlayCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    overlayCtx.lineWidth = 2;
-    overlayCtx.setLineDash([15, 10]);
-    overlayCtx.strokeRect(guideX, guideY, guideWidth, guideHeight);
-    overlayCtx.setLineDash([]);
+    let guideColor = 'rgba(255, 255, 255, 0.5)';
+    let isAligned = false;
 
     if (code) {
-      const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = code.location;
-      const codeCenterX = (topLeftCorner.x + bottomRightCorner.x) / 2;
-      const codeCenterY = (topLeftCorner.y + bottomRightCorner.y) / 2;
+      const { topLeftCorner } = code.location;
+      const qrTargetX = overlayCanvas.width * 0.95;
+      const qrTargetY = overlayCanvas.height * 0.05;
+      const tolerance = Math.min(overlayCanvas.width, overlayCanvas.height) * 0.05;
 
-      const isAligned = codeCenterX > guideX && codeCenterX < guideX + guideWidth &&
-                        codeCenterY > guideY && codeCenterY < guideY + guideHeight;
-
-      overlayCtx.strokeStyle = isAligned ? 'rgba(74, 222, 128, 0.9)' : 'rgba(239, 68, 68, 0.9)';
-      overlayCtx.lineWidth = 4;
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(topLeftCorner.x, topLeftCorner.y);
-      overlayCtx.lineTo(topRightCorner.x, topRightCorner.y);
-      overlayCtx.lineTo(bottomRightCorner.x, bottomRightCorner.y);
-      overlayCtx.lineTo(bottomLeftCorner.x, bottomLeftCorner.y);
-      overlayCtx.closePath();
-      overlayCtx.stroke();
-
-      if (isAligned) {
-        processQrCode(code, imageData);
-        return;
+      if (Math.abs(topLeftCorner.x - qrTargetX) < tolerance && Math.abs(topLeftCorner.y - qrTargetY) < tolerance) {
+        isAligned = true;
+        guideColor = 'rgba(74, 222, 128, 0.9)';
+      } else {
+        guideColor = 'rgba(239, 68, 68, 0.9)';
       }
+    }
+    
+    drawFiducialGuides(overlayCtx, guideColor);
+
+    if (code && isAligned) {
+      processQrCode(code, imageData);
+      return;
     }
     
     requestAnimationFrame(tick);
