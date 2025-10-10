@@ -16,6 +16,7 @@ interface PrintableEvaluationProps {
 const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore, rowLabel }) => {
   const logoUrl = establishment?.logo_url ? getLogoPublicUrl(establishment.logo_url) : null;
   const passingScore = totalScore * 0.6;
+  const subjectNames = [...new Set(evaluation.curso_asignaturas.map(ca => ca.asignatura.nombre))].join(' / ');
 
   return (
     <div className={`printable-container ${fontSize}`}>
@@ -25,7 +26,7 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
         </div>
         <div className="header-center">
           <h1 className="evaluation-title">{evaluation.titulo}</h1>
-          <p className="teacher-name">{teacherName}</p>
+          <p className="teacher-name">{teacherName} - {subjectNames}</p>
         </div>
         <div className="header-right">
           {rowLabel && (
@@ -47,7 +48,7 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
         <div className="info-row">
           <div className="info-item"><label>Docente:</label><span>{teacherName}</span></div>
           <div className="info-item"><label>Puntaje Total:</label><span>{totalScore} pts.</span></div>
-          <div className="info-item"><label>Puntaje Aprobación (4,0):</label><span>{(passingScore || 0).toFixed(1)} pts.</span></div>
+          <div className="info-item"><label>Puntaje Aprobación (4,0):</label><span>{Math.round(passingScore || 0)} pts.</span></div>
         </div>
       </section>
 
