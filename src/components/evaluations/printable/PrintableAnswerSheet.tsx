@@ -26,14 +26,16 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
   qrCodeData,
   questions,
 }) => {
-  const alternatives = ['A', 'B', 'C', 'D', 'E'];
+  const alternatives = ['A', 'B', 'C', 'D'];
   const fullLogoUrl = logoUrl ? getLogoPublicUrl(logoUrl) : null;
 
-  const questionsPerColumn = Math.ceil(questions.length / 3);
+  const sortedQuestions = [...questions].sort((a, b) => a.orden - b.orden);
+
+  const questionsPerColumn = Math.ceil(sortedQuestions.length / 3);
   const columns = [
-    questions.slice(0, questionsPerColumn),
-    questions.slice(questionsPerColumn, questionsPerColumn * 2),
-    questions.slice(questionsPerColumn * 2),
+    sortedQuestions.slice(0, questionsPerColumn),
+    sortedQuestions.slice(questionsPerColumn, questionsPerColumn * 2),
+    sortedQuestions.slice(questionsPerColumn * 2),
   ];
 
   return (
@@ -64,7 +66,6 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
         </div>
         <div className="omr-qr-container">
           <QRCodeSVG value={qrCodeData} size={80} />
-          <p>ID: {qrCodeData}</p>
         </div>
       </section>
 
@@ -75,7 +76,7 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
       <main className="omr-grid">
         {columns.map((column, colIndex) => (
           <div key={colIndex} className="omr-column">
-            <h3>Preguntas {colIndex * questionsPerColumn + 1} - {colIndex * questionsPerColumn + column.length}</h3>
+            <h3>Preguntas {column.length > 0 ? column[0].orden : ''} - {column.length > 0 ? column[column.length - 1].orden : ''}</h3>
             {column.map(q => (
               <div key={q.orden} className="omr-question-row">
                 <div className="q-number">{q.orden}</div>

@@ -134,7 +134,9 @@ const EvaluationScannerPage = () => {
         const colIndex = Math.floor((q.orden - 1) / questionsPerColumn);
         const rowIndex = (q.orden - 1) % questionsPerColumn;
 
-        for (let i = 0; i < q.item_alternativas.length; i++) {
+        const numAlternativesToCheck = Math.min(q.item_alternativas.length, 4);
+
+        for (let i = 0; i < numAlternativesToCheck; i++) {
           const bubbleX = startX + colIndex * columnSpacing + i * colWidth;
           const bubbleY = startY + rowIndex * rowHeight;
           const brightness = getBubbleDarkness(imageData, bubbleX, bubbleY, bubbleRadius);
