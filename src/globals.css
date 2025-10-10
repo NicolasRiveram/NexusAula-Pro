@@ -99,3 +99,25 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .scanner-viewport {
+    overflow: hidden;
+    position: relative;
+  }
+  @media (max-width: 767px) {
+    .scanner-viewport video,
+    .scanner-viewport canvas {
+      transform-origin: center;
+      transform: rotate(90deg);
+      width: 100vh; /* Use viewport units to fill the rotated space */
+      height: 100vw;
+      max-width: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-top: -50vw;
+      margin-left: -50vh;
+    }
+  }
+}

@@ -19,8 +19,10 @@ const EvaluationScannerPage = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ studentName: string; score: string; message: string; isError: boolean } | null>(null);
   const [lastScannedId, setLastScannedId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
@@ -94,20 +96,21 @@ const EvaluationScannerPage = () => {
 
   const processQrCode = async (code: any, imageData: ImageData) => {
     const qrData = code.data;
-    if (lastScannedId === qrData) {
+    if (lastScannedId === qrData || isProcessing) {
       requestAnimationFrame(tick);
       return;
     }
+
+    setIsProcessing(true);
+    stopScan();
 
     const [evalId, studentId, rowLabel] = qrData.split('|');
     if (evalId !== evaluationId) {
       setScanResult({ studentName: 'Error', score: '', message: 'Este QR no pertenece a la evaluación actual.', isError: true });
-      setTimeout(() => setScanResult(null), 3000);
-      requestAnimationFrame(tick);
+      setTimeout(() => { setScanResult(null); setIsProcessing(false); startScan(); }, 3000);
       return;
     }
 
-    setIsScanning(false);
     const student = students.find(s => s.id === studentId);
     const studentName = student ? student.nombre_completo : `Fila ${rowLabel}`;
     const toastId = showLoading(`QR de ${studentName} detectado. Analizando...`);
@@ -169,37 +172,69 @@ const EvaluationScannerPage = () => {
       setTimeout(() => {
         setScanResult(null);
         setLastScannedId(null);
-        if (!isScanning) {
-          setIsScanning(true);
-          requestAnimationFrame(tick);
-        }
+        setIsProcessing(false);
+        startScan();
       }, 4000);
     }
   };
 
   const tick = useCallback(() => {
-    if (!isScanning || !videoRef.current || !canvasRef.current || videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
-      if (isScanning) requestAnimationFrame(tick);
+    if (!isScanning || isProcessing || !videoRef.current || !canvasRef.current || !overlayCanvasRef.current || videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
       return;
     }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    const overlayCanvas = overlayCanvasRef.current;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
+    const overlayCtx = overlayCanvas.getContext('2d');
+    if (!ctx || !overlayCtx) return;
 
     canvas.height = video.videoHeight;
     canvas.width = video.videoWidth;
+    overlayCanvas.height = video.videoHeight;
+    overlayCanvas.width = video.videoWidth;
+
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
 
+    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
     if (code) {
-      processQrCode(code, imageData);
-    } else {
-      requestAnimationFrame(tick);
+      const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = code.location;
+      const qrWidth = topRightCorner.x - topLeftCorner.x;
+      const qrHeight = bottomLeftCorner.y - topLeftCorner.y;
+
+      const sheetTopLeft = { x: topLeftCorner.x - 0.5 * qrWidth, y: topLeftCorner.y - 8.5 * qrHeight };
+      const sheetTopRight = { x: topRightCorner.x + 8.5 * qrWidth, y: topRightCorner.y - 8.5 * qrHeight };
+      const sheetBottomLeft = { x: bottomLeftCorner.x - 0.5 * qrWidth, y: bottomLeftCorner.y + 0.5 * qrHeight };
+      const sheetBottomRight = { x: bottomRightCorner.x + 8.5 * qrWidth, y: bottomRightCorner.y + 0.5 * qrHeight };
+
+      const isAligned = sheetTopLeft.x > 0 && sheetTopLeft.y > 0 &&
+                        sheetTopRight.x < canvas.width && sheetTopRight.y > 0 &&
+                        sheetBottomLeft.x > 0 && sheetBottomLeft.y < canvas.height &&
+                        sheetBottomRight.x < canvas.width && sheetBottomRight.y < canvas.height;
+
+      overlayCtx.strokeStyle = isAligned ? 'rgba(74, 222, 128, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+      overlayCtx.lineWidth = 5;
+
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(sheetTopLeft.x, sheetTopLeft.y);
+      overlayCtx.lineTo(sheetTopRight.x, sheetTopRight.y);
+      overlayCtx.lineTo(sheetBottomRight.x, sheetBottomRight.y);
+      overlayCtx.lineTo(sheetBottomLeft.x, sheetBottomLeft.y);
+      overlayCtx.closePath();
+      overlayCtx.stroke();
+
+      if (isAligned) {
+        processQrCode(code, imageData);
+        return; // Stop the loop
+      }
     }
-  }, [isScanning, evaluation, seed, students]);
+    
+    requestAnimationFrame(tick);
+  }, [isScanning, isProcessing, evaluation, seed, students]);
 
   return (
     <div className="container mx-auto space-y-6">
@@ -215,30 +250,26 @@ const EvaluationScannerPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
-              <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={isScanning} />
+              <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={isScanning || isProcessing} />
               <p className="text-xs text-muted-foreground">Debe ser la misma que usaste para generar las hojas.</p>
             </div>
             <div className="md:col-span-2 flex items-end">
-              {!isScanning ? (
+              {!isScanning && !isProcessing ? (
                 <Button onClick={startScan} className="w-full"><Camera className="mr-2 h-4 w-4" /> Iniciar Escáner</Button>
               ) : (
-                <Button onClick={stopScan} variant="destructive" className="w-full">Detener Escáner</Button>
+                <Button onClick={stopScan} variant="destructive" className="w-full" disabled={isProcessing}>
+                  {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...</> : 'Detener Escáner'}
+                </Button>
               )}
             </div>
           </div>
-          <div className="relative aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center">
-            <video ref={videoRef} className={cn("w-full h-full object-cover", !isScanning && "hidden")} />
+          <div className="relative aspect-[9/16] md:aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center scanner-viewport">
+            <video ref={videoRef} className={cn("absolute top-0 left-0 w-full h-full object-cover", !isScanning && !isProcessing && "hidden")} />
             <canvas ref={canvasRef} className="hidden" />
-            {!isScanning && <p className="text-muted-foreground">La cámara está desactivada.</p>}
-            {isScanning && (
-              <div className="absolute inset-0 border-8 border-dashed border-white/50 rounded-md flex items-center justify-center pointer-events-none">
-                <div className="bg-black/50 text-white p-2 rounded-md">
-                  Alinea la hoja para que los 4 marcadores de las esquinas estén visibles
-                </div>
-              </div>
-            )}
+            <canvas ref={overlayCanvasRef} className="absolute top-0 left-0 w-full h-full" />
+            {!isScanning && !isProcessing && <p className="text-muted-foreground">La cámara está desactivada.</p>}
             {scanResult && (
-              <div className={cn("absolute inset-0 flex flex-col items-center justify-center p-4 text-center", scanResult.isError ? 'bg-red-500/90' : 'bg-green-500/90')}>
+              <div className={cn("absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-10", scanResult.isError ? 'bg-red-500/90' : 'bg-green-500/90')}>
                 {scanResult.isError ? <XCircle className="h-16 w-16 text-white mb-4" /> : <CheckCircle className="h-16 w-16 text-white mb-4" />}
                 <p className="text-2xl font-bold text-white">{scanResult.studentName}</p>
                 <p className="text-lg text-white">{scanResult.message}</p>
