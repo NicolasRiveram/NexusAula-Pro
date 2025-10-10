@@ -1,5 +1,6 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { getLogoPublicUrl } from '@/api/settingsApi';
 
 interface PrintableAnswerSheetProps {
   evaluationTitle: string;
@@ -26,22 +27,32 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
   questions,
 }) => {
   const alternatives = ['A', 'B', 'C', 'D', 'E'];
+  const fullLogoUrl = logoUrl ? getLogoPublicUrl(logoUrl) : null;
 
   return (
     <div className="printable-container answer-sheet">
       <header className="print-header">
-        {logoUrl && <img src={logoUrl} alt={establishmentName} />}
-        <div className="print-header-info">
+        <div className="header-left">
+          {fullLogoUrl && <img src={fullLogoUrl} alt={establishmentName} />}
+        </div>
+        <div className="header-center">
           <h1 className="text-lg font-bold">{establishmentName}</h1>
           <p className="text-sm">{evaluationTitle}</p>
         </div>
+        <div className="header-right" style={{ width: '150px' }}></div>
       </header>
 
       <section className="student-info">
-        <div className="student-info-item"><label>Nombre:</label><span>{studentName}</span></div>
-        <div className="student-info-item"><label>Curso:</label><span>{courseName}</span></div>
-        <div className="student-info-item"><label>Fecha:</label><div className="line"></div></div>
-        <div className="student-info-item"><label>Puntaje:</label><div className="line"></div></div>
+        <div className="info-row">
+          <div className="info-item"><label>Nombre:</label><span>{studentName}</span></div>
+          <div className="info-item"><label>Curso:</label><span>{courseName}</span></div>
+          <div className="info-item"><label>Fecha:</label><div className="line"></div></div>
+        </div>
+        <div className="info-row">
+          <div className="info-item"><label>Puntaje:</label><div className="line"></div></div>
+          <div className="info-item"><label>Nota:</label><div className="line"></div></div>
+          <div className="info-item"></div>
+        </div>
       </section>
 
       <div className="answer-sheet-header">

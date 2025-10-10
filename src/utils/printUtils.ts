@@ -80,16 +80,6 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .info-item span { font-weight: normal; }
           .info-item .line { flex-grow: 1; border-bottom: 1px solid #000; min-height: 20px; }
 
-          /* Evaluation Content */
-          .content-header-group { page-break-inside: avoid; }
-          .content-block-title { font-weight: bold; margin-bottom: 10px; font-size: 1.1em; }
-          .question-item { page-break-inside: avoid; margin-bottom: 20px; }
-          .alternatives-list { list-style-type: none; padding-left: 0; }
-          .alternatives-list li { margin-bottom: 5px; }
-          .content-block { page-break-inside: avoid; border: 1px solid #eee; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-          .content-block p { text-align: justify; white-space: pre-wrap; }
-          .content-block img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
-
           /* Answer Sheet */
           .answer-sheet-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
           .qr-code-container { text-align: center; }
