@@ -40,10 +40,14 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
 
   return (
     <div className="printable-container answer-sheet-container">
-      <div className="fiducial-marker fm-top-left"></div>
-      <div className="fiducial-marker fm-top-right"></div>
-      <div className="fiducial-marker fm-bottom-left"></div>
-      <div className="fiducial-marker fm-bottom-right"></div>
+      <div className="solid-fiducial fm-s-top-left"></div>
+      <div className="solid-fiducial fm-s-top-center"></div>
+      <div className="solid-fiducial fm-s-top-right"></div>
+      <div className="solid-fiducial fm-s-middle-left"></div>
+      <div className="solid-fiducial fm-s-middle-right"></div>
+      <div className="solid-fiducial fm-s-bottom-left"></div>
+      <div className="solid-fiducial fm-s-bottom-center"></div>
+      <div className="solid-fiducial fm-s-bottom-right"></div>
 
       <header className="omr-header">
         {fullLogoUrl && <img src={fullLogoUrl} alt={establishmentName} className="logo" />}

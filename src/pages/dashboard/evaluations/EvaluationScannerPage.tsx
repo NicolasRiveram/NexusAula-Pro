@@ -24,6 +24,7 @@ const EvaluationScannerPage = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [overlayDimensions, setOverlayDimensions] = useState({ width: 0, height: 0, top: 0, left: 0 });
 
   useEffect(() => {
     if (evaluationId) {
@@ -201,35 +202,40 @@ const EvaluationScannerPage = () => {
 
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
+    // Draw static guide
+    const padding = 0.1 * Math.min(overlayCanvas.width, overlayCanvas.height);
+    const guideWidth = overlayCanvas.width - 2 * padding;
+    const guideHeight = overlayCanvas.height - 2 * padding;
+    const guideX = padding;
+    const guideY = padding;
+    
+    overlayCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    overlayCtx.lineWidth = 2;
+    overlayCtx.setLineDash([15, 10]);
+    overlayCtx.strokeRect(guideX, guideY, guideWidth, guideHeight);
+    overlayCtx.setLineDash([]);
+
     if (code) {
       const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = code.location;
-      const qrWidth = topRightCorner.x - topLeftCorner.x;
-      const qrHeight = bottomLeftCorner.y - topLeftCorner.y;
+      const codeCenterX = (topLeftCorner.x + bottomRightCorner.x) / 2;
+      const codeCenterY = (topLeftCorner.y + bottomRightCorner.y) / 2;
 
-      const sheetTopLeft = { x: topLeftCorner.x - 0.5 * qrWidth, y: topLeftCorner.y - 8.5 * qrHeight };
-      const sheetTopRight = { x: topRightCorner.x + 8.5 * qrWidth, y: topRightCorner.y - 8.5 * qrHeight };
-      const sheetBottomLeft = { x: bottomLeftCorner.x - 0.5 * qrWidth, y: bottomLeftCorner.y + 0.5 * qrHeight };
-      const sheetBottomRight = { x: bottomRightCorner.x + 8.5 * qrWidth, y: bottomRightCorner.y + 0.5 * qrHeight };
+      const isAligned = codeCenterX > guideX && codeCenterX < guideX + guideWidth &&
+                        codeCenterY > guideY && codeCenterY < guideY + guideHeight;
 
-      const isAligned = sheetTopLeft.x > 0 && sheetTopLeft.y > 0 &&
-                        sheetTopRight.x < canvas.width && sheetTopRight.y > 0 &&
-                        sheetBottomLeft.x > 0 && sheetBottomLeft.y < canvas.height &&
-                        sheetBottomRight.x < canvas.width && sheetBottomRight.y < canvas.height;
-
-      overlayCtx.strokeStyle = isAligned ? 'rgba(74, 222, 128, 0.8)' : 'rgba(239, 68, 68, 0.8)';
-      overlayCtx.lineWidth = 5;
-
+      overlayCtx.strokeStyle = isAligned ? 'rgba(74, 222, 128, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+      overlayCtx.lineWidth = 4;
       overlayCtx.beginPath();
-      overlayCtx.moveTo(sheetTopLeft.x, sheetTopLeft.y);
-      overlayCtx.lineTo(sheetTopRight.x, sheetTopRight.y);
-      overlayCtx.lineTo(sheetBottomRight.x, sheetBottomRight.y);
-      overlayCtx.lineTo(sheetBottomLeft.x, sheetBottomLeft.y);
+      overlayCtx.moveTo(topLeftCorner.x, topLeftCorner.y);
+      overlayCtx.lineTo(topRightCorner.x, topRightCorner.y);
+      overlayCtx.lineTo(bottomRightCorner.x, bottomRightCorner.y);
+      overlayCtx.lineTo(bottomLeftCorner.x, bottomLeftCorner.y);
       overlayCtx.closePath();
       overlayCtx.stroke();
 
       if (isAligned) {
         processQrCode(code, imageData);
-        return; // Stop the loop
+        return;
       }
     }
     

@@ -127,11 +127,15 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .omr-question-row .bubble-container { display: flex; flex-direction: column; align-items: center; margin: 0 3px; }
           .omr-question-row .alt-label { font-size: 7pt; font-weight: bold; }
           .omr-question-row .bubble { width: 16px; height: 16px; border: 1px solid #000; border-radius: 50%; }
-          .fiducial-marker { position: absolute; width: 10mm; height: 10mm; border: 3px solid #000; }
-          .fm-top-left { top: 5mm; left: 5mm; border-right: none; border-bottom: none; }
-          .fm-top-right { top: 5mm; right: 5mm; border-left: none; border-bottom: none; }
-          .fm-bottom-left { bottom: 5mm; left: 5mm; border-right: none; border-top: none; }
-          .fm-bottom-right { bottom: 5mm; right: 5mm; border-left: none; border-top: none; }
+          .solid-fiducial { position: absolute; width: 5mm; height: 5mm; background-color: black !important; }
+          .fm-s-top-left { top: 5mm; left: 5mm; }
+          .fm-s-top-center { top: 5mm; left: 50%; transform: translateX(-50%); }
+          .fm-s-top-right { top: 5mm; right: 5mm; }
+          .fm-s-middle-left { top: 50%; left: 5mm; transform: translateY(-50%); }
+          .fm-s-middle-right { top: 50%; right: 5mm; transform: translateY(-50%); }
+          .fm-s-bottom-left { bottom: 5mm; left: 5mm; }
+          .fm-s-bottom-center { bottom: 5mm; left: 50%; transform: translateX(-50%); }
+          .fm-s-bottom-right { bottom: 5mm; right: 5mm; }
 
           /* Answer Key */
           .answer-key-title { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 10px; }
