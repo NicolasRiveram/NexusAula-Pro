@@ -61,7 +61,7 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada en los secretos del proyecto.");
     }
 
-    const { suggestions, projectContext, classCount } = await req.json();
+    const { suggestions, projectContext, classCount, batchNumber, totalBatches } = await req.json();
     if (!classCount || classCount <= 0) {
       throw new Error("El número de clases (classCount) debe ser un entero positivo.");
     }
@@ -93,6 +93,7 @@ serve(async (req) => {
       - **Aporte al Proyecto:** Si el contexto del proyecto es 'Sí', describe en 'aporte_proyecto' cómo esta clase contribuye de forma específica al proyecto ABP. Si es 'No', indica "No aplica".
       - **Actividades:** Para 'actividades_inicio', 'actividades_desarrollo' y 'actividades_cierre', detalla una secuencia de acciones claras y concisas para cada fase de la clase.
       - **Vínculo y Aspectos:** Ofrece sugerencias concretas para 'vinculo_interdisciplinario' y 'aspectos_valoricos_actitudinales'.
+      - **Contexto de Lote:** Estás generando el lote ${batchNumber || 1} de ${totalBatches || 1}. Asegúrate de que las clases sean una continuación lógica si el número de lote es mayor que 1.
       - **Formato:** Tu respuesta DEBE ser únicamente el array de objetos JSON. No incluyas markdown.
 
       Aquí están los detalles de la unidad:

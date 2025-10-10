@@ -8,7 +8,7 @@ import Step2ReviewSuggestions, { AISuggestions } from './Step2_ReviewSuggestions
 import Step3ClassSequence, { ClassPlan } from './Step3_ClassSequence';
 import { createUnitPlan, updateUnitPlanSuggestions, saveMasterPlanClasses, linkNewUnitsToProject } from '@/api/planningApi';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { format } from 'date-fns';
@@ -86,7 +86,7 @@ const NewUnitPlan = () => {
 
       if (countError) throw countError;
 
-      const effectiveClassCount = classCount > 0 ? classCount : 10; // Default to 10 if no slots, to generate content anyway
+      const effectiveClassCount = classCount > 0 ? classCount : 10;
       if (classCount <= 0) {
         showSuccess("No se encontraron bloques de horario. Se generará una secuencia de 10 clases de ejemplo que podrás programar más tarde.");
       } else {
@@ -96,14 +96,33 @@ const NewUnitPlan = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Usuario no autenticado.");
 
-      const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { suggestions: data, projectContext: proyectoId, classCount: effectiveClassCount },
-      });
+      const BATCH_SIZE = 8;
+      const totalBatches = Math.ceil(effectiveClassCount / BATCH_SIZE);
+      let allSequences: ClassPlan[] = [];
 
-      if (error) throw error;
+      for (let i = 0; i < effectiveClassCount; i += BATCH_SIZE) {
+        const batchNumber = (i / BATCH_SIZE) + 1;
+        const countInBatch = Math.min(BATCH_SIZE, effectiveClassCount - i);
+        const batchToastId = showLoading(`Generando clases ${i + 1} a ${i + countInBatch} (lote ${batchNumber}/${totalBatches})...`);
+
+        const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: { 
+            suggestions: data, 
+            projectContext: proyectoId, 
+            classCount: countInBatch,
+            batchNumber,
+            totalBatches,
+          },
+        });
+        
+        dismissToast(batchToastId);
+        if (error) throw error;
+
+        allSequences = [...allSequences, ...sequence];
+      }
       
-      const sequenceWithTempIds = sequence.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
+      const sequenceWithTempIds = allSequences.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
         ...cls,
         id: `temp_${index}`,
         fecha: '',

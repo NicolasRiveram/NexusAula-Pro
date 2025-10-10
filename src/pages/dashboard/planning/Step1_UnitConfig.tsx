@@ -64,6 +64,16 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
 
   const { control, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<UnitPlanFormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      asignaturaId: undefined,
+      nivelId: undefined,
+      cursoAsignaturaIds: [],
+      titulo: "",
+      fechas: undefined,
+      descripcionContenidos: "",
+      instruccionesAdicionales: "",
+      proyectoId: "none",
+    }
   });
 
   const selectedCursoAsignaturaIds = watch('cursoAsignaturaIds');
