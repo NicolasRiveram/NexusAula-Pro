@@ -92,7 +92,6 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 8px;
-            background-color: #f9f9f9 !important;
             page-break-inside: avoid;
           }
           .info-block h2 {
@@ -111,7 +110,6 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 8px;
-            background-color: #f9f9f9 !important;
             page-break-inside: avoid;
           }
           .content-block-container .content-block-title {
