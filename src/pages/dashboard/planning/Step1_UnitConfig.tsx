@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,9 +21,12 @@ import { fetchRelevantProjects, SimpleProject } from '@/api/projectsApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import { fetchDocenteAsignaturas, Asignatura, Nivel, fetchNiveles } from '@/api/coursesApi';
 
 const schema = z.object({
-  cursoAsignaturaIds: z.array(z.string()).min(1, "Debes seleccionar al menos un curso."),
+  asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
+  nivelId: z.string().uuid("Debes seleccionar un nivel."),
+  cursoAsignaturaIds: z.array(z.string()).optional(), // Ahora es opcional
   titulo: z.string().min(3, "El título es requerido."),
   fechas: z.object({
     from: z.date({ required_error: "La fecha de inicio es requerida." }),
@@ -50,9 +53,9 @@ interface Step1UnitConfigProps {
 
 const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoading }) => {
   const { activeEstablishment } = useEstablishment();
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
+  const [niveles, setNiveles] = useState<Nivel[]>([]);
   const [cursos, setCursos] = useState<CursoParaSeleccion[]>([]);
-  const [niveles, setNiveles] = useState<Record<string, string>>({});
-  const [selectedNivel, setSelectedNivel] = useState<string | null>(null);
   const [relevantProjects, setRelevantProjects] = useState<SimpleProject[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [isCreateProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
@@ -64,42 +67,38 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
   });
 
   const selectedCursoAsignaturaIds = watch('cursoAsignaturaIds');
+  const selectedAsignaturaId = watch('asignaturaId');
+  const selectedNivelId = watch('nivelId');
 
   useEffect(() => {
-    const fetchCursos = async () => {
+    const fetchInitialData = async () => {
       if (!activeEstablishment) return;
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('curso_asignaturas')
-        .select('id, asignaturas(id, nombre), cursos!inner(nombre, niveles(id, nombre))')
-        .eq('docente_id', user.id)
-        .eq('cursos.establecimiento_id', activeEstablishment.id);
+      try {
+        const [asignaturasData, nivelesData, cursosData] = await Promise.all([
+          fetchDocenteAsignaturas(user.id),
+          fetchNiveles(),
+          supabase.from('curso_asignaturas').select('id, asignatura_id, cursos!inner(nombre, nivel_id, niveles(nombre))').eq('docente_id', user.id).eq('cursos.establecimiento_id', activeEstablishment.id)
+        ]);
 
-      if (error) {
-        showError("Error al cargar cursos: " + error.message);
-        return;
+        setAsignaturas(asignaturasData);
+        setNiveles(nivelesData);
+
+        const cursosParaSeleccion = (cursosData.data || []).map((ca: any) => ({
+          id: ca.id,
+          nombre: `${ca.cursos.niveles.nombre} - ${ca.cursos.nombre}`,
+          nivelId: ca.cursos.nivel_id,
+          asignaturaId: ca.asignatura_id,
+        })).filter(Boolean) as CursoParaSeleccion[];
+        setCursos(cursosParaSeleccion);
+
+      } catch (error: any) {
+        showError("Error al cargar datos iniciales: " + error.message);
       }
-
-      const nivelesUnicos: Record<string, string> = {};
-      const cursosParaSeleccion = data.map((ca: any) => {
-        if (ca.cursos && ca.cursos.niveles && ca.asignaturas) {
-          nivelesUnicos[ca.cursos.niveles.id] = ca.cursos.niveles.nombre;
-          return {
-            id: ca.id,
-            nombre: `${ca.cursos.niveles.nombre} - ${ca.cursos.nombre} - ${ca.asignaturas.nombre}`,
-            nivelId: ca.cursos.niveles.id,
-            asignaturaId: ca.asignaturas.id,
-          };
-        }
-        return null;
-      }).filter(Boolean) as CursoParaSeleccion[];
-      
-      setCursos(cursosParaSeleccion);
-      setNiveles(nivelesUnicos);
     };
-    fetchCursos();
+    fetchInitialData();
   }, [activeEstablishment]);
 
   useEffect(() => {
@@ -121,35 +120,21 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
     getProjects();
   }, [selectedCursoAsignaturaIds]);
 
-  const handleNivelChange = (nivelId: string) => {
-    setSelectedNivel(nivelId);
-    setValue('cursoAsignaturaIds', []); // Resetear cursos al cambiar de nivel
-  };
-
   const handleSuggestContent = async () => {
-    const { cursoAsignaturaIds, descripcionContenidos } = getValues();
-    if (!cursoAsignaturaIds || cursoAsignaturaIds.length === 0 || !descripcionContenidos) {
-      showError("Por favor, selecciona al menos un curso y escribe un tema o descripción inicial para obtener sugerencias.");
+    const { nivelId, asignaturaId, descripcionContenidos } = getValues();
+    if (!nivelId || !asignaturaId || !descripcionContenidos) {
+      showError("Por favor, selecciona asignatura, nivel y escribe un tema para obtener sugerencias.");
       return;
     }
     
-    const firstCurso = cursos.find(c => c.id === cursoAsignaturaIds[0]);
-    if (!firstCurso) return;
-
     setIsSuggestingContent(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("No hay sesión de usuario activa.");
 
       const { data, error } = await supabase.functions.invoke('suggest-unit-content', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: { 
-          nivelId: firstCurso.nivelId, 
-          asignaturaId: firstCurso.asignaturaId, 
-          tema: descripcionContenidos 
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { nivelId, asignaturaId, tema: descripcionContenidos },
       });
 
       if (error instanceof FunctionsHttpError) {
@@ -185,42 +170,54 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
     setCreateProjectDialogOpen(false);
   };
 
-  const cursosFiltrados = selectedNivel ? cursos.filter(c => c.nivelId === selectedNivel) : [];
+  const cursosFiltrados = useMemo(() => {
+    if (!selectedAsignaturaId || !selectedNivelId) return [];
+    return cursos.filter(c => c.asignaturaId === selectedAsignaturaId && c.nivelId === selectedNivelId);
+  }, [cursos, selectedAsignaturaId, selectedNivelId]);
 
   return (
     <>
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-        <div>
-          <Label>1. Selecciona el Nivel</Label>
-          <select
-            onChange={(e) => handleNivelChange(e.target.value)}
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <option value="">Selecciona un nivel</option>
-            {Object.entries(niveles).map(([id, nombre]) => (
-              <option key={id} value={id}>{nombre}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>1. Asignatura</Label>
+            <Controller name="asignaturaId" control={control} render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+                <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
+              </Select>
+            )} />
+            {errors.asignaturaId && <p className="text-red-500 text-sm mt-1">{errors.asignaturaId.message}</p>}
+          </div>
+          <div>
+            <Label>2. Nivel</Label>
+            <Controller name="nivelId" control={control} render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
+              </Select>
+            )} />
+            {errors.nivelId && <p className="text-red-500 text-sm mt-1">{errors.nivelId.message}</p>}
+          </div>
         </div>
 
-        {selectedNivel && (
-          <div>
-            <Label>2. Selecciona los Cursos para esta Planificación</Label>
-            <Controller
-              name="cursoAsignaturaIds"
-              control={control}
-              render={({ field }) => (
-                <MultiSelect
-                  options={cursosFiltrados.map(c => ({ value: c.id, label: c.nombre }))}
-                  selected={field.value || []}
-                  onValueChange={field.onChange}
-                  placeholder="Selecciona uno o más cursos"
-                />
-              )}
-            />
-            {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm mt-1">{errors.cursoAsignaturaIds.message}</p>}
-          </div>
-        )}
+        <div>
+          <Label>3. Cursos Específicos (Opcional)</Label>
+          <Controller
+            name="cursoAsignaturaIds"
+            control={control}
+            render={({ field }) => (
+              <MultiSelect
+                options={cursosFiltrados.map(c => ({ value: c.id, label: c.nombre }))}
+                selected={field.value || []}
+                onValueChange={field.onChange}
+                placeholder="Selecciona uno o más cursos"
+                disabled={!selectedAsignaturaId || !selectedNivelId}
+              />
+            )}
+          />
+          {errors.cursoAsignaturaIds && <p className="text-red-500 text-sm mt-1">{errors.cursoAsignaturaIds.message}</p>}
+        </div>
 
         <div>
           <Label>Vincular a Proyecto ABP (Opcional)</Label>
@@ -250,7 +247,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
         </div>
 
         <div>
-          <Label htmlFor="titulo">3. Título de la Unidad</Label>
+          <Label htmlFor="titulo">4. Título de la Unidad</Label>
           <Controller
             name="titulo"
             control={control}
@@ -260,7 +257,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
         </div>
 
         <div>
-          <Label>4. Rango de Fechas de la Unidad</Label>
+          <Label>5. Rango de Fechas de la Unidad</Label>
           <Controller
             name="fechas"
             control={control}
@@ -308,7 +305,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
 
         <div>
           <div className="flex justify-between items-center mb-1">
-            <Label htmlFor="descripcionContenidos">5. Contenidos y Temas a Abordar</Label>
+            <Label htmlFor="descripcionContenidos">6. Contenidos y Temas a Abordar</Label>
             <Button type="button" variant="outline" size="sm" onClick={handleSuggestContent} disabled={isLoading || isSuggestingContent}>
               {isSuggestingContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               Sugerir
@@ -330,7 +327,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
         </div>
 
         <div>
-          <Label htmlFor="instruccionesAdicionales">6. Instrucciones Adicionales para la IA (Opcional)</Label>
+          <Label htmlFor="instruccionesAdicionales">7. Instrucciones Adicionales para la IA (Opcional)</Label>
           <Controller
             name="instruccionesAdicionales"
             control={control}
