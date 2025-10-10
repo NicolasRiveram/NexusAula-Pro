@@ -48,6 +48,8 @@ const EditUnitPlanPage = () => {
   const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
   const [isReprogramming, setIsReprogramming] = useState(false);
   const [isReprogramConfirmOpen, setReprogramConfirmOpen] = useState(false);
+  const [isMissingScheduleAlertOpen, setMissingScheduleAlertOpen] = useState(false);
+  const [missingScheduleCourses, setMissingScheduleCourses] = useState<string[]>([]);
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -86,6 +88,44 @@ const EditUnitPlanPage = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleReprogramClick = async () => {
+    if (!plan) return;
+
+    const toastId = showLoading("Verificando horarios...");
+    try {
+        const coursesWithMissingSchedules: string[] = [];
+        
+        for (const link of plan.unidad_maestra_curso_asignatura_link) {
+            const cursoAsignatura = link.curso_asignaturas;
+            if (cursoAsignatura) {
+                const { count, error } = await supabase
+                    .from('horario_curso')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('curso_asignatura_id', cursoAsignatura.id);
+
+                if (error) throw error;
+
+                if (count === 0) {
+                    coursesWithMissingSchedules.push(`${cursoAsignatura.cursos.niveles.nombre} ${cursoAsignatura.cursos.nombre} - ${cursoAsignatura.asignaturas.nombre}`);
+                }
+            }
+        }
+        
+        dismissToast(toastId);
+
+        if (coursesWithMissingSchedules.length > 0) {
+            setMissingScheduleCourses(coursesWithMissingSchedules);
+            setMissingScheduleAlertOpen(true);
+        } else {
+            setReprogramConfirmOpen(true);
+        }
+
+    } catch (error: any) {
+        dismissToast(toastId);
+        showError(`Error al verificar horarios: ${error.message}`);
+    }
+  };
 
   const doReprogram = async () => {
     if (!planId) return;
@@ -218,14 +258,14 @@ const EditUnitPlanPage = () => {
                 <div key={clase.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
                   <div>
                     <p className="font-semibold">{clase.titulo}</p>
-                    <p className="text-sm text-muted-foreground">{format(parseISO(clase.fecha), "EEEE d 'de' LLLL", { locale: es })}</p>
+                    <p className="text-sm text-muted-foreground">{clase.fecha ? format(parseISO(clase.fecha), "EEEE d 'de' LLLL", { locale: es }) : 'Plantilla sin fecha'}</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => handleEditClass(clase)}><Edit className="mr-2 h-4 w-4" /> Editar Clase</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setSelectedClass(clase); setClassEditDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar Clase</Button>
                 </div>
               ))
             ) : null}
             <div className="pt-4 text-center">
-              <Button onClick={() => setReprogramConfirmOpen(true)} disabled={isReprogramming}>
+              <Button onClick={handleReprogramClick} disabled={isReprogramming}>
                 {isReprogramming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 {plan?.clases && plan.clases.length > 0 ? 'Reprogramar Clases' : 'Programar Clases'}
               </Button>
@@ -250,6 +290,23 @@ const EditUnitPlanPage = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={doReprogram}>Sí, Programar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={isMissingScheduleAlertOpen} onOpenChange={setMissingScheduleAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Falta Horario</AlertDialogTitle>
+            <AlertDialogDescription>
+              No se puede programar porque los siguientes cursos no tienen un horario definido:
+              <ul className="list-disc list-inside my-2 bg-muted/50 p-2 rounded-md">
+                  {missingScheduleCourses.map(name => <li key={name}>{name}</li>)}
+              </ul>
+              Por favor, ve a "Mis Cursos" para configurar el horario antes de continuar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setMissingScheduleAlertOpen(false)}>Entendido</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
