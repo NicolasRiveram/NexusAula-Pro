@@ -306,20 +306,27 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
       randomizar_alternativas,
       evaluacion_curso_asignaturas!left (
         curso_asignatura_id,
-        curso_asignaturas!inner (
-          docente_id,
-          cursos!inner ( nombre, establecimiento_id, niveles ( nombre ) ),
+        curso_asignaturas (
+          cursos ( establecimiento_id, nombre, niveles ( nombre ) ),
           asignaturas ( nombre )
         )
       )
     `)
     .eq('creado_por', docenteId)
-    .or(`evaluacion_curso_asignaturas.curso_asignaturas.cursos.establecimiento_id.eq.${establecimientoId},evaluacion_curso_asignaturas.id.is.null`)
     .order('fecha_aplicacion', { ascending: false });
 
   if (error) throw new Error(`Error al cargar las evaluaciones: ${error.message}`);
 
-  return (data || []).map((e: any) => ({
+  const filteredData = (data || []).filter((evaluation: any) => {
+    if (evaluation.evaluacion_curso_asignaturas.length === 0) {
+      return true; // Keep unassigned evaluations (templates)
+    }
+    return evaluation.evaluacion_curso_asignaturas.some((link: any) => 
+      link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
+    );
+  });
+
+  return filteredData.map((e: any) => ({
     id: e.id,
     titulo: e.titulo,
     tipo: e.tipo,
@@ -327,14 +334,16 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
     fecha_aplicacion: e.fecha_aplicacion,
     randomizar_preguntas: e.randomizar_preguntas,
     randomizar_alternativas: e.randomizar_alternativas,
-    curso_asignaturas: (e.evaluacion_curso_asignaturas || []).map((link: any) => ({
-      id: link.curso_asignatura_id,
-      curso: {
-        nombre: link.curso_asignaturas.cursos.nombre,
-        nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }
-      },
-      asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre }
-    }))
+    curso_asignaturas: (e.evaluacion_curso_asignaturas || [])
+      .filter((link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId)
+      .map((link: any) => ({
+        id: link.curso_asignatura_id,
+        curso: {
+          nombre: link.curso_asignaturas.cursos.nombre,
+          nivel: { nombre: link.curso_asignaturas.cursos.niveles.nombre }
+        },
+        asignatura: { nombre: link.curso_asignaturas.asignaturas.nombre }
+      }))
   }));
 };
 
