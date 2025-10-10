@@ -15,7 +15,7 @@ import { Toaster } from "@/components/ui/toaster";
     import NewUnitPlan from "./pages/dashboard/planning/NewUnitPlan";
     import EditUnitPlanPage from "./pages/dashboard/planning/EditUnitPlanPage";
     import UnitPlanDetailPage from "./pages/dashboard/planning/UnitPlanDetailPage";
-    import EvaluationPage from "./pages/dashboard/EvaluationPage";
+    import EvaluationPage from "./pages/dashboard/evaluations/EvaluationPage";
     import EvaluationBuilderPage from "./pages/dashboard/evaluations/EvaluationBuilderPage";
     import EvaluationDetailPage from "./pages/dashboard/evaluations/EvaluationDetailPage";
     import EvaluationResultsPage from "./pages/dashboard/evaluations/EvaluationResultsPage";

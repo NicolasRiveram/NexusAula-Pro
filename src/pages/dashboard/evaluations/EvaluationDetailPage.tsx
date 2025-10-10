@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, Copy } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -18,6 +18,9 @@ import PrintableEvaluation from '@/components/evaluations/printable/PrintableEva
 import PrintEvaluationDialog, { PrintFormData } from '@/components/evaluations/printable/PrintEvaluationDialog';
 import { seededShuffle } from '@/utils/shuffleUtils';
 import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
+import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/printable/PrintAnswerSheetDialog';
+import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
+import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
 
 const formatTeacherNameForPrint = (fullName: string | null): string => {
   if (!fullName || fullName.trim() === '') {
@@ -45,6 +48,7 @@ const EvaluationDetailPage = () => {
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
+  const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
 
   useEffect(() => {
     if (evaluationId) {
@@ -94,7 +98,6 @@ const EvaluationDetailPage = () => {
         const rowLabel = String.fromCharCode(65 + i);
         const evaluationCopy = JSON.parse(JSON.stringify(evaluation)); // Deep copy
 
-        // Aleatorizar preguntas si está activado
         if (evaluationCopy.randomizar_preguntas) {
           const allItems = evaluationCopy.evaluation_content_blocks.flatMap((block: any) => block.evaluacion_items);
           const shuffledItems = seededShuffle(allItems, `${formData.seed}-${rowLabel}`);
@@ -118,7 +121,6 @@ const EvaluationDetailPage = () => {
           }
         }
 
-        // Aleatorizar alternativas si está activado
         if (evaluationCopy.randomizar_alternativas) {
           evaluationCopy.evaluation_content_blocks.forEach((block: any) => {
             block.evaluacion_items.forEach((item: any) => {
@@ -155,6 +157,70 @@ const EvaluationDetailPage = () => {
     } finally {
       setIsPrinting(false);
       setPrintModalOpen(false);
+    }
+  };
+
+  const handleConfirmPrintAnswerSheets = async (formData: AnswerSheetFormData) => {
+    if (!evaluationId || !activeEstablishment) return;
+    setIsPrinting(true);
+    const toastId = showLoading("Generando hojas de respuesta y pautas...");
+
+    try {
+      const [evaluation, students] = await Promise.all([
+        fetchEvaluationDetails(evaluationId),
+        fetchStudentsForEvaluation(evaluationId),
+      ]);
+
+      const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
+      const answerKey: { [row: string]: { [q: number]: string } } = {};
+      const printableComponents: React.ReactElement[] = [];
+
+      for (let i = 0; i < formData.rows; i++) {
+        const rowLabel = String.fromCharCode(65 + i);
+        answerKey[rowLabel] = {};
+
+        allQuestions.forEach(q => {
+          if (q.tipo_item === 'seleccion_multiple') {
+            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
+            const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
+            answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
+          }
+        });
+
+        for (const student of students) {
+          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
+          printableComponents.push(
+            <PrintableAnswerSheet
+              key={`${student.id}-${rowLabel}`}
+              evaluationTitle={evaluation.titulo}
+              establishmentName={activeEstablishment.nombre}
+              logoUrl={activeEstablishment.logo_url}
+              studentName={student.nombre_completo}
+              courseName={student.curso_nombre}
+              rowLabel={rowLabel}
+              qrCodeData={qrCodeData}
+              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+            />
+          );
+        }
+      }
+
+      printableComponents.push(
+        <PrintableAnswerKey
+          key="answer-key"
+          evaluationTitle={evaluation.titulo}
+          answerKey={answerKey}
+        />
+      );
+
+      printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`, 'portrait');
+      dismissToast(toastId);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error al generar las hojas: ${error.message}`);
+    } finally {
+      setIsPrinting(false);
+      setAnswerSheetModalOpen(false);
     }
   };
 
@@ -288,6 +354,12 @@ const EvaluationDetailPage = () => {
         isOpen={isPrintModalOpen}
         onClose={() => setPrintModalOpen(false)}
         onConfirm={handleConfirmPrint}
+        isPrinting={isPrinting}
+      />
+      <PrintAnswerSheetDialog
+        isOpen={isAnswerSheetModalOpen}
+        onClose={() => setAnswerSheetModalOpen(false)}
+        onConfirm={handleConfirmPrintAnswerSheets}
         isPrinting={isPrinting}
       />
       <AnswerKeyDialog
