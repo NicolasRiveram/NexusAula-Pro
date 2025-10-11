@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
 import { showError } from '@/utils/toast';
 import PerformanceSummaryCard from '@/components/analytics/PerformanceSummaryCard';
 import { useOutletContext } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -26,76 +27,55 @@ const AnalyticsPage = () => {
   const { activeEstablishment } = useEstablishment();
   const { profile } = useOutletContext<DashboardContext>();
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
-
-  const [cursos, setCursos] = useState<(CursoAsignatura | CursoBase)[]>([]);
   const [selectedCursoId, setSelectedCursoId] = useState<string>('todos');
-  const [studentPerformance, setStudentPerformance] = useState<StudentPerformance[]>([]);
-  const [skillPerformance, setSkillPerformance] = useState<SkillPerformance[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadFilters = async () => {
-      if (activeEstablishment) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            if (isAdmin) {
-              const cursosData = await fetchCursosPorEstablecimiento(activeEstablishment.id);
-              setCursos(cursosData);
-            } else { // Teacher
-              const cursosData = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-              const uniqueCourses = Array.from(new Map(cursosData.map(item => [item.curso.id, item])).values());
-              setCursos(uniqueCourses);
-            }
-          } catch (err: any) {
-            showError(`Error al cargar filtros: ${err.message}`);
-          }
-        }
-      }
-    };
-    loadFilters();
-  }, [activeEstablishment, isAdmin]);
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
+    }
+  });
 
-  useEffect(() => {
-    const loadAnalytics = async () => {
-      if (activeEstablishment) {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            const cursoFilter = selectedCursoId === 'todos' ? null : selectedCursoId;
-            let studentData, skillData;
-
-            if (isAdmin) {
-              [studentData, skillData] = await Promise.all([
-                fetchEstablishmentStudentPerformance(activeEstablishment.id, cursoFilter),
-                fetchEstablishmentSkillPerformance(activeEstablishment.id, cursoFilter),
-              ]);
-            } else { // Teacher
-              [studentData, skillData] = await Promise.all([
-                fetchStudentPerformance(user.id, activeEstablishment.id, cursoFilter),
-                fetchSkillPerformance(user.id, activeEstablishment.id, cursoFilter),
-              ]);
-            }
-            
-            setStudentPerformance(studentData);
-            setSkillPerformance(skillData);
-          } catch (err: any) {
-            showError(`Error al cargar analíticas: ${err.message}`);
-          }
-        }
-        setLoading(false);
+  const { data: cursos = [] } = useQuery({
+    queryKey: ['analyticsCourses', user?.id, activeEstablishment?.id, isAdmin],
+    queryFn: async () => {
+      if (isAdmin) {
+        return await fetchCursosPorEstablecimiento(activeEstablishment!.id);
       } else {
-        setLoading(false);
-        setStudentPerformance([]);
-        setSkillPerformance([]);
+        const cursosData = await fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id);
+        return Array.from(new Map(cursosData.map(item => [item.curso.id, item.curso])).values());
       }
-    };
-    loadAnalytics();
-  }, [activeEstablishment, selectedCursoId, isAdmin]);
+    },
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  const { data: analyticsData, isLoading: isLoadingAnalytics } = useQuery({
+    queryKey: ['analyticsData', user?.id, activeEstablishment?.id, selectedCursoId, isAdmin],
+    queryFn: async () => {
+      const cursoFilter = selectedCursoId === 'todos' ? null : selectedCursoId;
+      let studentData, skillData;
+      if (isAdmin) {
+        [studentData, skillData] = await Promise.all([
+          fetchEstablishmentStudentPerformance(activeEstablishment!.id, cursoFilter),
+          fetchEstablishmentSkillPerformance(activeEstablishment!.id, cursoFilter),
+        ]);
+      } else {
+        [studentData, skillData] = await Promise.all([
+          fetchStudentPerformance(user!.id, activeEstablishment!.id, cursoFilter),
+          fetchSkillPerformance(user!.id, activeEstablishment!.id, cursoFilter),
+        ]);
+      }
+      return { studentPerformance: studentData, skillPerformance: skillData };
+    },
+    enabled: !!user && !!activeEstablishment,
+    placeholderData: { studentPerformance: [], skillPerformance: [] },
+  });
+
+  const { studentPerformance, skillPerformance } = analyticsData || { studentPerformance: [], skillPerformance: [] };
 
   const { topPerformers, needsSupport } = useMemo(() => {
-    const sortedStudents = [...studentPerformance];
+    const sortedStudents = [...studentPerformance].sort((a, b) => a.average_score - b.average_score);
     return {
       needsSupport: sortedStudents.slice(0, 5),
       topPerformers: sortedStudents.slice(-5).reverse(),
@@ -123,21 +103,17 @@ const AnalyticsPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos los cursos</SelectItem>
-              {cursos.map(curso => {
-                const id = 'curso' in curso ? curso.curso.id : curso.id;
-                const label = 'curso' in curso ? `${curso.curso.nivel.nombre} ${curso.curso.nombre}` : `${(curso as CursoBase).nivel.nombre} ${curso.nombre}`;
-                return (
-                  <SelectItem key={id} value={id}>
-                    {label}
-                  </SelectItem>
-                )
-              })}
+              {cursos.map(curso => (
+                <SelectItem key={curso.id} value={curso.id}>
+                  {curso.nivel.nombre} {curso.nombre}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {loading ? (
+      {isLoadingAnalytics ? (
         <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
       ) : !activeEstablishment ? (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">

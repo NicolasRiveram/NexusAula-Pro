@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
@@ -6,29 +6,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { fetchSkillStatistics, SkillStatistic } from '@/api/statisticsApi';
 import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 const StatisticsWidget = () => {
-  const [stats, setStats] = useState<SkillStatistic[]>([]);
-  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
 
-  useEffect(() => {
-    const loadStats = async () => {
-      if (!activeEstablishment) {
-        setStats([]);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const data = await fetchSkillStatistics(user.id, activeEstablishment.id);
-        setStats(data);
-      }
-      setLoading(false);
-    };
-    loadStats();
-  }, [activeEstablishment]);
+      return user;
+    }
+  });
+
+  const { data: stats = [], isLoading } = useQuery({
+    queryKey: ['skillStats', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchSkillStatistics(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
 
   const chartData = stats.map(stat => ({
     name: stat.habilidad_nombre.substring(0, 12) + (stat.habilidad_nombre.length > 12 ? '...' : ''), // Truncate long names
@@ -45,7 +40,7 @@ const StatisticsWidget = () => {
         <CardDescription>Rendimiento promedio por habilidad en tus cursos.</CardDescription>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-[200px]">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>

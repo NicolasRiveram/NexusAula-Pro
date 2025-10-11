@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,33 +7,30 @@ import { fetchProactiveNotifications, ProactiveNotification } from '@/api/dashbo
 import { showError } from '@/utils/toast';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
 
 const NotificationsPanel = () => {
-  const [notifications, setNotifications] = useState<ProactiveNotification[]>([]);
-  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
 
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (!activeEstablishment) {
-        setNotifications([]);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          const data = await fetchProactiveNotifications(user.id, activeEstablishment.id);
-          setNotifications(data);
-        } catch (err: any) {
-          showError(`Error al cargar notificaciones: ${err.message}`);
-        }
-      }
-      setLoading(false);
-    };
-    loadNotifications();
-  }, [activeEstablishment]);
+      return user;
+    }
+  });
+
+  const { data: notifications = [], isLoading, isError, error } = useQuery({
+    queryKey: ['notifications', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchProactiveNotifications(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  useEffect(() => {
+    if (isError) {
+      showError(`Error al cargar notificaciones: ${(error as Error).message}`);
+    }
+  }, [isError, error]);
 
   return (
     <Card>
@@ -43,7 +40,7 @@ const NotificationsPanel = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-24">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>

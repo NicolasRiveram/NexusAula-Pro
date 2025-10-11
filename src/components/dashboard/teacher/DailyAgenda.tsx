@@ -9,6 +9,7 @@ import { showError } from '@/utils/toast';
 import { Establishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import ClassLogDialog from './ClassLogDialog';
+import { useQuery } from '@tanstack/react-query';
 
 interface DailyAgendaProps {
   selectedDate: Date;
@@ -16,33 +17,28 @@ interface DailyAgendaProps {
 }
 
 const DailyAgenda: React.FC<DailyAgendaProps> = ({ selectedDate, activeEstablishment }) => {
-  const [data, setData] = useState<DailyAgendaData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isLogDialogOpen, setLogDialogOpen] = useState(false);
   const [selectedClassForLog, setSelectedClassForLog] = useState<AgendaClase | null>(null);
 
-  useEffect(() => {
-    const loadAgenda = async () => {
-      if (!activeEstablishment) {
-        setData(null);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          const agendaData = await fetchDashboardDataForDay(user.id, activeEstablishment.id, selectedDate);
-          setData(agendaData);
-        } catch (err: any) {
-          showError(`Error al cargar la agenda: ${err.message}`);
-          setData(null);
-        }
-      }
-      setLoading(false);
-    };
-    loadAgenda();
-  }, [selectedDate, activeEstablishment]);
+      return user;
+    }
+  });
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['dailyAgenda', user?.id, activeEstablishment?.id, selectedDate.toDateString()],
+    queryFn: () => fetchDashboardDataForDay(user!.id, activeEstablishment!.id, selectedDate),
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  useEffect(() => {
+    if (isError) {
+      showError(`Error al cargar la agenda: ${(error as Error).message}`);
+    }
+  }, [isError, error]);
 
   const handleOpenLog = (clase: AgendaClase) => {
     setSelectedClassForLog(clase);
@@ -58,12 +54,14 @@ const DailyAgenda: React.FC<DailyAgendaProps> = ({ selectedDate, activeEstablish
           <CardTitle className="capitalize">{formattedDate}</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex justify-center items-center h-48">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : !data ? (
+          ) : !activeEstablishment ? (
             <p className="text-muted-foreground text-center">Selecciona un establecimiento para ver la agenda.</p>
+          ) : !data ? (
+             <p className="text-muted-foreground text-center">No hay datos de agenda para este día.</p>
           ) : (
             <div className="space-y-6">
               {data.anuncios.length > 0 && (
