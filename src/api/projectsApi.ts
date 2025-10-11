@@ -33,6 +33,7 @@ export interface Project {
       };
     };
   }[];
+  proyecto_etapas: ProjectStage[];
 }
 
 export interface SimpleProject {
@@ -66,6 +67,43 @@ export interface ProjectDetail extends Project {
   proyecto_etapas: ProjectStage[];
   proyecto_unidades_link: UnitLink[];
 }
+
+export const fetchTeacherActiveProjects = async (docenteId: string, establecimientoId: string): Promise<Project[]> => {
+  const today = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('proyectos_abp')
+    .select(`
+      id,
+      nombre,
+      descripcion,
+      fecha_inicio,
+      fecha_fin,
+      producto_final,
+      creado_por,
+      proyecto_etapas ( * ),
+      proyecto_curso_asignaturas!inner (
+        curso_asignaturas!inner (
+          docente_id,
+          cursos ( nombre, niveles ( nombre ) ),
+          asignaturas ( nombre )
+        )
+      )
+    `)
+    .eq('establecimiento_id', establecimientoId)
+    .eq('proyecto_curso_asignaturas.curso_asignaturas.docente_id', docenteId)
+    .lte('fecha_inicio', today)
+    .gte('fecha_fin', today)
+    .order('fecha_inicio', { ascending: false });
+
+  if (error) {
+    throw new Error(`Error fetching active projects: ${error.message}`);
+  }
+
+  const uniqueProjects = Array.from(new Map(data.map(p => [p.id, p])).values());
+
+  return uniqueProjects as any;
+};
 
 export const fetchRelevantProjects = async (cursoAsignaturaIds: string[]): Promise<SimpleProject[]> => {
   if (!cursoAsignaturaIds || cursoAsignaturaIds.length === 0) {
