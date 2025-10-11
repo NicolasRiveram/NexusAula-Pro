@@ -12,32 +12,47 @@ const TeacherTour: React.FC<TeacherTourProps> = ({ run, onTourEnd }) => {
       target: 'body',
       content: '¡Bienvenido/a a NexusAula! Permítenos mostrarte rápidamente las funciones principales.',
       placement: 'center',
-      title: 'Bienvenida',
+      title: 'Paso 1: Bienvenida',
     },
     {
       target: '[data-tour="establishment-selector"]',
       content: 'Aquí puedes cambiar entre los establecimientos a los que perteneces. La información que veas en el panel dependerá del que tengas activo.',
-      title: 'Selector de Establecimiento',
+      title: 'Paso 2: Selector de Establecimiento',
     },
     {
       target: '[data-tour="sidebar-nav"]',
-      content: 'Este es tu menú de navegación principal. Desde aquí puedes acceder a todas las herramientas de la plataforma.',
-      title: 'Navegación Principal',
+      content: 'Este es tu menú de navegación principal. Desde aquí accedes a todas las herramientas de la plataforma.',
+      title: 'Paso 3: Navegación Principal',
     },
     {
-      target: '[data-tour="quick-actions"]',
-      content: 'Estos son tus accesos directos. Una forma rápida de empezar a crear planificaciones, evaluaciones o gestionar tus cursos.',
-      title: 'Accesos Directos',
+      target: 'a[href="/dashboard/planificacion"]',
+      content: 'En "Planificación", podrás crear unidades completas con ayuda de la IA, desde los objetivos hasta la secuencia de clases.',
+      title: 'Paso 4: Planificador Didáctico',
+    },
+    {
+      target: 'a[href="/dashboard/evaluacion"]',
+      content: 'La sección "Evaluación" es tu centro para crear, gestionar e imprimir pruebas y guías, también con asistencia de IA.',
+      title: 'Paso 5: Banco de Evaluaciones',
+    },
+    {
+      target: 'a[href="/dashboard/analiticas"]',
+      content: 'En "Analíticas", podrás visualizar el rendimiento de tus estudiantes, identificar fortalezas y áreas de mejora.',
+      title: 'Paso 6: Analíticas',
     },
     {
       target: '[data-tour="main-content"]',
-      content: 'Este es tu panel de inicio. Aquí verás tu agenda del día, notificaciones importantes y estadísticas clave de un vistazo.',
-      title: 'Tu Panel de Inicio',
+      content: 'De vuelta al inicio, este es tu panel principal. Aquí verás tu agenda del día, notificaciones y estadísticas de un vistazo.',
+      title: 'Paso 7: Tu Panel de Inicio',
+    },
+    {
+      target: '[data-tour="quick-actions"]',
+      content: 'Usa estos botones para acceder rápidamente a las funciones más comunes, como crear una nueva planificación o evaluación.',
+      title: 'Paso 8: Accesos Directos',
     },
     {
       target: '[data-tour="settings-link"]',
-      content: 'Finalmente, aquí puedes acceder a la configuración de tu perfil y otras preferencias. ¡Eso es todo! Ya puedes empezar a explorar.',
-      title: 'Configuración',
+      content: 'Finalmente, en "Configuración" puedes personalizar tu perfil, tus accesos directos y más. ¡Eso es todo! Ya puedes empezar a explorar.',
+      title: 'Paso 9: Configuración',
     },
   ];
 
