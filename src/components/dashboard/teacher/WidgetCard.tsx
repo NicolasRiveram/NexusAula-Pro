@@ -3,15 +3,17 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { GripVertical } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface WidgetCardProps {
   id: string;
   title: React.ReactNode;
   description?: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-const WidgetCard: React.FC<WidgetCardProps> = ({ id, title, description, children }) => {
+const WidgetCard: React.FC<WidgetCardProps> = ({ id, title, description, children, className }) => {
   const {
     attributes,
     listeners,
@@ -29,8 +31,8 @@ const WidgetCard: React.FC<WidgetCardProps> = ({ id, title, description, childre
   };
 
   return (
-    <div ref={setNodeRef} style={style}>
-      <Card>
+    <div ref={setNodeRef} style={style} className={cn(className)}>
+      <Card className="h-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center">
             <div {...attributes} {...listeners} className="cursor-grab touch-none p-2 -ml-2">

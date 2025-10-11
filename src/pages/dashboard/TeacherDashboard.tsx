@@ -32,6 +32,7 @@ import {
 import WidgetCard from '@/components/dashboard/teacher/WidgetCard';
 import { useOutletContext } from 'react-router-dom';
 import { updateDashboardWidgetsPrefs } from '@/api/settingsApi';
+import { showError } from '@/utils/toast';
 
 interface DashboardContext {
   profile: {
@@ -83,17 +84,17 @@ const TeacherDashboard = () => {
     }
   };
 
-  const widgetComponents: Record<string, { title: React.ReactNode; description?: string; component: React.ReactNode }> = {
-    agenda: { title: `Agenda para ${format(selectedDate, "EEEE, d 'de' LLLL", { locale: es })}`, component: <DailyAgenda selectedDate={selectedDate} activeEstablishment={activeEstablishment} /> },
-    calendario: { title: 'Calendario', component: <DashboardCalendar selectedDate={selectedDate} onDateSelect={(date) => date && setSelectedDate(date)} highlightedDays={highlightedDays} /> },
-    acciones_rapidas: { title: 'Accesos Directos', component: <QuickActions /> },
-    notificaciones: { title: 'Notificaciones', component: <NotificationsPanel /> },
-    estadisticas: { title: 'Estadísticas Clave', description: 'Rendimiento promedio por habilidad.', component: <StatisticsWidget /> },
-    estudiantes_apoyo: { title: 'Estudiantes que Requieren Apoyo', description: 'Alumnos con el rendimiento más bajo.', component: <StudentsNeedingSupportWidget /> },
-    proyectos_activos: { title: 'Proyectos Activos', description: 'Tus proyectos ABP en curso.', component: <ActiveProjectsWidget /> },
-    bitacoras_pendientes: { title: 'Bitácoras Pendientes', description: 'Clases pasadas sin registro de bitácora.', component: <PendingLogsWidget /> },
-    evaluaciones_recientes: { title: 'Evaluaciones Recientes', description: 'Acceso rápido a los últimos resultados.', component: <RecentEvaluationsWidget /> },
-    anuncios: { title: 'Anuncios del Establecimiento', component: <AnnouncementsWidget /> },
+  const widgetComponents: Record<string, { title: React.ReactNode; description?: string; component: React.ReactNode; className: string }> = {
+    acciones_rapidas: { title: 'Accesos Directos', component: <QuickActions />, className: 'lg:col-span-3' },
+    agenda: { title: `Agenda para ${format(selectedDate, "EEEE, d 'de' LLLL", { locale: es })}`, component: <DailyAgenda selectedDate={selectedDate} activeEstablishment={activeEstablishment} />, className: 'lg:col-span-3' },
+    calendario: { title: 'Calendario', component: <DashboardCalendar selectedDate={selectedDate} onDateSelect={(date) => date && setSelectedDate(date)} highlightedDays={highlightedDays} />, className: 'lg:col-span-1' },
+    notificaciones: { title: 'Notificaciones', component: <NotificationsPanel />, className: 'lg:col-span-2' },
+    estadisticas: { title: 'Estadísticas Clave', description: 'Rendimiento promedio por habilidad.', component: <StatisticsWidget />, className: 'lg:col-span-2' },
+    estudiantes_apoyo: { title: 'Estudiantes que Requieren Apoyo', description: 'Alumnos con el rendimiento más bajo.', component: <StudentsNeedingSupportWidget />, className: 'lg:col-span-1' },
+    evaluaciones_recientes: { title: 'Evaluaciones Recientes', description: 'Acceso rápido a los últimos resultados.', component: <RecentEvaluationsWidget />, className: 'lg:col-span-2' },
+    anuncios: { title: 'Anuncios del Establecimiento', component: <AnnouncementsWidget />, className: 'lg:col-span-1' },
+    bitacoras_pendientes: { title: 'Bitácoras Pendientes', description: 'Clases pasadas sin registro de bitácora.', component: <PendingLogsWidget />, className: 'lg:col-span-2' },
+    proyectos_activos: { title: 'Proyectos Activos', description: 'Tus proyectos ABP en curso.', component: <ActiveProjectsWidget />, className: 'lg:col-span-1' },
   };
 
   const visibleWidgets = widgetPrefs ? widgetPrefs.order.filter(id => widgetPrefs.visible[id]) : [];
@@ -102,12 +103,12 @@ const TeacherDashboard = () => {
     <div className="container mx-auto">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleWidgets} strategy={verticalListSortingStrategy}>
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {visibleWidgets.map(widgetId => {
               const widget = widgetComponents[widgetId];
               if (!widget) return null;
               return (
-                <WidgetCard key={widgetId} id={widgetId} title={widget.title} description={widget.description}>
+                <WidgetCard key={widgetId} id={widgetId} title={widget.title} description={widget.description} className={widget.className}>
                   {widget.component}
                 </WidgetCard>
               );
