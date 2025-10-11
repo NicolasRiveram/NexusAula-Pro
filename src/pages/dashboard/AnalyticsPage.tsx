@@ -89,14 +89,14 @@ const AnalyticsPage = () => {
 
   return (
     <div className="container mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Analíticas de Rendimiento</h1>
           <p className="text-muted-foreground">
             {isAdmin ? 'Visualiza el progreso de todo el establecimiento.' : 'Visualiza el progreso de tus estudiantes y el desarrollo de habilidades.'}
           </p>
         </div>
-        <div className="w-64">
+        <div className="w-full md:w-64">
           <Select value={selectedCursoId} onValueChange={setSelectedCursoId}>
             <SelectTrigger>
               <SelectValue placeholder="Filtrar por curso..." />

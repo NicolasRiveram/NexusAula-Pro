@@ -3,7 +3,7 @@ import { useNavigate, Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -242,15 +242,16 @@ const EvaluationPage = () => {
         const rowLabel = String.fromCharCode(65 + i);
         answerKey[rowLabel] = {};
 
-        for (const student of students) {
-          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
-          const shuffledQuestions = allQuestions.map(q => {
+        allQuestions.forEach(q => {
+          if (q.tipo_item === 'seleccion_multiple') {
             const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
             const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
             answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
-            return { ...q, item_alternativas: shuffledAlts };
-          });
+          }
+        });
 
+        for (const student of students) {
+          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
           printableComponents.push(
             <PrintableAnswerSheet
               key={`${student.id}-${rowLabel}`}
@@ -261,7 +262,7 @@ const EvaluationPage = () => {
               courseName={student.curso_nombre}
               rowLabel={rowLabel}
               qrCodeData={qrCodeData}
-              questions={shuffledQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
             />
           );
         }
@@ -416,9 +417,6 @@ const EvaluationPage = () => {
                               <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
                                 <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
-                                <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
-                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
@@ -442,6 +440,11 @@ const EvaluationPage = () => {
                           </div>
                         </div>
                       </CardContent>
+                      <CardFooter>
+                        <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)} variant="secondary" className="w-full">
+                          <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
+                        </Button>
+                      </CardFooter>
                     </Card>
                   </div>
                 ))}
@@ -454,27 +457,27 @@ const EvaluationPage = () => {
 
     return (
       <>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold">Banco de Evaluaciones</h1>
             <p className="text-muted-foreground">Crea, gestiona y comparte tus instrumentos de evaluación.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full md:w-auto">
             {selectedEvaluations.length > 0 ? (
-              <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)}>
+              <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)} className="w-full">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar ({selectedEvaluations.length})
               </Button>
             ) : (
               <>
-                <Button asChild variant="outline" disabled={!activeEstablishment}>
+                <Button asChild variant="outline" disabled={!activeEstablishment} className="w-1/2">
                   <Link to="/dashboard/rubricas/crear">
                     <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
                   </Link>
                 </Button>
-                <Button asChild disabled={!activeEstablishment}>
+                <Button asChild disabled={!activeEstablishment} className="w-1/2">
                   <Link to="/dashboard/evaluacion/crear">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Evaluación
+                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Evaluación
                   </Link>
                 </Button>
               </>
