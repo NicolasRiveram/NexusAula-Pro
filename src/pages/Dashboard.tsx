@@ -8,7 +8,12 @@ import TeacherTour from '@/components/tour/TeacherTour';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<{ nombre_completo: string, rol: string, quick_actions_prefs?: string[] } | null>(null);
+  const [profile, setProfile] = useState<{ 
+    nombre_completo: string, 
+    rol: string, 
+    quick_actions_prefs?: string[],
+    dashboard_widgets_prefs?: { order: string[], visible: Record<string, boolean> }
+  } | null>(null);
   const { runTour, handleTourEnd } = useTeacherTour(profile?.rol || '');
 
   useEffect(() => {
@@ -17,7 +22,7 @@ const Dashboard = () => {
       if (user) {
         const { data, error } = await supabase
           .from('perfiles')
-          .select('nombre_completo, rol, quick_actions_prefs')
+          .select('nombre_completo, rol, quick_actions_prefs, dashboard_widgets_prefs')
           .eq('id', user.id)
           .single();
         

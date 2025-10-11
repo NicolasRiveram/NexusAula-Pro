@@ -5,6 +5,10 @@ export interface UserProfile {
   nombre_completo: string;
   email: string;
   quick_actions_prefs: string[];
+  dashboard_widgets_prefs: {
+    order: string[];
+    visible: Record<string, boolean>;
+  };
 }
 
 export interface UserPedagogicalProfile {
@@ -48,7 +52,7 @@ export const updateEstablishmentDetails = async (establishmentId: string, update
 export const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
   const { data, error } = await supabase
     .from('perfiles')
-    .select('nombre_completo, email, quick_actions_prefs')
+    .select('nombre_completo, email, quick_actions_prefs, dashboard_widgets_prefs')
     .eq('id', userId)
     .single();
   if (error) throw new Error(`Error al obtener el perfil: ${error.message}`);
@@ -69,6 +73,14 @@ export const updateQuickActionsPrefs = async (userId: string, prefs: string[]) =
     .update({ quick_actions_prefs: prefs })
     .eq('id', userId);
   if (error) throw new Error(`Error al actualizar las preferencias de accesos directos: ${error.message}`);
+};
+
+export const updateDashboardWidgetsPrefs = async (userId: string, prefs: { order: string[], visible: Record<string, boolean> }) => {
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ dashboard_widgets_prefs: prefs })
+    .eq('id', userId);
+  if (error) throw new Error(`Error al actualizar las preferencias del dashboard: ${error.message}`);
 };
 
 export const fetchUserPedagogicalProfile = async (userId: string): Promise<UserPedagogicalProfile> => {

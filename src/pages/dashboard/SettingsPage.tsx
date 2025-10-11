@@ -10,6 +10,7 @@ import SubjectsAndLevelsForm from '@/components/settings/SubjectsAndLevelsForm';
 import EstablishmentSettingsForm from '@/components/settings/EstablishmentSettingsForm';
 import SubscriptionManager from '@/components/settings/SubscriptionSettingsCard';
 import QuickActionsSettings from '@/components/settings/QuickActionsSettings';
+import DashboardWidgetsSettings from '@/components/settings/DashboardWidgetsSettings';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -87,7 +88,10 @@ const SettingsPage = () => {
         )}
         {!isStudent && (
           <TabsContent value="customization" className="mt-6">
-            <QuickActionsSettings userId={userId} currentPrefs={profile.quick_actions_prefs || []} onUpdate={loadData} />
+            <div className="space-y-6">
+              <QuickActionsSettings userId={userId} currentPrefs={profile.quick_actions_prefs || []} onUpdate={loadData} />
+              <DashboardWidgetsSettings userId={userId} currentPrefs={profile.dashboard_widgets_prefs} onUpdate={loadData} />
+            </div>
           </TabsContent>
         )}
         {canManageEstablishment && (

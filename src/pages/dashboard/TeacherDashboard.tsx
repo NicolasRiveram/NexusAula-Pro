@@ -6,6 +6,11 @@ import DailyAgenda from '@/components/dashboard/teacher/DailyAgenda';
 import QuickActions from '@/components/dashboard/teacher/QuickActions';
 import NotificationsPanel from '@/components/dashboard/teacher/NotificationsPanel';
 import StatisticsWidget from '@/components/dashboard/teacher/StatisticsWidget';
+import StudentsNeedingSupportWidget from '@/components/dashboard/teacher/StudentsNeedingSupportWidget';
+import ActiveProjectsWidget from '@/components/dashboard/teacher/ActiveProjectsWidget';
+import PendingLogsWidget from '@/components/dashboard/teacher/PendingLogsWidget';
+import RecentEvaluationsWidget from '@/components/dashboard/teacher/RecentEvaluationsWidget';
+import AnnouncementsWidget from '@/components/dashboard/teacher/AnnouncementsWidget';
 import { fetchClassesForMonth } from '@/api/planningApi';
 import { parseISO, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,102 +30,80 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import WidgetCard from '@/components/dashboard/teacher/WidgetCard';
+import { useOutletContext } from 'react-router-dom';
+import { updateDashboardWidgetsPrefs } from '@/api/settingsApi';
 
-const WIDGETS = [
-  'agenda',
-  'calendario',
-  'acciones_rapidas',
-  'notificaciones',
-  'estadisticas',
-];
+interface DashboardContext {
+  profile: {
+    dashboard_widgets_prefs?: {
+      order: string[];
+      visible: Record<string, boolean>;
+    };
+  };
+}
 
 const TeacherDashboard = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const { activeEstablishment } = useEstablishment();
-  const [widgetOrder, setWidgetOrder] = useState<string[]>(WIDGETS);
-
-  useEffect(() => {
-    const savedOrder = localStorage.getItem('teacherDashboardOrder');
-    if (savedOrder) {
-      try {
-        const parsedOrder = JSON.parse(savedOrder);
-        // Validar que el orden guardado contenga todos los widgets esperados
-        if (WIDGETS.every(widget => parsedOrder.includes(widget))) {
-          setWidgetOrder(parsedOrder);
-        }
-      } catch (e) {
-        console.error("Failed to parse widget order from localStorage", e);
-      }
-    }
-  }, []);
+  const { profile } = useOutletContext<DashboardContext>();
+  const [widgetPrefs, setWidgetPrefs] = useState(profile?.dashboard_widgets_prefs);
 
   const { data: user } = useQuery({
     queryKey: ['user'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
-    }
+    queryFn: async () => (await supabase.auth.getUser()).data.user,
   });
 
   const { data: highlightedDays = [] } = useQuery({
     queryKey: ['highlightedDays', user?.id, activeEstablishment?.id, selectedDate.getMonth()],
-    queryFn: async () => {
-      const classes = await fetchClassesForMonth(user!.id, activeEstablishment!.id, selectedDate);
-      return classes.map(c => parseISO(c.fecha));
-    },
+    queryFn: () => fetchClassesForMonth(user!.id, activeEstablishment!.id, selectedDate).then(classes => classes.map(c => parseISO(c.fecha))),
     enabled: !!user && !!activeEstablishment,
   });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = async (event: any) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setWidgetOrder((items) => {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
-        const newOrder = arrayMove(items, oldIndex, newIndex);
-        localStorage.setItem('teacherDashboardOrder', JSON.stringify(newOrder));
-        return newOrder;
-      });
+    if (over && active.id !== over.id && widgetPrefs) {
+      const oldIndex = widgetPrefs.order.indexOf(active.id);
+      const newIndex = widgetPrefs.order.indexOf(over.id);
+      const newOrder = arrayMove(widgetPrefs.order, oldIndex, newIndex);
+      const newPrefs = { ...widgetPrefs, order: newOrder };
+      
+      setWidgetPrefs(newPrefs); // Optimistic update
+      
+      try {
+        await updateDashboardWidgetsPrefs(user!.id, newPrefs);
+      } catch (error: any) {
+        showError("No se pudo guardar el nuevo orden.");
+        setWidgetPrefs(widgetPrefs); // Revert on error
+      }
     }
   };
 
   const widgetComponents: Record<string, { title: React.ReactNode; description?: string; component: React.ReactNode }> = {
-    agenda: {
-      title: `Agenda para ${format(selectedDate, "EEEE, d 'de' LLLL", { locale: es })}`,
-      component: <DailyAgenda selectedDate={selectedDate} activeEstablishment={activeEstablishment} />,
-    },
-    calendario: {
-      title: 'Calendario',
-      component: <DashboardCalendar selectedDate={selectedDate} onDateSelect={(date) => date && setSelectedDate(date)} highlightedDays={highlightedDays} />,
-    },
-    acciones_rapidas: {
-      title: 'Accesos Directos',
-      component: <QuickActions />,
-    },
-    notificaciones: {
-      title: 'Notificaciones',
-      component: <NotificationsPanel />,
-    },
-    estadisticas: {
-      title: 'Estadísticas Clave',
-      description: 'Rendimiento promedio por habilidad en tus cursos.',
-      component: <StatisticsWidget />,
-    },
+    agenda: { title: `Agenda para ${format(selectedDate, "EEEE, d 'de' LLLL", { locale: es })}`, component: <DailyAgenda selectedDate={selectedDate} activeEstablishment={activeEstablishment} /> },
+    calendario: { title: 'Calendario', component: <DashboardCalendar selectedDate={selectedDate} onDateSelect={(date) => date && setSelectedDate(date)} highlightedDays={highlightedDays} /> },
+    acciones_rapidas: { title: 'Accesos Directos', component: <QuickActions /> },
+    notificaciones: { title: 'Notificaciones', component: <NotificationsPanel /> },
+    estadisticas: { title: 'Estadísticas Clave', description: 'Rendimiento promedio por habilidad.', component: <StatisticsWidget /> },
+    estudiantes_apoyo: { title: 'Estudiantes que Requieren Apoyo', description: 'Alumnos con el rendimiento más bajo.', component: <StudentsNeedingSupportWidget /> },
+    proyectos_activos: { title: 'Proyectos Activos', description: 'Tus proyectos ABP en curso.', component: <ActiveProjectsWidget /> },
+    bitacoras_pendientes: { title: 'Bitácoras Pendientes', description: 'Clases pasadas sin registro de bitácora.', component: <PendingLogsWidget /> },
+    evaluaciones_recientes: { title: 'Evaluaciones Recientes', description: 'Acceso rápido a los últimos resultados.', component: <RecentEvaluationsWidget /> },
+    anuncios: { title: 'Anuncios del Establecimiento', component: <AnnouncementsWidget /> },
   };
+
+  const visibleWidgets = widgetPrefs ? widgetPrefs.order.filter(id => widgetPrefs.visible[id]) : [];
 
   return (
     <div className="container mx-auto">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
+        <SortableContext items={visibleWidgets} strategy={verticalListSortingStrategy}>
           <div className="grid grid-cols-1 gap-6">
-            {widgetOrder.map(widgetId => {
+            {visibleWidgets.map(widgetId => {
               const widget = widgetComponents[widgetId];
               if (!widget) return null;
               return (
