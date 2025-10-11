@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
     import { useState, useEffect } from "react";
     import { Session } from "@supabase/supabase-js";
     import { supabase } from "@/integrations/supabase/client";
+    import { ThemeProvider } from "@/components/theme-provider";
     import Index from "./pages/Index";
     import Login from "./pages/Login";
     import Dashboard from "./pages/Dashboard"; 
@@ -185,15 +186,17 @@ import { Toaster } from "@/components/ui/toaster";
 
     const App = () => (
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <DesignProvider>
-              <AppContent />
-            </DesignProvider>
-          </BrowserRouter>
-        </TooltipProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <DesignProvider>
+                <AppContent />
+              </DesignProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     );
 

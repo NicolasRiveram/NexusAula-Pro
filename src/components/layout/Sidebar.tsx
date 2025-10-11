@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical } from 'lucide-react';
+import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical, School } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const teacherNavItems = [
@@ -50,11 +50,12 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
   const navItems = isStudent ? studentNavItems : teacherNavItems;
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700">
-      <div className="h-16 flex items-center justify-center border-b dark:border-gray-700 px-4">
-        <h1 className="text-2xl font-bold text-primary">NexusAula</h1>
+    <aside className="hidden md:flex flex-col w-64 bg-card dark:bg-card-dark flex p-4 border-r border-gray-200 dark:border-gray-700">
+      <div className="flex items-center mb-8 px-2">
+        <School className="text-primary text-3xl" />
+        <span className="text-2xl font-bold ml-2 text-foreground">NexusAula</span>
       </div>
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 space-y-2">
         {isSuperAdmin ? (
           <>
             <div className="px-4 pt-2 pb-2">
@@ -69,8 +70,8 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
                 end={item.to === '/dashboard'}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
-                    isActive ? 'bg-primary text-white dark:bg-primary dark:text-white' : ''
+                    'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
+                    isActive && 'bg-primary text-primary-foreground'
                   )
                 }
               >
@@ -88,8 +89,8 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
                 end={item.to === '/dashboard'}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
-                    isActive ? 'bg-primary text-white dark:bg-primary dark:text-white' : ''
+                    'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
+                    isActive && 'bg-primary text-primary-foreground'
                   )
                 }
               >
@@ -110,8 +111,8 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
                     to={item.to}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
-                        isActive ? 'bg-primary text-white dark:bg-primary dark:text-white' : ''
+                        'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
+                        isActive && 'bg-primary text-primary-foreground'
                       )
                     }
                   >
@@ -124,10 +125,15 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
           </>
         )}
       </nav>
-      <div className="px-4 py-6 border-t dark:border-gray-700">
+      <div className="mt-auto">
         <NavLink
           to="/dashboard/configuracion"
-          className="flex items-center px-4 py-2 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          className={({ isActive }) =>
+            cn(
+              'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
+              isActive && 'bg-primary text-primary-foreground'
+            )
+          }
         >
           <Settings className="w-5 h-5 mr-3" />
           Configuración
