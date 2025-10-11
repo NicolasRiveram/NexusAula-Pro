@@ -99,6 +99,49 @@ export interface UpdateUnitPlanData {
 
 // --- Funciones de API ---
 
+export const fetchClassesWithoutLog = async (docenteId: string, establecimientoId: string): Promise<any[]> => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('planificaciones_clase')
+    .select(`
+      id,
+      fecha,
+      titulo,
+      unidades!inner (
+        curso_asignaturas!inner (
+          docente_id,
+          cursos!inner (
+            nombre,
+            establecimiento_id,
+            niveles ( nombre )
+          ),
+          asignaturas ( nombre )
+        )
+      )
+    `)
+    .eq('unidades.curso_asignaturas.docente_id', docenteId)
+    .eq('unidades.curso_asignaturas.cursos.establecimiento_id', establecimientoId)
+    .lt('fecha', today)
+    .is('bitacora_contenido_cubierto', null)
+    .order('fecha', { ascending: false });
+
+  if (error) {
+    throw new Error(`Error fetching classes without log: ${error.message}`);
+  }
+
+  return (data || []).map((clase: any) => ({
+    id: clase.id,
+    fecha: clase.fecha,
+    titulo: clase.titulo,
+    curso_info: {
+      nombre: clase.unidades.curso_asignaturas.cursos.nombre,
+      nivel: clase.unidades.curso_asignaturas.cursos.niveles.nombre,
+      asignatura: clase.unidades.curso_asignaturas.asignaturas.nombre,
+    }
+  }));
+};
+
 export const updateUnitPlanDetails = async (unitMasterId: string, data: UpdateUnitPlanData) => {
   // 1. Update the main unit details
   const { error: updateError } = await supabase
