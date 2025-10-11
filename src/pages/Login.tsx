@@ -17,7 +17,9 @@ function Login() {
       style={backgroundStyle}
     >
       <div className="w-full max-w-lg rounded-lg shadow-md p-8 bg-white/90 backdrop-blur-sm">
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Nexusaula</h2>
+        <div className="flex justify-center mb-8">
+          <img src="/nexuslogo.png" alt="NexusAula Logo" className="h-24" />
+        </div>
         <Auth
           supabaseClient={supabase}
           providers={[]} // Solo email/contraseña por ahora
