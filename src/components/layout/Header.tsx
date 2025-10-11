@@ -3,7 +3,7 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, ChevronsUpDown, Check } from 'lucide-react';
+import { LogOut, ChevronsUpDown, Check, Menu, School } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,11 +25,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+} from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from '@/lib/utils';
 import { getLogoPublicUrl } from '@/api/settingsApi';
 import { useDesign } from '@/contexts/DesignContext';
 import { ThemeToggle } from '../theme-toggle';
+import NavLinks from './NavLinks';
 
 interface HeaderProps {
   profile: {
@@ -48,6 +55,7 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
   const navigate = useNavigate();
   const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const [openPopover, setOpenPopover] = React.useState(false);
+  const [openSheet, setOpenSheet] = React.useState(false);
   const logoUrl = activeEstablishment?.logo_url ? getLogoPublicUrl(activeEstablishment.logo_url) : null;
   const { settings } = useDesign();
   const headerLogoUrl = settings['dashboard_header_logo_url'];
@@ -60,15 +68,15 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
   const EstablishmentSelector = () => {
     if (loadingEstablishments) {
       return (
-        <Button variant="outline" disabled className="w-[250px]">
-          Cargando establecimientos...
+        <Button variant="outline" disabled className="w-full sm:w-[250px] justify-between">
+          Cargando...
         </Button>
       );
     }
 
     if (userEstablishments.length === 0) {
       return (
-        <Button variant="outline" disabled className="w-[250px]">
+        <Button variant="outline" disabled className="w-full sm:w-[250px] justify-between">
           Sin establecimientos
         </Button>
       );
@@ -81,12 +89,12 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
             variant="outline"
             role="combobox"
             aria-expanded={openPopover}
-            className="w-[250px] justify-between"
+            className="w-full sm:w-[250px] justify-between"
             data-tour="establishment-selector"
           >
             {activeEstablishment
               ? activeEstablishment.nombre
-              : "Seleccionar establecimiento"}
+              : "Seleccionar"}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -125,18 +133,41 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
   };
 
   return (
-    <header className="h-24 bg-card dark:bg-card-dark border-b dark:border-gray-700 flex items-center justify-between px-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Hola, {profile.nombre_completo} 👋</h1>
-        <p className="text-muted-foreground capitalize">{today}</p>
+    <header className="h-24 bg-card dark:bg-card-dark border-b dark:border-gray-700 flex items-center justify-between px-4 sm:px-8">
+      <div className="flex items-center gap-4">
+        {/* Mobile Menu */}
+        <Sheet open={openSheet} onOpenChange={setOpenSheet}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="md:hidden">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Abrir menú</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="flex flex-col p-4">
+            <SheetHeader>
+              <div className="flex items-center mb-4 px-2">
+                <School className="text-primary text-3xl" />
+                <span className="text-2xl font-bold ml-2 text-foreground">NexusAula</span>
+              </div>
+            </SheetHeader>
+            <NavLinks profile={profile} onLinkClick={() => setOpenSheet(false)} />
+          </SheetContent>
+        </Sheet>
+
+        <div className="hidden sm:block">
+          <h1 className="text-xl md:text-3xl font-bold text-foreground">Hola, {profile.nombre_completo} 👋</h1>
+          <p className="text-muted-foreground capitalize text-xs md:text-base">{today}</p>
+        </div>
       </div>
-      <div className="flex items-center space-x-4">
-        <EstablishmentSelector />
+      <div className="flex items-center space-x-2 sm:space-x-4">
+        <div className="hidden sm:block">
+          <EstablishmentSelector />
+        </div>
         {logoUrl && (
-          <img src={logoUrl} alt={activeEstablishment?.nombre} className="h-10 object-contain" />
+          <img src={logoUrl} alt={activeEstablishment?.nombre} className="h-10 object-contain hidden lg:block" />
         )}
         {headerLogoUrl && (
-          <img src={headerLogoUrl} alt="Decoración" className="h-10 object-contain" />
+          <img src={headerLogoUrl} alt="Decoración" className="h-10 object-contain hidden lg:block" />
         )}
         <ThemeToggle />
         <DropdownMenu>
