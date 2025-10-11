@@ -5,12 +5,15 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { useTeacherTour } from '@/hooks/useTeacherTour';
 import TeacherTour from '@/components/tour/TeacherTour';
+import TrialBanner from '@/components/layout/TrialBanner';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<{ 
     nombre_completo: string, 
     rol: string, 
+    subscription_plan?: string,
+    trial_ends_at?: string | null,
     quick_actions_prefs?: string[],
     dashboard_widgets_prefs?: { order: string[], visible: Record<string, boolean> }
   } | null>(null);
@@ -22,7 +25,7 @@ const Dashboard = () => {
       if (user) {
         const { data, error } = await supabase
           .from('perfiles')
-          .select('nombre_completo, rol, quick_actions_prefs, dashboard_widgets_prefs')
+          .select('nombre_completo, rol, subscription_plan, trial_ends_at, quick_actions_prefs, dashboard_widgets_prefs')
           .eq('id', user.id)
           .single();
         
@@ -47,6 +50,8 @@ const Dashboard = () => {
     );
   }
 
+  const isTrial = profile.subscription_plan === 'prueba' && profile.rol !== 'estudiante';
+
   return (
     <>
       <TeacherTour run={runTour} onTourEnd={handleTourEnd} />
@@ -55,6 +60,7 @@ const Dashboard = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header profile={profile} />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-8" data-tour="main-content">
+            {isTrial && <TrialBanner trialEndsAt={profile.trial_ends_at || null} />}
             <Outlet context={{ profile }} />
           </main>
         </div>

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, BookUp, MoreVertical, BookOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura } from '@/api/coursesApi';
 import { fetchStudentCourses, StudentCourse } from '@/api/studentApi';
 import CreateCourseDialog from '@/components/courses/CreateCourseDialog';
@@ -22,12 +23,16 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 interface DashboardContext {
-  profile: { rol: string };
+  profile: { 
+    rol: string;
+    subscription_plan?: string;
+  };
 }
 
 const CoursesPage = () => {
   const { profile } = useOutletContext<DashboardContext>();
   const isStudent = profile.rol === 'estudiante';
+  const isTrial = profile.subscription_plan === 'prueba';
 
   const [teacherCourses, setTeacherCourses] = useState<Record<string, CursoAsignatura[]>>({});
   const [studentCourses, setStudentCourses] = useState<StudentCourse[]>([]);
@@ -37,6 +42,12 @@ const CoursesPage = () => {
   const [isEnrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<{ id: string; nombre: string } | null>(null);
   const { activeEstablishment } = useEstablishment();
+
+  const teacherCoursesCount = useMemo(() => {
+    return Object.values(teacherCourses).flat().length;
+  }, [teacherCourses]);
+
+  const canCreateCourse = !isTrial || (isTrial && teacherCoursesCount < 2);
 
   const loadCourses = async () => {
     if (!activeEstablishment) {
@@ -166,9 +177,22 @@ const CoursesPage = () => {
           <p className="text-muted-foreground">Gestiona tus cursos, asignaturas y estudiantes del establecimiento activo.</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setCreateDialogOpen(true)} disabled={!activeEstablishment}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Crear Curso
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-block">
+                  <Button onClick={() => setCreateDialogOpen(true)} disabled={!activeEstablishment || !canCreateCourse}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Curso
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {!canCreateCourse && (
+                <TooltipContent>
+                  <p>Has alcanzado el límite de 2 cursos del plan de prueba.</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
           <Button onClick={() => setAssignDialogOpen(true)} variant="outline" disabled={!activeEstablishment}>
             <BookUp className="mr-2 h-4 w-4" /> Asignar Asignatura
           </Button>
