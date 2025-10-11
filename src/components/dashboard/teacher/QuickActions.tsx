@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 const QuickActions = () => {
   return (
-    <Card>
+    <Card data-tour="quick-actions">
       <CardHeader>
         <CardTitle>Accesos Directos</CardTitle>
       </CardHeader>

@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
         <School className="text-primary text-3xl" />
         <span className="text-2xl font-bold ml-2 text-foreground">NexusAula</span>
       </div>
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 space-y-2" data-tour="sidebar-nav">
         {isSuperAdmin ? (
           <>
             <div className="px-4 pt-2 pb-2">
@@ -128,6 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({ profile }) => {
       <div className="mt-auto">
         <NavLink
           to="/dashboard/configuracion"
+          data-tour="settings-link"
           className={({ isActive }) =>
             cn(
               'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',

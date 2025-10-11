@@ -82,6 +82,7 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
             role="combobox"
             aria-expanded={openPopover}
             className="w-[250px] justify-between"
+            data-tour="establishment-selector"
           >
             {activeEstablishment
               ? activeEstablishment.nombre
