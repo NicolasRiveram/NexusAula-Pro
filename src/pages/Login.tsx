@@ -18,7 +18,7 @@ function Login() {
     >
       <div className="w-full max-w-lg rounded-lg shadow-md p-8 bg-white/90 backdrop-blur-sm">
         <div className="flex justify-center mb-8">
-          <img src="/nexuslogo.png" alt="NexusAula Logo" className="h-24" />
+          <img src="/nexuslogo.png" alt="NexusAula Logo" className="h-32" />
         </div>
         <Auth
           supabaseClient={supabase}
