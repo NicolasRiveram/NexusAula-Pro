@@ -9,6 +9,7 @@ import ProfileSettingsForm from '@/components/settings/ProfileSettingsForm';
 import SubjectsAndLevelsForm from '@/components/settings/SubjectsAndLevelsForm';
 import EstablishmentSettingsForm from '@/components/settings/EstablishmentSettingsForm';
 import SubscriptionManager from '@/components/settings/SubscriptionSettingsCard';
+import QuickActionsSettings from '@/components/settings/QuickActionsSettings';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -70,6 +71,7 @@ const SettingsPage = () => {
         <TabsList>
           <TabsTrigger value="profile">Perfil</TabsTrigger>
           {!isStudent && <TabsTrigger value="pedagogical">Preferencias Pedagógicas</TabsTrigger>}
+          {!isStudent && <TabsTrigger value="customization">Personalización</TabsTrigger>}
           {canManageEstablishment && <TabsTrigger value="establishment">Establecimiento</TabsTrigger>}
           <TabsTrigger value="subscription">Suscripción</TabsTrigger>
         </TabsList>
@@ -81,6 +83,11 @@ const SettingsPage = () => {
             {pedagogicalProfile && (
               <SubjectsAndLevelsForm pedagogicalProfile={pedagogicalProfile} userId={userId} />
             )}
+          </TabsContent>
+        )}
+        {!isStudent && (
+          <TabsContent value="customization" className="mt-6">
+            <QuickActionsSettings userId={userId} currentPrefs={profile.quick_actions_prefs || []} onUpdate={loadData} />
           </TabsContent>
         )}
         {canManageEstablishment && (
