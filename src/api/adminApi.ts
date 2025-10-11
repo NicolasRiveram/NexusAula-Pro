@@ -107,6 +107,18 @@ export const fetchAnnouncements = async (establecimientoId: string): Promise<Ann
   return data || [];
 };
 
+export const fetchActiveAnnouncements = async (establecimientoId: string): Promise<Pick<Announcement, 'id' | 'titulo' | 'mensaje'>[]> => {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('anuncios')
+    .select('id, titulo, mensaje')
+    .eq('establecimiento_id', establecimientoId)
+    .lte('fecha_inicio', today)
+    .gte('fecha_fin', today);
+  if (error) throw new Error(`Error fetching active announcements: ${error.message}`);
+  return data || [];
+};
+
 export const saveAnnouncement = async (
   announcementData: Omit<Announcement, 'id'>,
   establecimientoId: string,
