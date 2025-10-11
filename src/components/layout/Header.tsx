@@ -164,3 +164,6 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
       </div>
     </header>
   );
+};
+
+export default Header;
