@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { MercadoPagoConfig, Payment } from 'npm:mercadopago@2.0.11';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
@@ -10,22 +9,30 @@ serve(async (req) => {
   try {
     const notification = await req.json();
 
-    // Solo procesamos notificaciones de tipo 'payment'
     if (notification.type === 'payment') {
       const paymentId = notification.data.id;
 
       const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
       if (!accessToken) throw new Error("MERCADO_PAGO_ACCESS_TOKEN no está configurado.");
 
-      const client = new MercadoPagoConfig({ accessToken });
-      const payment = new Payment(client);
+      // Fetch payment details directly from Mercado Pago API
+      const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
-      const paymentInfo = await payment.get({ id: paymentId });
+      const paymentInfo = await paymentResponse.json();
+
+      if (!paymentResponse.ok) {
+        console.error("Error fetching payment info from Mercado Pago:", paymentInfo);
+        // Still return 200 so MP doesn't retry for a failed payment lookup
+        return new Response("Error fetching payment info, but notification acknowledged.", { status: 200 });
+      }
 
       if (paymentInfo && paymentInfo.status === 'approved' && paymentInfo.external_reference) {
         const userId = paymentInfo.external_reference;
 
-        // Usamos el cliente de admin para poder modificar la tabla de perfiles
         const supabaseAdmin = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -48,18 +55,14 @@ serve(async (req) => {
 
         if (error) {
           console.error(`Error al actualizar el perfil del usuario ${userId}:`, error);
-          // Aún así devolvemos 200 para que Mercado Pago no siga reintentando.
-          // El error queda registrado en los logs de Supabase para revisión.
         }
       }
     }
 
-    // Respondemos a Mercado Pago con un 200 OK para que sepa que recibimos la notificación.
     return new Response("Notification received", { status: 200 });
 
   } catch (error) {
     console.error("Error en el webhook de Mercado Pago:", error);
-    // Devolvemos un error 500 si algo falla, para que Mercado Pago pueda reintentar.
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 });
