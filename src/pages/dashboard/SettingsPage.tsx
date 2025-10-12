@@ -100,7 +100,7 @@ const SettingsPage = () => {
           </TabsContent>
         )}
         <TabsContent value="subscription" className="mt-6">
-          <SubscriptionManager />
+          <SubscriptionManager userId={userId} />
         </TabsContent>
       </Tabs>
     </div>

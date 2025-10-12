@@ -15,31 +15,34 @@ interface SubscriptionProfile {
   subscription_ends_at: string | null;
 }
 
-const SubscriptionManager = () => {
+interface SubscriptionManagerProps {
+  userId: string;
+}
+
+const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ userId }) => {
     const [profile, setProfile] = useState<SubscriptionProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
     const fetchProfile = async () => {
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            const { data, error } = await supabase
-                .from('perfiles')
-                .select('subscription_plan, subscription_status, trial_ends_at, subscription_ends_at')
-                .eq('id', user.id)
-                .single();
-            if (error) {
-                showError("Error al cargar la información de suscripción.");
-            } else {
-                setProfile(data);
-            }
+        const { data, error } = await supabase
+            .from('perfiles')
+            .select('subscription_plan, subscription_status, trial_ends_at, subscription_ends_at')
+            .eq('id', userId)
+            .single();
+        if (error) {
+            showError("Error al cargar la información de suscripción.");
+        } else {
+            setProfile(data);
         }
         setLoading(false);
     };
 
     useEffect(() => {
-        fetchProfile();
-    }, []);
+        if (userId) {
+            fetchProfile();
+        }
+    }, [userId]);
 
     const renderPlanDetails = () => {
         if (!profile) return null;
@@ -52,7 +55,7 @@ const SubscriptionManager = () => {
                     <p className="text-muted-foreground">
                         Estás en el período de prueba. Te quedan <span className="font-bold">{daysLeft > 0 ? daysLeft : 0} días</span>.
                     </p>
-                    <MercadoPagoSubscriptionButton />
+                    <MercadoPagoSubscriptionButton userId={userId} />
                 </>
             );
         }
