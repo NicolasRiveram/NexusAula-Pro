@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { MercadoPagoConfig, Preference } from 'npm:mercadopago@2.0.11';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,32 +21,43 @@ serve(async (req) => {
       throw new Error("MERCADO_PAGO_ACCESS_TOKEN no está configurado en los secretos de Supabase.");
     }
 
-    const client = new MercadoPagoConfig({ accessToken });
-    const preference = new Preference(client);
-
-    const preferenceResponse = await preference.create({
-      body: {
-        items: [
-          {
-            id: 'pro-plan-01',
-            title: 'NexusAula - Plan Pro',
-            quantity: 1,
-            unit_price: 10000,
-            currency_id: 'CLP',
-          },
-        ],
-        external_reference: userId, // Aquí asociamos el pago al usuario
-        back_urls: {
-          success: `${req.headers.get('origin')}/dashboard/payment/success`,
-          failure: `${req.headers.get('origin')}/dashboard/payment/failure`,
-          pending: `${req.headers.get('origin')}/dashboard/payment/pending`,
+    const preferenceBody = {
+      items: [
+        {
+          id: 'pro-plan-01',
+          title: 'NexusAula - Plan Pro',
+          quantity: 1,
+          unit_price: 10000,
+          currency_id: 'CLP',
         },
-        auto_return: 'approved',
-        notification_url: `https://axkfetfkdzybczngysjx.supabase.co/functions/v1/mercado-pago-webhook`,
+      ],
+      external_reference: userId,
+      back_urls: {
+        success: `${req.headers.get('origin')}/dashboard/payment/success`,
+        failure: `${req.headers.get('origin')}/dashboard/payment/failure`,
+        pending: `${req.headers.get('origin')}/dashboard/payment/pending`,
       },
+      auto_return: 'approved',
+      notification_url: `https://axkfetfkdzybczngysjx.supabase.co/functions/v1/mercado-pago-webhook`,
+    };
+
+    const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(preferenceBody),
     });
 
-    return new Response(JSON.stringify({ preferenceId: preferenceResponse.id }), {
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Error from Mercado Pago API:", data);
+      throw new Error(data.message || 'Error al comunicarse con Mercado Pago.');
+    }
+
+    return new Response(JSON.stringify({ preferenceId: data.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

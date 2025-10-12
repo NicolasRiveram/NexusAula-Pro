@@ -87,9 +87,9 @@ const SubscriptionManager = () => {
                     <div className="flex justify-between items-center p-4 border rounded-md">
                         <div>
                             <p className="font-semibold">Plan Actual</p>
-                            <p>
+                            <div>
                                 <Badge variant="secondary" className="capitalize">{profile?.subscription_plan || 'Desconocido'}</Badge>
-                            </p>
+                            </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                             {renderPlanDetails()}
