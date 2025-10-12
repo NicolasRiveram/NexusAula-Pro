@@ -25,7 +25,14 @@ const MercadoPagoPayment = () => {
     setIsLoading(true);
     const toastId = showLoading("Preparando pago seguro...");
     try {
-      const { data, error } = await supabase.functions.invoke('create-payment-preference');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("No se pudo identificar al usuario. Por favor, inicia sesión de nuevo.");
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-payment-preference', {
+        body: { userId: user.id },
+      });
       if (error) throw error;
       
       if (data.preferenceId) {
@@ -35,7 +42,7 @@ const MercadoPagoPayment = () => {
       }
     } catch (error: any) {
       showError(`Error al preparar el pago: ${error.message}`);
-      setIsLoading(false); // Asegurarse de detener la carga en caso de error
+      setIsLoading(false);
     } finally {
       dismissToast(toastId);
     }
@@ -46,7 +53,7 @@ const MercadoPagoPayment = () => {
       <Wallet
         initialization={{ preferenceId }}
         customization={{ texts: { valueProp: 'smart_option' } }}
-        onReady={() => setIsLoading(false)} // Ocultar el loader cuando el botón de MP esté listo
+        onReady={() => setIsLoading(false)}
       />
     );
   }

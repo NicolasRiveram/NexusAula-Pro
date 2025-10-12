@@ -12,6 +12,11 @@ serve(async (req) => {
   }
 
   try {
+    const { userId } = await req.json();
+    if (!userId) {
+      throw new Error("El ID de usuario es requerido para crear una preferencia de pago.");
+    }
+
     const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
     if (!accessToken) {
       throw new Error("MERCADO_PAGO_ACCESS_TOKEN no está configurado en los secretos de Supabase.");
@@ -27,18 +32,17 @@ serve(async (req) => {
             id: 'pro-plan-01',
             title: 'NexusAula - Plan Pro',
             quantity: 1,
-            unit_price: 10000, // Precio de ejemplo: 10.000 CLP. Ajusta esto según tu precio real.
+            unit_price: 10000,
             currency_id: 'CLP',
           },
         ],
+        external_reference: userId, // Aquí asociamos el pago al usuario
         back_urls: {
           success: `${req.headers.get('origin')}/dashboard/payment/success`,
           failure: `${req.headers.get('origin')}/dashboard/payment/failure`,
           pending: `${req.headers.get('origin')}/dashboard/payment/pending`,
         },
         auto_return: 'approved',
-        // Esta es la URL que Mercado Pago notificará cuando un pago se complete.
-        // La crearemos en el siguiente paso.
         notification_url: `https://axkfetfkdzybczngysjx.supabase.co/functions/v1/mercado-pago-webhook`,
       },
     });
