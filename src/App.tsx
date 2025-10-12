@@ -49,6 +49,9 @@ import { Toaster } from "@/components/ui/toaster";
     import GenerateReportPage from "./pages/dashboard/reports/GenerateReportPage";
     import ViewReportPage from "./pages/dashboard/reports/ViewReportPage";
     import ExpertGeneratorPage from "./pages/dashboard/super-admin/ExpertGeneratorPage";
+    import SuccessPage from "./pages/dashboard/payment/SuccessPage";
+    import FailurePage from "./pages/dashboard/payment/FailurePage";
+    import PendingPage from "./pages/dashboard/payment/PendingPage";
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -133,6 +136,9 @@ import { Toaster } from "@/components/ui/toaster";
                         <Route path="gestion/calendario" element={<ManageCalendarPage />} />
                         <Route path="gestion/diseno" element={<DesignManagementPage />} />
                         <Route path="generador-experto" element={<ExpertGeneratorPage />} />
+                        <Route path="payment/success" element={<SuccessPage />} />
+                        <Route path="payment/failure" element={<FailurePage />} />
+                        <Route path="payment/pending" element={<PendingPage />} />
                       </Route>
                       <Route path="*" element={<NotFound />} />
                     </Routes>

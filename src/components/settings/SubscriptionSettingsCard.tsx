@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
-import { Loader2, Star } from 'lucide-react';
+import { showError } from '@/utils/toast';
+import { Loader2 } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import MercadoPagoPayment from './MercadoPagoPayment';
 
 interface SubscriptionProfile {
   subscription_plan: string;
@@ -18,7 +18,6 @@ interface SubscriptionProfile {
 const SubscriptionManager = () => {
     const [profile, setProfile] = useState<SubscriptionProfile | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isUpgrading, setIsUpgrading] = useState(false);
 
     const fetchProfile = async () => {
         setLoading(true);
@@ -42,43 +41,6 @@ const SubscriptionManager = () => {
         fetchProfile();
     }, []);
 
-    const handleUpgradeToPro = async () => {
-        setIsUpgrading(true);
-        const toastId = showLoading("Simulando proceso de pago...");
-
-        // SIMULACIÓN: En un caso real, aquí llamarías a tu Edge Function
-        // que se comunica con Mercado Pago.
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error("Usuario no encontrado.");
-
-            const newEndDate = new Date();
-            newEndDate.setMonth(newEndDate.getMonth() + 1);
-
-            const { error } = await supabase
-                .from('perfiles')
-                .update({
-                    subscription_plan: 'pro',
-                    subscription_status: 'active',
-                    subscription_ends_at: newEndDate.toISOString(),
-                })
-                .eq('id', user.id);
-            
-            if (error) throw error;
-
-            dismissToast(toastId);
-            showSuccess("¡Felicidades! Tu plan ha sido actualizado a Pro.");
-            await fetchProfile(); // Recargar la información
-        } catch (error: any) {
-            dismissToast(toastId);
-            showError(`Error al actualizar el plan: ${error.message}`);
-        } finally {
-            setIsUpgrading(false);
-        }
-    };
-
     const renderPlanDetails = () => {
         if (!profile) return null;
 
@@ -90,22 +52,16 @@ const SubscriptionManager = () => {
                     <p className="text-muted-foreground">
                         Estás en el período de prueba. Te quedan <span className="font-bold">{daysLeft > 0 ? daysLeft : 0} días</span>.
                     </p>
-                    <Button onClick={handleUpgradeToPro} disabled={isUpgrading}>
-                        {isUpgrading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Star className="mr-2 h-4 w-4" />}
-                        Mejorar a Plan Pro
-                    </Button>
+                    <MercadoPagoPayment />
                 </>
             );
         }
 
         if (profile.subscription_plan === 'pro') {
             return (
-                <>
-                    <p className="text-muted-foreground">
-                        Tu plan se renueva el {profile.subscription_ends_at ? format(parseISO(profile.subscription_ends_at), 'd LLLL, yyyy', { locale: es }) : 'N/A'}.
-                    </p>
-                    <Button variant="outline" disabled>Gestionar Suscripción (Próximamente)</Button>
-                </>
+                <p className="text-muted-foreground">
+                    Tu plan se renueva el {profile.subscription_ends_at ? format(parseISO(profile.subscription_ends_at), 'd LLLL, yyyy', { locale: es }) : 'N/A'}.
+                </p>
             );
         }
         
