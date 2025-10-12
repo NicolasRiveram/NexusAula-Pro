@@ -26,7 +26,7 @@ import { fetchDocenteAsignaturas, Asignatura, Nivel, fetchDocenteNiveles } from 
 const schema = z.object({
   asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
   nivelId: z.string().uuid("Debes seleccionar un nivel."),
-  cursoAsignaturaIds: z.array(z.string()).min(1, "Debes seleccionar al menos un curso para esta planificación."),
+  cursoAsignaturaIds: z.array(z.string()),
   titulo: z.string().min(3, "El título es requerido."),
   fechas: z.object({
     from: z.date({ required_error: "La fecha de inicio es requerida." }),
@@ -212,7 +212,7 @@ const Step1UnitConfig: React.FC<Step1UnitConfigProps> = ({ onFormSubmit, isLoadi
         </div>
 
         <div>
-          <Label>3. Cursos Específicos</Label>
+          <Label>3. Cursos Específicos (Opcional)</Label>
           <Controller
             name="cursoAsignaturaIds"
             control={control}

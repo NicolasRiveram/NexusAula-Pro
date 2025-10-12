@@ -287,7 +287,9 @@ export const fetchClassesForMonth = async (docenteId: string, establecimientoId:
 };
 
 
-export const fetchUnitPlans = async (docenteId: string): Promise<UnitPlan[]> => {
+export const fetchUnitPlans = async (docenteId: string, establecimientoId: string): Promise<UnitPlan[]> => {
+  if (!establecimientoId) return [];
+
   const { data, error } = await supabase
     .from('unidades_maestras')
     .select(`
@@ -304,6 +306,7 @@ export const fetchUnitPlans = async (docenteId: string): Promise<UnitPlan[]> => 
       )
     `)
     .eq('docente_id', docenteId)
+    .eq('establecimiento_id', establecimientoId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Error al cargar los planes de unidad: ${error.message}`);
@@ -415,7 +418,7 @@ export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDeta
   } as any;
 };
 
-export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: string) => {
+export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: string, establecimientoId: string) => {
   const { data: unitMasterData, error: unitMasterError } = await supabase
     .from('unidades_maestras')
     .insert({
@@ -425,6 +428,7 @@ export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: stri
       fecha_inicio: format(formData.fechas.from, 'yyyy-MM-dd'),
       fecha_fin: format(formData.fechas.to, 'yyyy-MM-dd'),
       instrucciones_adicionales_ia: formData.instruccionesAdicionales,
+      establecimiento_id: establecimientoId,
     })
     .select('id')
     .single();
@@ -432,18 +436,20 @@ export const createUnitPlan = async (formData: UnitPlanFormData, docenteId: stri
   if (unitMasterError) throw new Error(`Error creando la unidad maestra: ${unitMasterError.message}`);
   const unidadMaestraId = unitMasterData.id;
 
-  const links = formData.cursoAsignaturaIds.map(cursoAsignaturaId => ({
-    unidad_maestra_id: unidadMaestraId,
-    curso_asignatura_id: cursoAsignaturaId,
-  }));
+  if (formData.cursoAsignaturaIds && formData.cursoAsignaturaIds.length > 0) {
+    const links = formData.cursoAsignaturaIds.map(cursoAsignaturaId => ({
+      unidad_maestra_id: unidadMaestraId,
+      curso_asignatura_id: cursoAsignaturaId,
+    }));
 
-  const { error: linkError } = await supabase
-    .from('unidad_maestra_curso_asignatura_link')
-    .insert(links);
+    const { error: linkError } = await supabase
+      .from('unidad_maestra_curso_asignatura_link')
+      .insert(links);
 
-  if (linkError) {
-    await supabase.from('unidades_maestras').delete().eq('id', unidadMaestraId);
-    throw new Error(`Error vinculando la unidad a los cursos: ${linkError.message}`);
+    if (linkError) {
+      await supabase.from('unidades_maestras').delete().eq('id', unidadMaestraId);
+      throw new Error(`Error vinculando la unidad a los cursos: ${linkError.message}`);
+    }
   }
 
   return unidadMaestraId;

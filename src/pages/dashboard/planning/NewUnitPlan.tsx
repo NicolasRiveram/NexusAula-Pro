@@ -34,8 +34,9 @@ const NewUnitPlan = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error("Usuario no autenticado.");
+      if (!activeEstablishment) throw new Error("No hay un establecimiento activo seleccionado.");
 
-      const newUnitId = await createUnitPlan(data, session.user.id);
+      const newUnitId = await createUnitPlan(data, session.user.id, activeEstablishment.id);
       setUnitMasterId(newUnitId);
       
       if (data.proyectoId && data.proyectoId !== 'none') {

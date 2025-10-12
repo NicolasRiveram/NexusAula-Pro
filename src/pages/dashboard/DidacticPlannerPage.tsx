@@ -40,13 +40,8 @@ const DidacticPlannerPage = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       try {
-        const allPlans = await fetchUnitPlans(user.id);
-        const filteredPlans = allPlans.filter(plan =>
-          plan.unidad_maestra_curso_asignatura_link.some(link =>
-            link.curso_asignaturas?.cursos?.establecimiento_id === activeEstablishment.id
-          )
-        );
-        setUnitPlans(filteredPlans);
+        const allPlans = await fetchUnitPlans(user.id, activeEstablishment.id);
+        setUnitPlans(allPlans);
       } catch (err: any) {
         showError(err.message);
       }
@@ -85,19 +80,31 @@ const DidacticPlannerPage = () => {
       }
     });
 
-    levels.forEach(levelName => {
-      if (!acc[levelName]) {
-        acc[levelName] = [];
-      }
-      if (!acc[levelName].some(p => p.id === plan.id)) {
-          acc[levelName].push(plan);
-      }
-    });
+    if (levels.size === 0) {
+        const key = 'Plantillas sin Asignar';
+        if (!acc[key]) acc[key] = [];
+        if (!acc[key].some(p => p.id === plan.id)) {
+            acc[key].push(plan);
+        }
+    } else {
+        levels.forEach(levelName => {
+            if (!acc[levelName]) {
+                acc[levelName] = [];
+            }
+            if (!acc[levelName].some(p => p.id === plan.id)) {
+                acc[levelName].push(plan);
+            }
+        });
+    }
 
     return acc;
   }, {} as Record<string, UnitPlan[]>);
 
-  const sortedLevels = Object.keys(groupedPlans).sort();
+  const sortedLevels = Object.keys(groupedPlans).sort((a, b) => {
+    if (a === 'Plantillas sin Asignar') return 1;
+    if (b === 'Plantillas sin Asignar') return -1;
+    return a.localeCompare(b);
+  });
 
   return (
     <>
@@ -155,11 +162,15 @@ const DidacticPlannerPage = () => {
                         <CardContent className="flex-grow">
                           <p className="text-sm text-muted-foreground mb-2">Aplicado en los cursos:</p>
                           <div className="flex flex-wrap gap-1">
-                            {plan.unidad_maestra_curso_asignatura_link.map((link, index) => (
-                              <Badge key={`${plan.id}-${index}`} variant="secondary">
-                                {link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}
-                              </Badge>
-                            ))}
+                            {plan.unidad_maestra_curso_asignatura_link.length > 0 ? (
+                              plan.unidad_maestra_curso_asignatura_link.map((link, index) => (
+                                <Badge key={`${plan.id}-${index}`} variant="secondary">
+                                  {link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline">Ninguno</Badge>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
