@@ -31,11 +31,11 @@ const MercadoPagoPayment = () => {
       if (data.preferenceId) {
         setPreferenceId(data.preferenceId);
       } else {
-        throw new Error("No se pudo obtener la preferencia de pago.");
+        throw new Error("No se pudo obtener la preferencia de pago desde el backend.");
       }
     } catch (error: any) {
       showError(`Error al preparar el pago: ${error.message}`);
-      setIsLoading(false); // Stop loading on error
+      setIsLoading(false); // Asegurarse de detener la carga en caso de error
     } finally {
       dismissToast(toastId);
     }
@@ -46,6 +46,7 @@ const MercadoPagoPayment = () => {
       <Wallet
         initialization={{ preferenceId }}
         customization={{ texts: { valueProp: 'smart_option' } }}
+        onReady={() => setIsLoading(false)} // Ocultar el loader cuando el botón de MP esté listo
       />
     );
   }
