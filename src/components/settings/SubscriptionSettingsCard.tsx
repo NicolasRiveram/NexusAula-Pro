@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import MercadoPagoPayment from './MercadoPagoPayment';
+import MercadoPagoSubscriptionButton from './MercadoPagoSubscriptionButton';
 
 interface SubscriptionProfile {
   subscription_plan: string;
@@ -52,7 +52,7 @@ const SubscriptionManager = () => {
                     <p className="text-muted-foreground">
                         Estás en el período de prueba. Te quedan <span className="font-bold">{daysLeft > 0 ? daysLeft : 0} días</span>.
                     </p>
-                    <MercadoPagoPayment />
+                    <MercadoPagoSubscriptionButton />
                 </>
             );
         }

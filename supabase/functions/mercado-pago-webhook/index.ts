@@ -8,31 +8,30 @@ serve(async (req) => {
 
   try {
     const notification = await req.json();
+    const topic = notification.topic || notification.type;
 
-    if (notification.type === 'payment') {
-      const paymentId = notification.data.id;
+    if (topic === 'preapproval') {
+      const preapprovalId = notification.id || notification.data?.id;
+      if (!preapprovalId) {
+        console.error("No preapproval ID found in notification:", notification);
+        return new Response("Notification acknowledged, but no ID found.", { status: 200 });
+      }
 
       const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
       if (!accessToken) throw new Error("MERCADO_PAGO_ACCESS_TOKEN no está configurado.");
 
-      // Fetch payment details directly from Mercado Pago API
-      const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
+      const preapprovalResponse = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
       });
+      const preapprovalInfo = await preapprovalResponse.json();
 
-      const paymentInfo = await paymentResponse.json();
-
-      if (!paymentResponse.ok) {
-        console.error("Error fetching payment info from Mercado Pago:", paymentInfo);
-        // Still return 200 so MP doesn't retry for a failed payment lookup
-        return new Response("Error fetching payment info, but notification acknowledged.", { status: 200 });
+      if (!preapprovalResponse.ok) {
+        console.error("Error fetching preapproval info from Mercado Pago:", preapprovalInfo);
+        return new Response("Error fetching preapproval info, but notification acknowledged.", { status: 200 });
       }
 
-      if (paymentInfo && paymentInfo.status === 'approved' && paymentInfo.external_reference) {
-        const userId = paymentInfo.external_reference;
-
+      if (preapprovalInfo && preapprovalInfo.status === 'authorized' && preapprovalInfo.external_reference) {
+        const userId = preapprovalInfo.external_reference;
         const supabaseAdmin = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -48,8 +47,8 @@ serve(async (req) => {
             subscription_plan: 'pro',
             subscription_status: 'active',
             subscription_ends_at: subscriptionEndDate.toISOString(),
-            payment_provider_customer_id: paymentInfo.payer?.id?.toString(),
-            payment_provider_subscription_id: paymentInfo.id?.toString(),
+            payment_provider_customer_id: preapprovalInfo.payer_id?.toString(),
+            payment_provider_subscription_id: preapprovalInfo.id?.toString(),
           })
           .eq('id', userId);
 
