@@ -30,14 +30,20 @@ serve(async (req) => {
         return new Response("Error fetching preapproval info, but notification acknowledged.", { status: 200 });
       }
 
-      if (preapprovalInfo && preapprovalInfo.status === 'authorized' && preapprovalInfo.external_reference) {
-        const userId = preapprovalInfo.external_reference;
-        const supabaseAdmin = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-          { auth: { autoRefreshToken: false, persistSession: false } }
-        );
+      const userId = preapprovalInfo.external_reference;
+      if (!userId) {
+        console.error("No external_reference (userId) found in preapproval info:", preapprovalInfo);
+        return new Response("Notification acknowledged, but no user ID found.", { status: 200 });
+      }
 
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      );
+
+      // Handle subscription activation
+      if (preapprovalInfo.status === 'authorized') {
         const subscriptionEndDate = new Date();
         subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
 
@@ -53,7 +59,22 @@ serve(async (req) => {
           .eq('id', userId);
 
         if (error) {
-          console.error(`Error al actualizar el perfil del usuario ${userId}:`, error);
+          console.error(`Error al actualizar el perfil del usuario ${userId} a PRO:`, error);
+        }
+      } 
+      // Handle subscription cancellation
+      else if (preapprovalInfo.status === 'cancelled') {
+        const { error } = await supabaseAdmin
+          .from('perfiles')
+          .update({
+            subscription_plan: 'prueba', // Revert to trial/free plan
+            subscription_status: 'cancelled',
+            subscription_ends_at: new Date().toISOString(), // Set end date to now
+          })
+          .eq('id', userId);
+
+        if (error) {
+          console.error(`Error al cancelar la suscripción para el usuario ${userId}:`, error);
         }
       }
     }
