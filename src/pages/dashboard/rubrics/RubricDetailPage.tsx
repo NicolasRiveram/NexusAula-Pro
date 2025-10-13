@@ -100,10 +100,39 @@ const RubricDetailPage = () => {
     loadEstudiantes();
   }, [selectedCursoId, cursos]);
 
+  // Load draft from localStorage when student changes
   useEffect(() => {
-    setEvaluation({});
-    setComentarios('');
-  }, [selectedEstudianteId]);
+    const storageKey = rubricId && selectedEstudianteId ? `rubric-draft-${rubricId}-${selectedEstudianteId}` : null;
+    if (storageKey) {
+      const savedDraft = localStorage.getItem(storageKey);
+      if (savedDraft) {
+        try {
+          const { evaluation: savedEvaluation, comentarios: savedComentarios } = JSON.parse(savedDraft);
+          setEvaluation(savedEvaluation || {});
+          setComentarios(savedComentarios || '');
+        } catch (e) {
+          console.error("Failed to parse rubric draft from localStorage", e);
+          setEvaluation({});
+          setComentarios('');
+        }
+      } else {
+        setEvaluation({});
+        setComentarios('');
+      }
+    } else {
+      setEvaluation({});
+      setComentarios('');
+    }
+  }, [selectedEstudianteId, rubricId]);
+
+  // Save draft to localStorage on change
+  useEffect(() => {
+    const storageKey = rubricId && selectedEstudianteId ? `rubric-draft-${rubricId}-${selectedEstudianteId}` : null;
+    if (storageKey) {
+      const draft = { evaluation, comentarios };
+      localStorage.setItem(storageKey, JSON.stringify(draft));
+    }
+  }, [evaluation, comentarios, rubricId, selectedEstudianteId]);
 
   const { puntajeTotal, puntajeMaximo } = useMemo(() => {
     const criterios = rubric?.contenido_json?.criterios;
@@ -147,6 +176,10 @@ const RubricDetailPage = () => {
       });
       dismissToast(toastId);
       showSuccess("Evaluación guardada correctamente.");
+      
+      const storageKey = `rubric-draft-${rubricId}-${selectedEstudianteId}`;
+      localStorage.removeItem(storageKey);
+
       setSelectedEstudianteId('');
     } catch (err: any) {
       dismissToast(toastId);
