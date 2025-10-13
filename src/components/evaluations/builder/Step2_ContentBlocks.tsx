@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails } from '@/api/evaluationsApi';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails, deleteEvaluationItem } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -29,7 +29,18 @@ interface Step2ContentBlocksProps {
   temario: string;
 }
 
-const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onScoreChange, isAdapting, isIncreasingDifficulty }: { item: EvaluationItem, onAdaptPIE: (itemId: string) => void, onEdit: (item: EvaluationItem) => void, onIncreaseDifficulty: (itemId: string) => void, onScoreChange: (itemId: string, newScore: number) => void, isAdapting: boolean, isIncreasingDifficulty: boolean }) => {
+interface QuestionItemProps {
+  item: EvaluationItem;
+  onAdaptPIE: (itemId: string) => void;
+  onEdit: (item: EvaluationItem) => void;
+  onIncreaseDifficulty: (itemId: string) => void;
+  onScoreChange: (itemId: string, newScore: number) => void;
+  onDelete: (itemId: string) => void;
+  isAdapting: boolean;
+  isIncreasingDifficulty: boolean;
+}
+
+const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onScoreChange, onDelete, isAdapting, isIncreasingDifficulty }: QuestionItemProps) => {
     const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
     const [localScore, setLocalScore] = useState(item.puntaje);
 
@@ -123,6 +134,9 @@ const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onScoreC
                             </Button>
                         </>
                     )}
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(item.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                 </div>
             </div>
         </div>
@@ -251,6 +265,22 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       loadBlocksAndQuestions();
     } catch (error: any) {
       showError(`Error al eliminar el bloque: ${error.message}`);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esta acción no se puede deshacer.")) {
+      return;
+    }
+    const toastId = showLoading("Eliminando pregunta...");
+    try {
+      await deleteEvaluationItem(itemId);
+      showSuccess("Pregunta eliminada.");
+      loadBlocksAndQuestions();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      dismissToast(toastId);
     }
   };
 
@@ -512,6 +542,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                                   onEdit={setEditingItem}
                                   onIncreaseDifficulty={handleIncreaseDifficulty}
                                   onScoreChange={handleScoreChange}
+                                  onDelete={handleDeleteItem}
                                   isAdapting={adaptingItemId === item.id}
                                   isIncreasingDifficulty={increasingDifficultyId === item.id}
                               />

@@ -930,3 +930,14 @@ export const fetchStudentResponseForEvaluation = async (evaluationId: string, st
   if (error) throw new Error(`Error checking for existing response: ${error.message}`);
   return data;
 };
+
+export const deleteEvaluationItem = async (itemId: string) => {
+  const { error } = await supabase
+    .from('evaluacion_items')
+    .delete()
+    .eq('id', itemId);
+
+  if (error) {
+    throw new Error(`Error al eliminar la pregunta: ${error.message}`);
+  }
+};
