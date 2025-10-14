@@ -1,32 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Timer, Play, Pause, RotateCcw, Mic } from 'lucide-react';
+import useSpeechRecognition from '@/hooks/useSpeechRecognition';
+import DictationView from './DictationView';
+import { showError } from '@/utils/toast';
 
 interface ReadingEvaluationModuleProps {
-  onDataChange: (data: { seconds: number; ppm: number }) => void;
+  onDataChange: (data: { seconds: number; ppm: number; errors: number[], transcript: string }) => void;
   onTextChange: (text: string) => void;
   originalText: string;
-  isDictationActive: boolean;
-  onToggleDictation: () => void;
+  isDictationEnabled: boolean;
 }
 
 const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
   onDataChange,
   onTextChange,
   originalText,
-  isDictationActive,
-  onToggleDictation,
+  isDictationEnabled,
 }) => {
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [words, setWords] = useState('');
   const [ppm, setPpm] = useState(0);
+  const [markedErrors, setMarkedErrors] = useState<number[]>([]);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { transcript, isListening, startListening, stopListening, hasRecognitionSupport } = useSpeechRecognition();
 
   useEffect(() => {
     if (isActive) {
@@ -55,10 +58,12 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
 
   const handleReset = () => {
     setIsActive(false);
+    if (isListening) stopListening();
     setSeconds(0);
     setWords('');
     setPpm(0);
-    onDataChange({ seconds: 0, ppm: 0 });
+    setMarkedErrors([]);
+    onDataChange({ seconds: 0, ppm: 0, errors: [], transcript: '' });
   };
 
   const calculatePpm = () => {
@@ -66,10 +71,10 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
     if (!isNaN(numWords) && numWords > 0 && seconds > 0) {
       const calculatedPpm = Math.round((numWords / seconds) * 60);
       setPpm(calculatedPpm);
-      onDataChange({ seconds, ppm: calculatedPpm });
+      onDataChange({ seconds, ppm: calculatedPpm, errors: markedErrors, transcript });
     } else {
       setPpm(0);
-      onDataChange({ seconds, ppm: 0 });
+      onDataChange({ seconds, ppm: 0, errors: markedErrors, transcript });
     }
   };
 
@@ -77,7 +82,29 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
     if (!isActive) {
       calculatePpm();
     }
-  }, [words, seconds, isActive]);
+  }, [words, seconds, isActive, markedErrors, transcript]);
+
+  const handleToggleDictation = () => {
+    if (!hasRecognitionSupport) {
+      showError("Tu navegador no soporta el reconocimiento de voz.");
+      return;
+    }
+    if (isListening) {
+      stopListening();
+      setIsActive(false);
+    } else {
+      startListening();
+      setIsActive(true);
+    }
+  };
+
+  const handleWordClick = (wordIndex: number) => {
+    setMarkedErrors(prev => 
+      prev.includes(wordIndex) 
+        ? prev.filter(i => i !== wordIndex)
+        : [...prev, wordIndex]
+    );
+  };
 
   return (
     <Card>
@@ -94,7 +121,7 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
           </p>
         </div>
         <div className="flex justify-center gap-2">
-          <Button onClick={handleToggleTimer} variant="outline">
+          <Button onClick={handleToggleTimer} variant="outline" disabled={isListening}>
             {isActive ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
             {isActive ? 'Pausar' : 'Iniciar'}
           </Button>
@@ -121,7 +148,7 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
           </div>
         </div>
 
-        {isDictationActive && (
+        {isDictationEnabled && (
           <div className="space-y-4 pt-4 border-t">
             <div>
               <Label htmlFor="original-text">Texto Original para Lectura</Label>
@@ -131,17 +158,21 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
                 rows={6}
                 value={originalText}
                 onChange={(e) => onTextChange(e.target.value)}
+                disabled={isListening || isActive}
               />
             </div>
             <div>
-              <Label>Transcripción en Vivo</Label>
-              <div className="p-4 border rounded-md bg-muted/50 min-h-[100px]">
-                <p className="text-sm text-muted-foreground italic">La transcripción en vivo aparecerá aquí cuando inicies el dictado...</p>
-              </div>
+              <Label>Transcripción y Marcado de Errores</Label>
+              <DictationView
+                originalText={originalText}
+                liveTranscript={transcript}
+                markedErrors={markedErrors}
+                onWordClick={handleWordClick}
+              />
             </div>
             <div className="flex justify-center">
-              <Button onClick={onToggleDictation}>
-                <Mic className="mr-2 h-4 w-4" /> Iniciar Dictado
+              <Button onClick={handleToggleDictation} disabled={!originalText.trim()}>
+                <Mic className="mr-2 h-4 w-4" /> {isListening ? 'Detener Dictado' : 'Iniciar Dictado'}
               </Button>
             </div>
           </div>

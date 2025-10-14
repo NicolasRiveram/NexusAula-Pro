@@ -60,9 +60,9 @@ const RubricDetailPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isReadingModuleActive, setIsReadingModuleActive] = useState(false);
-  const [isDictationActive, setIsDictationActive] = useState(false);
+  const [isDictationEnabled, setIsDictationEnabled] = useState(false);
   const [originalText, setOriginalText] = useState('');
-  const [readingData, setReadingData] = useState({ seconds: 0, ppm: 0 });
+  const [readingData, setReadingData] = useState({ seconds: 0, ppm: 0, errors: [] as number[], transcript: '' });
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -184,7 +184,13 @@ const RubricDetailPage = () => {
       if (isReadingModuleActive) {
         evaluationPayload.tiempo_lectura_segundos = readingData.seconds;
         evaluationPayload.palabras_por_minuto = readingData.ppm;
-        // TODO: Save dictation results to 'resultados_lectura_json'
+        if (isDictationEnabled) {
+          evaluationPayload.resultados_lectura_json = {
+            originalText,
+            transcript: readingData.transcript,
+            markedErrors: readingData.errors,
+          };
+        }
       }
 
       await saveRubricEvaluation(evaluationPayload);
@@ -328,8 +334,8 @@ const RubricDetailPage = () => {
                   </div>
                   <Switch
                     id="dictation-switch"
-                    checked={isDictationActive}
-                    onCheckedChange={setIsDictationActive}
+                    checked={isDictationEnabled}
+                    onCheckedChange={setIsDictationEnabled}
                   />
                 </div>
               )}
@@ -342,8 +348,7 @@ const RubricDetailPage = () => {
             onDataChange={setReadingData}
             onTextChange={setOriginalText}
             originalText={originalText}
-            isDictationActive={isDictationActive}
-            onToggleDictation={() => alert('La funcionalidad de dictado se activará en el siguiente paso.')}
+            isDictationEnabled={isDictationEnabled}
           />
         )}
 
