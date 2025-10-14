@@ -84,6 +84,7 @@ export interface EvaluationDetail extends Evaluation {
     evaluacion_items: EvaluationItem[];
   })[];
   evaluacion_objetivos: { oa_id: string }[];
+  evaluacion_habilidades: { habilidades: { id: string; nombre: string } }[];
 }
 
 export interface EvaluationResultSummary {
@@ -148,6 +149,19 @@ export interface ManualQuestionData {
 export interface Skill {
   id: string;
   nombre: string;
+}
+
+export interface CreateEvaluationData {
+  titulo: string;
+  tipo: string;
+  descripcion?: string;
+  fecha_aplicacion: string | null;
+  cursoAsignaturaIds: string[];
+  randomizar_preguntas?: boolean;
+  randomizar_alternativas?: boolean;
+  momento_evaluativo: string;
+  estandar_esperado?: string;
+  habilidades?: string[];
 }
 
 export const updateEvaluationItemDetails = async (itemId: string, updates: { puntaje: number }) => {
@@ -396,20 +410,8 @@ export const fetchStudentEvaluations = async (studentId: string, establecimiento
   });
 };
 
-export interface CreateEvaluationData {
-  titulo: string;
-  tipo: string;
-  descripcion?: string;
-  fecha_aplicacion: string | null;
-  cursoAsignaturaIds: string[];
-  randomizar_preguntas?: boolean;
-  randomizar_alternativas?: boolean;
-  momento_evaluativo: string;
-  estandar_esperado?: string;
-}
-
 export const createEvaluation = async (evalData: CreateEvaluationData & { objetivos_aprendizaje_ids: string[] }) => {
-  const { cursoAsignaturaIds, objetivos_aprendizaje_ids, ...rest } = evalData;
+  const { cursoAsignaturaIds, objetivos_aprendizaje_ids, habilidades, ...rest } = evalData;
   const { data, error } = await supabase
     .from('evaluaciones')
     .insert(rest)
@@ -449,11 +451,22 @@ export const createEvaluation = async (evalData: CreateEvaluationData & { objeti
     }
   }
 
+  if (habilidades && habilidades.length > 0) {
+    const { error: skillsError } = await supabase.rpc('upsert_and_link_skills', {
+      p_evaluacion_id: newEvaluationId,
+      p_habilidades: habilidades,
+    });
+    if (skillsError) {
+      await supabase.from('evaluaciones').delete().eq('id', newEvaluationId);
+      throw new Error(`Error al vincular las habilidades: ${skillsError.message}`);
+    }
+  }
+
   return newEvaluationId;
 };
 
 export const updateEvaluation = async (evaluationId: string, evalData: CreateEvaluationData & { objetivos_aprendizaje_ids: string[] }) => {
-  const { cursoAsignaturaIds, objetivos_aprendizaje_ids, ...updateData } = evalData;
+  const { cursoAsignaturaIds, objetivos_aprendizaje_ids, habilidades, ...updateData } = evalData;
   const { error: updateError } = await supabase
     .from('evaluaciones')
     .update(updateData)
@@ -526,6 +539,16 @@ export const updateEvaluation = async (evaluationId: string, evalData: CreateEva
       .insert(linksToInsert);
     if (insertError) throw new Error(`Error adding new OA links: ${insertError.message}`);
   }
+
+  if (habilidades) {
+    const { error: skillsError } = await supabase.rpc('upsert_and_link_skills', {
+      p_evaluacion_id: evaluationId,
+      p_habilidades: habilidades,
+    });
+    if (skillsError) {
+      throw new Error(`Error al actualizar las habilidades: ${skillsError.message}`);
+    }
+  }
 };
 
 export const deleteEvaluation = async (evaluationId: string) => {
@@ -581,7 +604,8 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
           adaptaciones_pie ( * )
         )
       ),
-      evaluacion_objetivos ( oa_id )
+      evaluacion_objetivos ( oa_id ),
+      evaluacion_habilidades ( habilidades ( id, nombre ) )
     `)
     .eq('id', evaluationId)
     .order('orden', { referencedTable: 'evaluation_content_blocks' })
@@ -727,7 +751,7 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
   const { count, error: countError } = await supabase
     .from('evaluacion_items')
     .select('*', { count: 'exact', head: true })
-    .eq('evaluacion_id', evaluationId);
+    .eq('evaluation_id', evaluationId);
 
   if (countError) {
     throw new Error(`Error fetching current question count: ${countError.message}`);
