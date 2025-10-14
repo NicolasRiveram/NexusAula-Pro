@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Outlet, useNavigate, useLocation, useOutlet } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
@@ -18,6 +18,14 @@ const Dashboard = () => {
     dashboard_widgets_prefs?: { order: string[], visible: Record<string, boolean> }
   } | null>(null);
   const { runTour, handleTourEnd } = useTeacherTour(profile?.rol || '');
+
+  const location = useLocation();
+  const outlet = useOutlet();
+  const outletRef = useRef<Record<string, React.ReactNode>>({});
+
+  if (outlet) {
+    outletRef.current[location.pathname] = outlet;
+  }
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -61,7 +69,15 @@ const Dashboard = () => {
           <Header profile={profile} />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-8" data-tour="main-content">
             {isTrial && <TrialBanner trialEndsAt={profile.trial_ends_at || null} />}
-            <Outlet context={{ profile }} />
+            {Object.entries(outletRef.current).map(([path, element]) => (
+              <div
+                key={path}
+                style={{ display: path === location.pathname ? 'block' : 'none' }}
+                className="h-full w-full"
+              >
+                {element}
+              </div>
+            ))}
           </main>
         </div>
       </div>
