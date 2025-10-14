@@ -35,6 +35,21 @@ const EvaluationBuilderPage = () => {
 
   const { control, handleSubmit, formState: { isSubmitting }, reset, getValues, setValue } = useForm<EvaluationBuilderFormData>({
     resolver: zodResolver(evaluationBuilderSchema),
+    defaultValues: {
+      titulo: '',
+      tipo: undefined,
+      momento_evaluativo: undefined,
+      habilidades: [],
+      fecha_aplicacion: undefined,
+      asignaturaId: undefined,
+      nivelId: undefined,
+      cursoAsignaturaIds: [],
+      objetivos_aprendizaje_ids: [],
+      objetivosSugeridos: '',
+      randomizar_preguntas: false,
+      randomizar_alternativas: false,
+      estandar_esperado: '',
+    }
   });
 
   useEffect(() => {
