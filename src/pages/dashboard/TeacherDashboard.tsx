@@ -22,6 +22,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragEndEvent,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -65,18 +66,20 @@ const TeacherDashboard = () => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id && widgetPrefs) {
-      const oldIndex = widgetPrefs.order.indexOf(active.id);
-      const newIndex = widgetPrefs.order.indexOf(over.id);
+      const oldIndex = widgetPrefs.order.indexOf(active.id as string);
+      const newIndex = widgetPrefs.order.indexOf(over.id as string);
       const newOrder = arrayMove(widgetPrefs.order, oldIndex, newIndex);
       const newPrefs = { ...widgetPrefs, order: newOrder };
       
       setWidgetPrefs(newPrefs); // Optimistic update
       
       try {
-        await updateDashboardWidgetsPrefs(user!.id, newPrefs);
+        if (user) {
+          await updateDashboardWidgetsPrefs(user.id, newPrefs);
+        }
       } catch (error: any) {
         showError("No se pudo guardar el nuevo orden.");
         setWidgetPrefs(widgetPrefs); // Revert on error
