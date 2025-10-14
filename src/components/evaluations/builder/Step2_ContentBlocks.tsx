@@ -104,7 +104,7 @@ const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onDecrea
                         <BrainCircuit className="h-4 w-4 mr-2" /> VERSIÓN ADAPTADA (PIE)
                     </h5>
                     <p className="text-sm font-medium" dangerouslySetInnerHTML={{ __html: adaptation.enunciado_adaptado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                    {item.tipo_item === 'seleccion_multiple' && (
+                    {item.tipo_item === 'seleccion_multiple' && adaptation.alternativas_adaptadas && (
                         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                             {adaptation.alternativas_adaptadas.map((alt, index) => (
                                 <li key={index} className={cn(alt.es_correcta && "font-semibold text-primary")}>
