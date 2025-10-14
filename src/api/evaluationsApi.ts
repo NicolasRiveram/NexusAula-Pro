@@ -188,7 +188,7 @@ export const fetchObjetivosAprendizaje = async (nivelIds: string[], asignaturaId
   return data;
 };
 
-export const fetchStudentsForEvaluation = async (evaluationId: string): Promise<{ id: string; nombre_completo: string; curso_nombre: string }[]> => {
+export const fetchStudentsForEvaluation = async (evaluationId: string): Promise<{ id: string; nombre_completo: string; curso_nombre: string; apoyo_pie: boolean }[]> => {
   const { data: links, error: linkError } = await supabase
     .from('evaluacion_curso_asignaturas')
     .select('curso_asignaturas(curso_id, cursos(nombre, niveles(nombre)))')
@@ -202,18 +202,19 @@ export const fetchStudentsForEvaluation = async (evaluationId: string): Promise<
 
   const { data: students, error: studentError } = await supabase
     .from('curso_estudiantes')
-    .select('curso_id, perfiles!inner(id, nombre_completo)')
+    .select('curso_id, perfiles!inner(id, nombre_completo, apoyo_pie)')
     .in('curso_id', cursoIds);
 
   if (studentError) throw new Error(`Error fetching students: ${studentError.message}`);
 
-  const studentMap = new Map<string, { id: string; nombre_completo: string; curso_nombre: string }>();
+  const studentMap = new Map<string, { id: string; nombre_completo: string; curso_nombre: string; apoyo_pie: boolean }>();
   students.forEach((s: any) => {
     if (s.perfiles && !studentMap.has(s.perfiles.id)) {
       studentMap.set(s.perfiles.id, {
         id: s.perfiles.id,
         nombre_completo: s.perfiles.nombre_completo,
         curso_nombre: cursoInfoMap.get(s.curso_id) || 'Curso Desconocido',
+        apoyo_pie: s.perfiles.apoyo_pie,
       });
     }
   });
