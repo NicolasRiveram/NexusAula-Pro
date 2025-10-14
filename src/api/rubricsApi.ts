@@ -33,6 +33,8 @@ export interface RubricEvaluationResult {
     calificacion_final: number;
     comentarios?: string;
     resultados_json: any;
+    tiempo_lectura_segundos?: number;
+    palabras_por_minuto?: number;
 }
 
 export interface StudentRubricEvaluation {

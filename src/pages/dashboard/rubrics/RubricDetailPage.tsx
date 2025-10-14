@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Download, Loader2, Save, Edit, Trash2 } from 'lucide-react';
-import { fetchRubricById, saveRubricEvaluation, Rubric, deleteRubric } from '@/api/rubricsApi';
+import { fetchRubricById, saveRubricEvaluation, Rubric, deleteRubric, RubricEvaluationResult } from '@/api/rubricsApi';
 import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura, Estudiante } from '@/api/coursesApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from '@/components/ui/switch';
+import ReadingTimer from '@/components/rubrics/ReadingTimer';
 
 const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number => {
   if (puntajeMaximo <= 0) {
@@ -57,6 +59,8 @@ const RubricDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isReadingModuleActive, setIsReadingModuleActive] = useState(false);
+  const [readingData, setReadingData] = useState({ seconds: 0, ppm: 0 });
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -164,7 +168,7 @@ const RubricDetailPage = () => {
     setIsSaving(true);
     const toastId = showLoading("Guardando evaluación...");
     try {
-      await saveRubricEvaluation({
+      const evaluationPayload: RubricEvaluationResult = {
         rubrica_id: rubricId,
         estudiante_perfil_id: selectedEstudianteId,
         curso_asignatura_id: selectedCursoId,
@@ -173,7 +177,14 @@ const RubricDetailPage = () => {
         calificacion_final: calificacionFinal,
         comentarios,
         resultados_json: evaluation,
-      });
+      };
+
+      if (isReadingModuleActive) {
+        evaluationPayload.tiempo_lectura_segundos = readingData.seconds;
+        evaluationPayload.palabras_por_minuto = readingData.ppm;
+      }
+
+      await saveRubricEvaluation(evaluationPayload);
       dismissToast(toastId);
       showSuccess("Evaluación guardada correctamente.");
       
@@ -283,6 +294,30 @@ const RubricDetailPage = () => {
             </Select>
           </CardContent>
         </Card>
+
+        {selectedEstudianteId && (
+          <Card>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="reading-module-switch" className="text-base">
+                  Activar Módulo de Lectura
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Habilita el cronómetro para medir fluidez y palabras por minuto (PPM).
+                </p>
+              </div>
+              <Switch
+                id="reading-module-switch"
+                checked={isReadingModuleActive}
+                onCheckedChange={setIsReadingModuleActive}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {isReadingModuleActive && selectedEstudianteId && (
+          <ReadingTimer onDataChange={setReadingData} />
+        )}
 
         {selectedEstudianteId && !hasCriterios && (
           <Card>
