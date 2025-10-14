@@ -306,14 +306,21 @@ export const fetchUnitPlans = async (docenteId: string, establecimientoId: strin
       )
     `)
     .eq('docente_id', docenteId)
-    .eq('establecimiento_id', establecimientoId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Error al cargar los planes de unidad: ${error.message}`);
   
-  return (data || []).map(plan => ({
+  const filteredPlans = (data || []).filter(plan => 
+    plan.unidad_maestra_curso_asignatura_link.some(
+      (link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
+    )
+  );
+
+  return filteredPlans.map(plan => ({
     ...plan,
-    unidad_maestra_curso_asignatura_link: plan.unidad_maestra_curso_asignatura_link.filter((link: any) => link.curso_asignaturas && link.curso_asignaturas.cursos)
+    unidad_maestra_curso_asignatura_link: plan.unidad_maestra_curso_asignatura_link.filter(
+      (link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
+    )
   })) as any;
 };
 
