@@ -35,6 +35,7 @@ export interface RubricEvaluationResult {
     resultados_json: any;
     tiempo_lectura_segundos?: number;
     palabras_por_minuto?: number;
+    resultados_lectura_json?: any;
 }
 
 export interface StudentRubricEvaluation {

@@ -1,15 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Timer, Play, Pause, RotateCcw } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Timer, Play, Pause, RotateCcw, Mic } from 'lucide-react';
 
-interface ReadingTimerProps {
+interface ReadingEvaluationModuleProps {
   onDataChange: (data: { seconds: number; ppm: number }) => void;
+  onTextChange: (text: string) => void;
+  originalText: string;
+  isDictationActive: boolean;
+  onToggleDictation: () => void;
 }
 
-const ReadingTimer: React.FC<ReadingTimerProps> = ({ onDataChange }) => {
+const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
+  onDataChange,
+  onTextChange,
+  originalText,
+  isDictationActive,
+  onToggleDictation,
+}) => {
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [words, setWords] = useState('');
@@ -38,7 +49,7 @@ const ReadingTimer: React.FC<ReadingTimerProps> = ({ onDataChange }) => {
     return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   };
 
-  const handleToggle = () => {
+  const handleToggleTimer = () => {
     setIsActive(!isActive);
   };
 
@@ -63,12 +74,10 @@ const ReadingTimer: React.FC<ReadingTimerProps> = ({ onDataChange }) => {
   };
 
   useEffect(() => {
-    // Recalculate PPM when words or seconds change, but only if timer is stopped
     if (!isActive) {
       calculatePpm();
     }
   }, [words, seconds, isActive]);
-
 
   return (
     <Card>
@@ -85,7 +94,7 @@ const ReadingTimer: React.FC<ReadingTimerProps> = ({ onDataChange }) => {
           </p>
         </div>
         <div className="flex justify-center gap-2">
-          <Button onClick={handleToggle} variant="outline">
+          <Button onClick={handleToggleTimer} variant="outline">
             {isActive ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
             {isActive ? 'Pausar' : 'Iniciar'}
           </Button>
@@ -111,9 +120,35 @@ const ReadingTimer: React.FC<ReadingTimerProps> = ({ onDataChange }) => {
             <p className="text-2xl font-bold">{ppm}</p>
           </div>
         </div>
+
+        {isDictationActive && (
+          <div className="space-y-4 pt-4 border-t">
+            <div>
+              <Label htmlFor="original-text">Texto Original para Lectura</Label>
+              <Textarea
+                id="original-text"
+                placeholder="Pega o escribe aquí el texto que el estudiante leerá."
+                rows={6}
+                value={originalText}
+                onChange={(e) => onTextChange(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Transcripción en Vivo</Label>
+              <div className="p-4 border rounded-md bg-muted/50 min-h-[100px]">
+                <p className="text-sm text-muted-foreground italic">La transcripción en vivo aparecerá aquí cuando inicies el dictado...</p>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <Button onClick={onToggleDictation}>
+                <Mic className="mr-2 h-4 w-4" /> Iniciar Dictado
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 };
 
-export default ReadingTimer;
+export default ReadingEvaluationModule;

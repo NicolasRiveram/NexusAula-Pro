@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Switch } from '@/components/ui/switch';
-import ReadingTimer from '@/components/rubrics/ReadingTimer';
+import ReadingEvaluationModule from '@/components/rubrics/ReadingEvaluationModule';
 
 const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number => {
   if (puntajeMaximo <= 0) {
@@ -60,6 +60,8 @@ const RubricDetailPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isReadingModuleActive, setIsReadingModuleActive] = useState(false);
+  const [isDictationActive, setIsDictationActive] = useState(false);
+  const [originalText, setOriginalText] = useState('');
   const [readingData, setReadingData] = useState({ seconds: 0, ppm: 0 });
 
   useEffect(() => {
@@ -182,6 +184,7 @@ const RubricDetailPage = () => {
       if (isReadingModuleActive) {
         evaluationPayload.tiempo_lectura_segundos = readingData.seconds;
         evaluationPayload.palabras_por_minuto = readingData.ppm;
+        // TODO: Save dictation results to 'resultados_lectura_json'
       }
 
       await saveRubricEvaluation(evaluationPayload);
@@ -297,26 +300,51 @@ const RubricDetailPage = () => {
 
         {selectedEstudianteId && (
           <Card>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="reading-module-switch" className="text-base">
-                  Activar Módulo de Lectura
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Habilita el cronómetro para medir fluidez y palabras por minuto (PPM).
-                </p>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="reading-module-switch" className="text-base">
+                    Activar Módulo de Lectura
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Habilita el cronómetro para medir fluidez y palabras por minuto (PPM).
+                  </p>
+                </div>
+                <Switch
+                  id="reading-module-switch"
+                  checked={isReadingModuleActive}
+                  onCheckedChange={setIsReadingModuleActive}
+                />
               </div>
-              <Switch
-                id="reading-module-switch"
-                checked={isReadingModuleActive}
-                onCheckedChange={setIsReadingModuleActive}
-              />
+              {isReadingModuleActive && (
+                <div className="flex items-center justify-between pl-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="dictation-switch" className="text-base">
+                      Activar Transcripción en Vivo (Dictado)
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Usa el micrófono para transcribir la lectura y marcar errores.
+                    </p>
+                  </div>
+                  <Switch
+                    id="dictation-switch"
+                    checked={isDictationActive}
+                    onCheckedChange={setIsDictationActive}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
         {isReadingModuleActive && selectedEstudianteId && (
-          <ReadingTimer onDataChange={setReadingData} />
+          <ReadingEvaluationModule
+            onDataChange={setReadingData}
+            onTextChange={setOriginalText}
+            originalText={originalText}
+            isDictationActive={isDictationActive}
+            onToggleDictation={() => alert('La funcionalidad de dictado se activará en el siguiente paso.')}
+          />
         )}
 
         {selectedEstudianteId && !hasCriterios && (
