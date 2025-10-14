@@ -236,7 +236,7 @@ export const saveManualQuestion = async (evaluationId: string, blockId: string, 
   const { data: lastItem, error: lastItemError } = await supabase
     .from('evaluacion_items')
     .select('orden')
-    .eq('evaluation_id', evaluationId)
+    .eq('evaluacion_id', evaluationId)
     .order('orden', { ascending: false })
     .limit(1)
     .single();
@@ -754,7 +754,7 @@ export const saveGeneratedQuestions = async (evaluationId: string, blockId: stri
   const { data: lastItem, error: lastItemError } = await supabase
     .from('evaluacion_items')
     .select('orden')
-    .eq('evaluation_id', evaluationId)
+    .eq('evaluacion_id', evaluationId)
     .order('orden', { ascending: false })
     .limit(1)
     .single();
