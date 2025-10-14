@@ -14,6 +14,10 @@ interface ReadingEvaluationModuleProps {
   onTextChange: (text: string) => void;
   originalText: string;
   isDictationEnabled: boolean;
+  seconds: number;
+  isActive: boolean;
+  onToggleTimer: () => void;
+  onResetTimer: () => void;
 }
 
 const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
@@ -21,30 +25,16 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
   onTextChange,
   originalText,
   isDictationEnabled,
+  seconds,
+  isActive,
+  onToggleTimer,
+  onResetTimer,
 }) => {
-  const [seconds, setSeconds] = useState(0);
-  const [isActive, setIsActive] = useState(false);
   const [words, setWords] = useState('');
   const [ppm, setPpm] = useState(0);
   const [markedErrors, setMarkedErrors] = useState<number[]>([]);
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { transcript, isListening, startListening, stopListening, hasRecognitionSupport } = useSpeechRecognition();
-
-  useEffect(() => {
-    if (isActive) {
-      intervalRef.current = setInterval(() => {
-        setSeconds((prevSeconds) => prevSeconds + 1);
-      }, 1000);
-    } else if (!isActive && intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isActive]);
 
   const formatTime = (timeInSeconds: number) => {
     const minutes = Math.floor(timeInSeconds / 60);
@@ -52,14 +42,9 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
     return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   };
 
-  const handleToggleTimer = () => {
-    setIsActive(!isActive);
-  };
-
   const handleReset = () => {
-    setIsActive(false);
     if (isListening) stopListening();
-    setSeconds(0);
+    onResetTimer();
     setWords('');
     setPpm(0);
     setMarkedErrors([]);
@@ -91,10 +76,12 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
     }
     if (isListening) {
       stopListening();
-      setIsActive(false);
+      onToggleTimer(); // Pauses the timer
     } else {
       startListening();
-      setIsActive(true);
+      if (!isActive) {
+        onToggleTimer(); // Starts the timer
+      }
     }
   };
 
@@ -121,7 +108,7 @@ const ReadingEvaluationModule: React.FC<ReadingEvaluationModuleProps> = ({
           </p>
         </div>
         <div className="flex justify-center gap-2">
-          <Button onClick={handleToggleTimer} variant="outline" disabled={isListening}>
+          <Button onClick={onToggleTimer} variant="outline" disabled={isListening}>
             {isActive ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
             {isActive ? 'Pausar' : 'Iniciar'}
           </Button>

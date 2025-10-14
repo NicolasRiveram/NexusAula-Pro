@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
@@ -54,6 +54,38 @@ const EvaluateRubricPage = () => {
   const [originalText, setOriginalText] = useState('');
   const [readingData, setReadingData] = useState({ seconds: 0, ppm: 0, errors: [] as number[], transcript: '' });
 
+  // --- Timer State and Logic ---
+  const [seconds, setSeconds] = useState(0);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timerStartTimeRef = useRef<number>(0);
+
+  const storageKey = useMemo(() => 
+    selectedRubricId && selectedEstudianteId ? `rubric-draft-${selectedRubricId}-${selectedEstudianteId}` : null,
+    [selectedRubricId, selectedEstudianteId]
+  );
+
+  useEffect(() => {
+    if (isTimerActive) {
+      timerStartTimeRef.current = Date.now() - (seconds * 1000);
+      intervalRef.current = setInterval(() => {
+        setSeconds(Math.floor((Date.now() - timerStartTimeRef.current) / 1000));
+      }, 1000);
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isTimerActive]);
+
+  const handleToggleTimer = () => setIsTimerActive(!isTimerActive);
+  const handleResetTimer = () => {
+    setIsTimerActive(false);
+    setSeconds(0);
+  };
+  // --- End Timer Logic ---
+
   useEffect(() => {
     const loadInitialData = async () => {
       if (!activeEstablishment) return;
@@ -102,33 +134,57 @@ const EvaluateRubricPage = () => {
   }, [selectedRubricId, rubricas]);
 
   useEffect(() => {
-    const storageKey = selectedRubricId && selectedEstudianteId ? `rubric-draft-${selectedRubricId}-${selectedEstudianteId}` : null;
     if (storageKey) {
       const savedDraft = localStorage.getItem(storageKey);
       if (savedDraft) {
         try {
-          const { evaluation: savedEvaluation, comentarios: savedComentarios } = JSON.parse(savedDraft);
-          setEvaluation(savedEvaluation || {});
-          setComentarios(savedComentarios || '');
+          const draft = JSON.parse(savedDraft);
+          setEvaluation(draft.evaluation || {});
+          setComentarios(draft.comentarios || '');
+          setIsReadingModuleActive(draft.isReadingModuleActive || false);
+          setIsDictationEnabled(draft.isDictationEnabled || false);
+          setOriginalText(draft.originalText || '');
+          setReadingData(draft.readingData || { seconds: 0, ppm: 0, errors: [], transcript: '' });
+          
+          // Timer state restoration
+          setSeconds(draft.timer?.seconds || 0);
+          if (draft.timer?.isActive) {
+            timerStartTimeRef.current = draft.timer.startTime;
+            setIsTimerActive(true);
+          } else {
+            setIsTimerActive(false);
+          }
+
         } catch (e) {
           console.error("Failed to parse rubric draft from localStorage", e);
-          setEvaluation({}); setComentarios('');
         }
       } else {
-        setEvaluation({}); setComentarios('');
+        // Reset all state when changing student/rubric
+        setEvaluation({}); setComentarios(''); setIsReadingModuleActive(false); setIsDictationEnabled(false); setOriginalText('');
+        setReadingData({ seconds: 0, ppm: 0, errors: [], transcript: '' });
+        setSeconds(0); setIsTimerActive(false);
       }
-    } else {
-      setEvaluation({}); setComentarios('');
     }
-  }, [selectedEstudianteId, selectedRubricId]);
+  }, [storageKey]);
 
   useEffect(() => {
-    const storageKey = selectedRubricId && selectedEstudianteId ? `rubric-draft-${selectedRubricId}-${selectedEstudianteId}` : null;
     if (storageKey) {
-      const draft = { evaluation, comentarios };
+      const draft = { 
+        evaluation, 
+        comentarios, 
+        isReadingModuleActive, 
+        isDictationEnabled, 
+        originalText, 
+        readingData,
+        timer: {
+          seconds,
+          isActive: isTimerActive,
+          startTime: isTimerActive ? timerStartTimeRef.current : Date.now() - (seconds * 1000)
+        }
+      };
       localStorage.setItem(storageKey, JSON.stringify(draft));
     }
-  }, [evaluation, comentarios, selectedRubricId, selectedEstudianteId]);
+  }, [evaluation, comentarios, isReadingModuleActive, isDictationEnabled, originalText, readingData, seconds, isTimerActive, storageKey]);
 
   const { puntajeTotal, puntajeMaximo } = useMemo(() => {
     const criterios = selectedRubric?.contenido_json?.criterios;
@@ -168,7 +224,7 @@ const EvaluateRubricPage = () => {
       await saveRubricEvaluation(payload);
       dismissToast(toastId);
       showSuccess("Evaluación guardada.");
-      localStorage.removeItem(`rubric-draft-${selectedRubricId}-${selectedEstudianteId}`);
+      if (storageKey) localStorage.removeItem(storageKey);
       setSelectedEstudianteId('');
     } catch (err: any) {
       dismissToast(toastId);
@@ -233,7 +289,18 @@ const EvaluateRubricPage = () => {
             </CardContent>
           </Card>
 
-          {isReadingModuleActive && <ReadingEvaluationModule onDataChange={setReadingData} onTextChange={setOriginalText} originalText={originalText} isDictationEnabled={isDictationEnabled} />}
+          {isReadingModuleActive && (
+            <ReadingEvaluationModule 
+              onDataChange={setReadingData} 
+              onTextChange={setOriginalText} 
+              originalText={originalText} 
+              isDictationEnabled={isDictationEnabled}
+              seconds={seconds}
+              isActive={isTimerActive}
+              onToggleTimer={handleToggleTimer}
+              onResetTimer={handleResetTimer}
+            />
+          )}
 
           {hasCriterios ? (
             <Card>
