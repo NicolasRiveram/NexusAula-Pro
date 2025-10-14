@@ -14,6 +14,11 @@ export interface EstablishmentUser {
   email: string;
   rol_en_establecimiento: string;
   estado: string;
+  stats: {
+    planificaciones: number;
+    evaluaciones: number;
+    rubricas: number;
+  };
 }
 
 export interface Announcement {

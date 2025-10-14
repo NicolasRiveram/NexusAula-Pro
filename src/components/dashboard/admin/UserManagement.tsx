@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { fetchEstablishmentUsers, removeUserFromEstablishment, EstablishmentUser } from '@/api/adminApi';
 import { showError, showSuccess } from '@/utils/toast';
-import { MoreHorizontal, Trash2, UserCog } from 'lucide-react';
+import { MoreHorizontal, Trash2, UserCog, Book, FileText, FileSignature } from 'lucide-react';
 import EditUserRoleDialog from './EditUserRoleDialog';
 
 const UserManagement = () => {
@@ -70,6 +70,9 @@ const UserManagement = () => {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
+                  <TableHead className="text-center">Planificaciones</TableHead>
+                  <TableHead className="text-center">Evaluaciones</TableHead>
+                  <TableHead className="text-center">Rúbricas</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -79,6 +82,24 @@ const UserManagement = () => {
                     <TableCell className="font-medium">{user.nombre_completo}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell className="capitalize">{user.rol_en_establecimiento.replace(/_/g, ' ')}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Book className="h-4 w-4 text-muted-foreground" />
+                        {user.stats?.planificaciones ?? 0}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        {user.stats?.evaluaciones ?? 0}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <FileSignature className="h-4 w-4 text-muted-foreground" />
+                        {user.stats?.rubricas ?? 0}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
