@@ -531,7 +531,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                                 <Input
                                     type="number"
                                     min="1"
-                                    max="20"
+                                    max="10"
                                     value={questionCounts[block.id] || 3}
                                     onChange={(e) => setQuestionCounts(prev => ({ ...prev, [block.id]: parseInt(e.target.value, 10) || 3 }))}
                                     className="w-16 h-9"
