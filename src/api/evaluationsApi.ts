@@ -904,6 +904,35 @@ export const increaseQuestionDifficulty = async (itemId: string) => {
     });
 };
 
+export const decreaseQuestionDifficulty = async (itemId: string) => {
+    const { data: item, error: fetchError } = await supabase
+        .from('evaluacion_items')
+        .select('enunciado, puntaje, habilidad_evaluada, nivel_comprension, item_alternativas(*)')
+        .eq('id', itemId)
+        .single();
+
+    if (fetchError) throw new Error(`Error al obtener la pregunta para modificar: ${fetchError.message}`);
+    if (!item) throw new Error('Pregunta no encontrada.');
+
+    const { data: newData, error } = await supabase.functions.invoke('decrease-question-difficulty', {
+        body: { item }
+    });
+    if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        throw new Error(`Error en la IA para disminuir dificultad: ${errorMessage.error}`);
+    } else if (error) {
+        throw new Error(`Error en la IA para disminuir dificultad: ${error.message}`);
+    }
+
+    await updateEvaluationItem(itemId, {
+        enunciado: newData.enunciado,
+        puntaje: item.puntaje,
+        habilidad_evaluada: item.habilidad_evaluada,
+        nivel_comprension: item.nivel_comprension,
+        alternativas: newData.alternativas,
+    });
+};
+
 export const fetchStudentAndEvaluationInfo = async (responseId: string): Promise<StudentResponseHeader> => {
   const { data, error } = await supabase
     .from('respuestas_estudiante')
