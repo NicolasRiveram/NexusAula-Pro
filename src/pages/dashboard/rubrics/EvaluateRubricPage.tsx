@@ -77,7 +77,7 @@ const EvaluateRubricPage = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isTimerActive]);
+  }, [isTimerActive, seconds]);
 
   const handleToggleTimer = () => setIsTimerActive(!isTimerActive);
   const handleResetTimer = () => {
