@@ -233,16 +233,19 @@ export const fetchSkills = async (): Promise<Skill[]> => {
 export const saveManualQuestion = async (evaluationId: string, blockId: string, questionData: ManualQuestionData) => {
   const { alternativas, ...itemData } = questionData;
 
-  const { count, error: countError } = await supabase
+  const { data: lastItem, error: lastItemError } = await supabase
     .from('evaluacion_items')
-    .select('*', { count: 'exact', head: true })
-    .eq('evaluation_id', evaluationId);
+    .select('orden')
+    .eq('evaluation_id', evaluationId)
+    .order('orden', { ascending: false })
+    .limit(1)
+    .single();
 
-  if (countError) {
-    throw new Error(`Error fetching current question count: ${countError.message}`);
+  if (lastItemError && lastItemError.code !== 'PGRST116') { // Ignore "no rows found" error
+    throw new Error(`Error fetching current question count: ${lastItemError.message}`);
   }
-  
-  const currentItemCount = count ?? 0;
+
+  const currentItemCount = lastItem ? lastItem.orden : 0;
 
   const { data: newItem, error: itemError } = await supabase
     .from('evaluacion_items')
@@ -748,16 +751,19 @@ export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, 
 };
 
 export const saveGeneratedQuestions = async (evaluationId: string, blockId: string, questions: any[]) => {
-  const { count, error: countError } = await supabase
+  const { data: lastItem, error: lastItemError } = await supabase
     .from('evaluacion_items')
-    .select('*', { count: 'exact', head: true })
-    .eq('evaluation_id', evaluationId);
+    .select('orden')
+    .eq('evaluation_id', evaluationId)
+    .order('orden', { ascending: false })
+    .limit(1)
+    .single();
 
-  if (countError) {
-    throw new Error(`Error fetching current question count: ${countError.message}`);
+  if (lastItemError && lastItemError.code !== 'PGRST116') { // Ignore "no rows found" error
+    throw new Error(`Error fetching current question count: ${lastItemError.message}`);
   }
-  
-  const currentItemCount = count ?? 0;
+
+  const currentItemCount = lastItem ? lastItem.orden : 0;
 
   const itemsToInsert = questions.map((q, index) => ({
     evaluacion_id: evaluationId,
