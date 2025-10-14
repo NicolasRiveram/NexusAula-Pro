@@ -8,23 +8,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { fetchCursosAsignaturasDocente, CursoAsignatura, fetchDocenteAsignaturas, Asignatura, fetchNiveles, Nivel } from '@/api/coursesApi';
+import { fetchCursosAsignaturasDocente, CursoAsignatura, fetchDocenteAsignaturas, Asignatura, fetchDocenteNiveles, Nivel } from '@/api/coursesApi';
 import { fetchObjetivosAprendizaje, ObjetivoAprendizaje } from '@/api/evaluationsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2, Sparkles } from 'lucide-react';
+import { CalendarIcon, Loader2, Sparkles, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MultiSelect } from '@/components/MultiSelect';
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import { Badge } from '@/components/ui/badge';
 
 export const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
   tipo: z.string().min(1, "El tipo de evaluación es requerido."),
   momento_evaluativo: z.string().min(1, "El momento evaluativo es requerido."),
-  temario: z.string().min(10, "El temario es requerido para las sugerencias de IA."),
+  habilidades: z.array(z.string()).min(1, "Debes agregar al menos una habilidad."),
   fecha_aplicacion: z.date().optional(),
   asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),
   nivelId: z.string().uuid("Debes seleccionar un nivel."),
@@ -51,9 +52,10 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
   const [objetivos, setObjetivos] = useState<ObjetivoAprendizaje[]>([]);
   const [loadingOAs, setLoadingOAs] = useState(false);
   const [isSuggestingOAs, setIsSuggestingOAs] = useState(false);
+  const [currentSkill, setCurrentSkill] = useState('');
   
   const { errors } = useFormState({ control });
-  const [asignaturaId, nivelId, temario] = useWatch({ control, name: ['asignaturaId', 'nivelId', 'temario'] });
+  const [asignaturaId, nivelId, habilidades] = useWatch({ control, name: ['asignaturaId', 'nivelId', 'habilidades'] });
 
   useEffect(() => {
     const loadData = async () => {
@@ -63,7 +65,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
           try {
             const [asignaturasData, nivelesData, cursosData] = await Promise.all([
               fetchDocenteAsignaturas(user.id),
-              fetchNiveles(),
+              fetchDocenteNiveles(user.id),
               fetchCursosAsignaturasDocente(user.id, activeEstablishment.id)
             ]);
             setAsignaturas(asignaturasData);
@@ -97,9 +99,24 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
     loadOAs();
   }, [nivelId, asignaturaId]);
 
+  const handleAddSkill = () => {
+    if (currentSkill.trim()) {
+      const currentHabilidades = getValues('habilidades') || [];
+      if (!currentHabilidades.includes(currentSkill.trim())) {
+        setValue('habilidades', [...currentHabilidades, currentSkill.trim()], { shouldValidate: true });
+      }
+      setCurrentSkill('');
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    const currentHabilidades = getValues('habilidades') || [];
+    setValue('habilidades', currentHabilidades.filter((s: string) => s !== skillToRemove), { shouldValidate: true });
+  };
+
   const handleSuggestOAs = async () => {
-    if (!nivelId || !asignaturaId || !temario) {
-      showError("Por favor, selecciona nivel, asignatura y escribe un temario para obtener sugerencias.");
+    if (!nivelId || !asignaturaId || !habilidades || habilidades.length === 0) {
+      showError("Por favor, selecciona nivel, asignatura y agrega al menos una habilidad para obtener sugerencias.");
       return;
     }
     
@@ -110,7 +127,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
 
       const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
         headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { nivelId, asignaturaId, tema: temario },
+        body: { nivelId, asignaturaId, tema: habilidades.join(', ') },
       });
 
       if (error instanceof FunctionsHttpError) {
@@ -175,9 +192,28 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="temario">Temario</Label>
-        <Controller name="temario" control={control} render={({ field }) => <Textarea id="temario" placeholder="Describe los temas, conceptos y habilidades que quieres evaluar." {...field} />} />
-        {errors.temario && <p className="text-red-500 text-sm">{errors.temario.message as string}</p>}
+        <Label htmlFor="habilidades">Habilidades a Evaluar</Label>
+        <div className="flex gap-2">
+          <Input
+            id="habilidades"
+            placeholder="Escribe una habilidad y presiona 'Añadir'"
+            value={currentSkill}
+            onChange={(e) => setCurrentSkill(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddSkill(); } }}
+          />
+          <Button type="button" onClick={handleAddSkill}>Añadir Habilidad</Button>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-2 min-h-[24px]">
+          {habilidades?.map((skill: string) => (
+            <Badge key={skill} variant="secondary" className="text-base">
+              {skill}
+              <button type="button" onClick={() => handleRemoveSkill(skill)} className="ml-2 rounded-full hover:bg-destructive/80 p-0.5">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+        {errors.habilidades && <p className="text-red-500 text-sm">{errors.habilidades.message as string}</p>}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
@@ -231,7 +267,7 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
       <div className="space-y-2">
         <div className="flex justify-between items-center mb-1">
           <Label htmlFor="objetivosSugeridos">Objetivos de Aprendizaje (Opcional)</Label>
-          <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs || !temario || !nivelId || !asignaturaId}>
+          <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs || !habilidades || habilidades.length === 0 || !nivelId || !asignaturaId}>
             {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             Sugerir OAs
           </Button>

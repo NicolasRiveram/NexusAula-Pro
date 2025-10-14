@@ -31,7 +31,7 @@ const EvaluationBuilderPage = () => {
   const [evaluationId, setEvaluationId] = useState<string | null>(evaluationIdFromParams || null);
   const [evaluationDetails, setEvaluationDetails] = useState<EvaluationDetail | null>(null);
   const [loadingInitialData, setLoadingInitialData] = useState(isEditMode);
-  const [temario, setTemario] = useState<string>('');
+  const [habilidades, setHabilidades] = useState<string[]>([]);
 
   const { control, handleSubmit, formState: { isSubmitting }, reset, getValues, setValue } = useForm<EvaluationBuilderFormData>({
     resolver: zodResolver(evaluationBuilderSchema),
@@ -43,20 +43,19 @@ const EvaluationBuilderPage = () => {
         try {
           const data = await fetchEvaluationDetails(evaluationId);
           setEvaluationDetails(data);
-          setTemario(data.descripcion || ''); // 'descripcion' is now 'temario'
+          const fetchedHabilidades = data.evaluacion_habilidades.map(eh => eh.habilidades.nombre);
+          setHabilidades(fetchedHabilidades);
           reset({
             titulo: data.titulo,
             tipo: data.tipo,
             momento_evaluativo: data.momento_evaluativo,
-            temario: data.descripcion || '',
+            habilidades: fetchedHabilidades,
             fecha_aplicacion: data.fecha_aplicacion ? parseISO(data.fecha_aplicacion) : undefined,
             cursoAsignaturaIds: data.curso_asignaturas.map((link: any) => link.id),
             objetivos_aprendizaje_ids: data.evaluacion_objetivos.map(eo => eo.oa_id),
             randomizar_preguntas: data.randomizar_preguntas,
             randomizar_alternativas: data.randomizar_alternativas,
             estandar_esperado: data.estandar_esperado || '',
-            // Asignatura y Nivel se infieren de los cursos, pero ahora son campos directos
-            // Necesitamos obtenerlos para popular los selects
             asignaturaId: data.curso_asignaturas[0]?.asignatura.id,
             nivelId: data.curso_asignaturas[0]?.curso.nivel.id,
           });
@@ -78,7 +77,7 @@ const EvaluationBuilderPage = () => {
         titulo: data.titulo,
         tipo: data.tipo,
         momento_evaluativo: data.momento_evaluativo,
-        descripcion: data.temario, // Mapeamos temario a descripción
+        habilidades: data.habilidades,
         fecha_aplicacion: data.fecha_aplicacion ? format(data.fecha_aplicacion, 'yyyy-MM-dd') : null,
         cursoAsignaturaIds: data.cursoAsignaturaIds || [],
         objetivos_aprendizaje_ids: data.objetivos_aprendizaje_ids || [],
@@ -93,7 +92,7 @@ const EvaluationBuilderPage = () => {
         showSuccess("Información general guardada. Ahora añade contenido.");
       }
       
-      setTemario(data.temario || '');
+      setHabilidades(data.habilidades || []);
       dismissToast(toastId);
       setStep(2);
     } catch (error: any) {
@@ -146,7 +145,7 @@ const EvaluationBuilderPage = () => {
         titulo: formData.titulo,
         tipo: formData.tipo,
         momento_evaluativo: formData.momento_evaluativo,
-        descripcion: formData.temario,
+        habilidades: formData.habilidades,
         fecha_aplicacion: formData.fecha_aplicacion ? format(formData.fecha_aplicacion, 'yyyy-MM-dd') : null,
         cursoAsignaturaIds: formData.cursoAsignaturaIds || [],
         randomizar_preguntas: formData.randomizar_preguntas,
@@ -224,7 +223,7 @@ const EvaluationBuilderPage = () => {
               evaluationId={evaluationId} 
               evaluationTitle={getValues('titulo')}
               onNextStep={handleNextFromContent}
-              temario={temario}
+              temario={habilidades.join(', ')}
             />
           ) : step === 3 && evaluationDetails ? (
             <Step3FinalReview control={control} evaluation={evaluationDetails} />

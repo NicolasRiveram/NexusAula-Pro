@@ -414,7 +414,7 @@ export const createEvaluation = async (evalData: CreateEvaluationData & { objeti
   const { cursoAsignaturaIds, objetivos_aprendizaje_ids, habilidades, ...rest } = evalData;
   const { data, error } = await supabase
     .from('evaluaciones')
-    .insert(rest)
+    .insert({ ...rest, descripcion: habilidades?.join(', ') })
     .select('id')
     .single();
 
@@ -469,7 +469,7 @@ export const updateEvaluation = async (evaluationId: string, evalData: CreateEva
   const { cursoAsignaturaIds, objetivos_aprendizaje_ids, habilidades, ...updateData } = evalData;
   const { error: updateError } = await supabase
     .from('evaluaciones')
-    .update(updateData)
+    .update({ ...updateData, descripcion: habilidades?.join(', ') })
     .eq('id', evaluationId);
 
   if (updateError) throw new Error(`Error updating evaluation: ${updateError.message}`);
