@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails, deleteEvaluationItem } from '@/api/evaluationsApi';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy, ChevronDown } from 'lucide-react';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails, deleteEvaluationItem, decreaseQuestionDifficulty } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -20,7 +20,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import AddSyllabusBlockDialog from './AddSyllabusBlockDialog';
-import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Step2ContentBlocksProps {
   evaluationId: string;
@@ -34,13 +34,15 @@ interface QuestionItemProps {
   onAdaptPIE: (itemId: string) => void;
   onEdit: (item: EvaluationItem) => void;
   onIncreaseDifficulty: (itemId: string) => void;
+  onDecreaseDifficulty: (itemId: string) => void;
   onScoreChange: (itemId: string, newScore: number) => void;
   onDelete: (itemId: string) => void;
   isAdapting: boolean;
   isIncreasingDifficulty: boolean;
+  isDecreasingDifficulty: boolean;
 }
 
-const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onScoreChange, onDelete, isAdapting, isIncreasingDifficulty }: QuestionItemProps) => {
+const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onDecreaseDifficulty, onScoreChange, onDelete, isAdapting, isIncreasingDifficulty, isDecreasingDifficulty }: QuestionItemProps) => {
     const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
     const [localScore, setLocalScore] = useState(item.puntaje);
 
@@ -128,6 +130,10 @@ const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onScoreC
                                 {isIncreasingDifficulty ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ChevronUp className="h-3 w-3 mr-1" />}
                                 Subir Dificultad
                             </Button>
+                            <Button variant="ghost" size="sm" onClick={() => onDecreaseDifficulty(item.id)} disabled={isDecreasingDifficulty}>
+                                {isDecreasingDifficulty ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+                                Bajar Dificultad
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie} className={cn(item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600")}>
                                 {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
                                 {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
@@ -161,6 +167,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [generatingForBlock, setGeneratingForBlock] = useState<string | null>(null);
   const [adaptingItemId, setAdaptingItemId] = useState<string | null>(null);
   const [increasingDifficultyId, setIncreasingDifficultyId] = useState<string | null>(null);
+  const [decreasingDifficultyId, setDecreasingDifficultyId] = useState<string | null>(null);
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
   const [isAddSyllabusDialogOpen, setAddSyllabusDialogOpen] = useState(false);
   const [isAddImageDialogOpen, setAddImageDialogOpen] = useState(false);
@@ -341,6 +348,19 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
+  const handleDecreaseDifficulty = async (itemId: string) => {
+    setDecreasingDifficultyId(itemId);
+    try {
+        await decreaseQuestionDifficulty(itemId);
+        showSuccess("Dificultad de la pregunta disminuida.");
+        loadBlocksAndQuestions();
+    } catch (error: any) {
+        showError(`Error al disminuir la dificultad: ${error.message}`);
+    } finally {
+        setDecreasingDifficultyId(null);
+    }
+  };
+
   const handlePlanSelected = async (plan: UnitPlan) => {
     const toastId = showLoading("Creando bloque desde el plan...");
     try {
@@ -423,28 +443,8 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
     }
   };
 
-  const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(temario);
-    showSuccess("Temario copiado al portapapeles.");
-  };
-
   return (
     <div className="space-y-6">
-      <Card className="bg-muted/30">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-lg">Temario de la Evaluación</CardTitle>
-            <CardDescription>Este es el temario que definiste en el paso anterior. Úsalo como referencia.</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
-            <Copy className="h-4 w-4 mr-2" /> Copiar
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Textarea value={temario} readOnly rows={4} className="bg-background" />
-        </CardContent>
-      </Card>
-
       <h3 className="text-lg font-semibold">Bloques de Contenido para "{evaluationTitle}"</h3>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setAddSyllabusDialogOpen(true)}><ClipboardList className="mr-2 h-4 w-4" /> Añadir Temario</Button>
@@ -489,14 +489,23 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                                <Switch
-                                    id={`visibility-${block.id}`}
-                                    checked={block.visible_en_evaluacion}
-                                    onCheckedChange={(checked) => handleVisibilityChange(block.id, checked)}
-                                />
-                                <Label htmlFor={`visibility-${block.id}`} className="text-xs text-muted-foreground">Visible</Label>
-                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                                      <Switch
+                                          id={`visibility-${block.id}`}
+                                          checked={block.visible_en_evaluacion}
+                                          onCheckedChange={(checked) => handleVisibilityChange(block.id, checked)}
+                                      />
+                                      <Label htmlFor={`visibility-${block.id}`} className="text-xs text-muted-foreground">Visible</Label>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Si está activado, el contenido de este bloque será visible para el estudiante.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditBlock(block); }}><Edit className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteBlock(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                             <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
@@ -522,7 +531,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                                 <Input
                                     type="number"
                                     min="1"
-                                    max="5"
+                                    max="20"
                                     value={questionCounts[block.id] || 3}
                                     onChange={(e) => setQuestionCounts(prev => ({ ...prev, [block.id]: parseInt(e.target.value, 10) || 3 }))}
                                     className="w-16 h-9"
@@ -541,10 +550,12 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                                   onAdaptPIE={handleAdaptPIE}
                                   onEdit={setEditingItem}
                                   onIncreaseDifficulty={handleIncreaseDifficulty}
+                                  onDecreaseDifficulty={handleDecreaseDifficulty}
                                   onScoreChange={handleScoreChange}
                                   onDelete={handleDeleteItem}
                                   isAdapting={adaptingItemId === item.id}
                                   isIncreasingDifficulty={increasingDifficultyId === item.id}
+                                  isDecreasingDifficulty={decreasingDifficultyId === item.id}
                               />
                             ))
                           ) : (
