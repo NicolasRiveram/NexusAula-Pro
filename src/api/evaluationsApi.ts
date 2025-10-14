@@ -236,7 +236,7 @@ export const saveManualQuestion = async (evaluationId: string, blockId: string, 
   const { count, error: countError } = await supabase
     .from('evaluacion_items')
     .select('*', { count: 'exact', head: true })
-    .eq('evaluacion_id', evaluationId);
+    .eq('evaluation_id', evaluationId);
 
   if (countError) {
     throw new Error(`Error fetching current question count: ${countError.message}`);
