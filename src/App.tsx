@@ -37,6 +37,7 @@ import { Toaster } from "@/components/ui/toaster";
     import RubricBuilderPage from "./pages/dashboard/rubrics/RubricBuilderPage";
     import EditRubricPage from "./pages/dashboard/rubrics/EditRubricPage";
     import RubricDetailPage from "./pages/dashboard/rubrics/RubricDetailPage";
+    import EvaluateRubricPage from "./pages/dashboard/rubrics/EvaluateRubricPage";
     import AnalyticsPage from "./pages/dashboard/AnalyticsPage";
     import StudentResponseDetailPage from "./pages/dashboard/evaluations/StudentResponseDetailPage";
     import DashboardIndex from "./pages/dashboard/DashboardIndex";
@@ -125,6 +126,8 @@ import { Toaster } from "@/components/ui/toaster";
                         <Route path="rubricas/crear" element={<RubricBuilderPage />} />
                         <Route path="rubricas/editar/:rubricId" element={<EditRubricPage />} />
                         <Route path="rubricas/:rubricId" element={<RubricDetailPage />} />
+                        <Route path="rubricas/evaluar" element={<EvaluateRubricPage />} />
+                        <Route path="rubricas/evaluar/:rubricId" element={<EvaluateRubricPage />} />
                         <Route path="analiticas" element={<AnalyticsPage />} />
                         <Route path="informes" element={<ReportsPage />} />
                         <Route path="informes/generar" element={<GenerateReportPage />} />

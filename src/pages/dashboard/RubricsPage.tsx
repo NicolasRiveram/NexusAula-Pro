@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, FileSignature } from 'lucide-react';
 import { fetchRubrics, Rubric, deleteRubric } from '@/api/rubricsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -88,11 +88,18 @@ const RubricsPage = () => {
             <h1 className="text-3xl font-bold">Banco de Rúbricas</h1>
             <p className="text-muted-foreground">Crea y gestiona tus rúbricas de evaluación.</p>
           </div>
-          <Button asChild disabled={!activeEstablishment}>
-            <Link to="/dashboard/rubricas/crear">
-              <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Rúbrica
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" disabled={!activeEstablishment}>
+              <Link to="/dashboard/rubricas/evaluar">
+                <FileSignature className="mr-2 h-4 w-4" /> Evaluar con Rúbrica
+              </Link>
+            </Button>
+            <Button asChild disabled={!activeEstablishment}>
+              <Link to="/dashboard/rubricas/crear">
+                <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Rúbrica
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {loading ? (
