@@ -79,9 +79,12 @@ const CoursesPage = () => {
   const handleDownloadCredentials = async (cursoAsignatura: CursoAsignatura) => {
     const toastId = showLoading("Generando credenciales...");
     try {
-        const estudiantes = await fetchEstudiantesPorCurso(cursoAsignatura.curso.id);
+        const estudiantes = await queryClient.fetchQuery({
+            queryKey: ['courseStudents', cursoAsignatura.curso.id],
+            queryFn: () => fetchEstudiantesPorCurso(cursoAsignatura.curso.id),
+        });
 
-        if (estudiantes.length === 0) {
+        if (!estudiantes || estudiantes.length === 0) {
             dismissToast(toastId);
             showError("No hay estudiantes en este curso para generar credenciales.");
             return;

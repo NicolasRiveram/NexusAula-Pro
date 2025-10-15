@@ -70,7 +70,7 @@ const CurriculumUploadForm: React.FC<CurriculumUploadFormProps> = ({ niveles, as
       return showLoading("Subiendo archivo y iniciando proceso...");
     },
     onSuccess: (_, __, toastId) => {
-      dismissToast(toastId);
+      if (toastId) dismissToast(toastId);
       showSuccess("Archivo subido. El procesamiento ha comenzado en segundo plano. Verás el estado en la tabla de abajo.");
       reset();
       onUploadSuccess();
