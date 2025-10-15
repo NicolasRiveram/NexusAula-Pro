@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const formatTeacherNameForPrint = (fullName: string | null): string => {
   if (!fullName || fullName.trim() === '') {
@@ -57,6 +59,7 @@ const EvaluationDetailPage = () => {
   const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
   const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
   const [printMode, setPrintMode] = useState<'regular' | 'pie'>('regular');
+  const [showPieVersion, setShowPieVersion] = useState(false);
 
   useEffect(() => {
     if (evaluationId) {
@@ -79,6 +82,10 @@ const EvaluationDetailPage = () => {
         .finally(() => setLoading(false));
     }
   }, [evaluationId]);
+
+  const hasAnyAdaptation = useMemo(() => {
+    return evaluation?.evaluation_content_blocks.some(b => b.evaluacion_items.some(i => i.tiene_adaptacion_pie));
+  }, [evaluation]);
 
   const totalPuntaje = (evaluation?.evaluation_content_blocks || []).reduce((total, block) => {
     const blockTotal = (block.evaluacion_items || []).reduce((subTotal, item) => subTotal + (item.puntaje || 0), 0);
@@ -336,8 +343,22 @@ const EvaluationDetailPage = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Contenido de la Evaluación</CardTitle>
-            <CardDescription>Puntaje Total: {totalPuntaje} puntos</CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Contenido de la Evaluación</CardTitle>
+                <CardDescription>Puntaje Total: {totalPuntaje} puntos</CardDescription>
+              </div>
+              {hasAnyAdaptation && (
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="pie-version-toggle"
+                    checked={showPieVersion}
+                    onCheckedChange={setShowPieVersion}
+                  />
+                  <Label htmlFor="pie-version-toggle">Mostrar Versión Adaptada (PIE)</Label>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-8">
             {(evaluation.evaluation_content_blocks || []).map(block => (
@@ -355,32 +376,30 @@ const EvaluationDetailPage = () => {
                   )}
                 </div>
                 <div className="mt-6 space-y-6">
-                  {block.evaluacion_items.map(item => (
-                    <div key={item.id}>
-                      <div className="flex justify-between items-start">
-                        <p className="font-semibold">{item.orden}. {item.enunciado || ''} ({item.puntaje || 0} pts.)</p>
-                        <Badge variant="outline">{item.puntaje} pts.</Badge>
+                  {block.evaluacion_items.map(item => {
+                    const adaptation = showPieVersion && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
+                    const enunciado = adaptation ? adaptation.enunciado_adaptado : item.enunciado;
+                    const alternativas = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+
+                    return (
+                      <div key={item.id}>
+                        <div className="flex justify-between items-start">
+                          <p className="font-semibold" dangerouslySetInnerHTML={{ __html: `${item.orden}. ${enunciado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}` }} />
+                          <Badge variant="outline">{item.puntaje} pts.</Badge>
+                        </div>
+                        {item.tipo_item === 'seleccion_multiple' && (
+                          <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                            {(alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
+                              <li key={alt.id || index} className={cn("flex items-center", alt.es_correcta && "font-bold text-primary")}>
+                                <span className="mr-2">{String.fromCharCode(97 + index)})</span>
+                                <span>{alt.texto || ''}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
-                      {item.tipo_item === 'seleccion_multiple' && (
-                        <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-                          {(item.item_alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
-                            <li key={alt.id} className={cn("flex items-center", alt.es_correcta && "font-bold")}>
-                              <span className="mr-2">{String.fromCharCode(97 + index)})</span>
-                              <span>{alt.texto || ''}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {item.tiene_adaptacion_pie && item.adaptaciones_pie[0] && (
-                          <div className="mt-3 p-3 border rounded-md bg-blue-50 dark:bg-blue-900/20">
-                              <h5 className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center mb-2">
-                                  <BrainCircuit className="h-4 w-4 mr-2" /> VERSIÓN ADAPTADA (PIE)
-                              </h5>
-                              <p className="text-sm font-medium" dangerouslySetInnerHTML={{ __html: item.adaptaciones_pie[0].enunciado_adaptado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                          </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <Separator className="my-8" />
               </div>
