@@ -139,8 +139,15 @@ const EvaluationDetailPage = () => {
         if (evaluationCopy.randomizar_alternativas) {
           evaluationCopy.evaluation_content_blocks.forEach((block: any) => {
             block.evaluacion_items.forEach((item: any) => {
-              if (item.tipo_item === 'seleccion_multiple' && item.item_alternativas) {
-                item.item_alternativas = seededShuffle(item.item_alternativas, `${formData.seed}-${rowLabel}-${item.id}`);
+              if (item.tipo_item === 'seleccion_multiple') {
+                if (item.item_alternativas) {
+                  const sortedOriginal = [...item.item_alternativas].sort((a, b) => a.orden - b.orden);
+                  item.item_alternativas = seededShuffle(sortedOriginal, `${formData.seed}-${rowLabel}-${item.id}`);
+                }
+                if (item.adaptaciones_pie && item.adaptaciones_pie[0] && item.adaptaciones_pie[0].alternativas_adaptadas) {
+                  const sortedAdapted = [...item.adaptaciones_pie[0].alternativas_adaptadas].sort((a, b) => a.orden - b.orden);
+                  item.adaptaciones_pie[0].alternativas_adaptadas = seededShuffle(sortedAdapted, `${formData.seed}-${rowLabel}-${item.id}`);
+                }
               }
             });
           });
@@ -202,7 +209,8 @@ const EvaluationDetailPage = () => {
 
         allQuestions.forEach(q => {
           if (q.tipo_item === 'seleccion_multiple') {
-            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
+            const sortedAlts = [...q.item_alternativas].sort((a, b) => a.orden - b.orden);
+            const shuffledAlts = seededShuffle(sortedAlts, `${formData.seed}-${rowLabel}-${q.id}`);
             const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
             answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
           }
@@ -380,13 +388,13 @@ const EvaluationDetailPage = () => {
                     const adaptation = showPieVersion && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
                     const enunciado = adaptation ? adaptation.enunciado_adaptado : item.enunciado;
                     const alternativas = adaptation 
-                      ? adaptation.alternativas_adaptadas 
+                      ? (adaptation.alternativas_adaptadas || []).sort((a, b) => a.orden - b.orden)
                       : (item.item_alternativas || []).sort((a, b) => a.orden - b.orden);
 
                     return (
                       <div key={item.id}>
                         <div className="flex justify-between items-start">
-                          <p className="font-semibold" dangerouslySetInnerHTML={{ __html: `${item.orden}. ${enunciado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}` }} />
+                          <p className="font-semibold" dangerouslySetInnerHTML={{ __html: `${item.orden}. ${enunciado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')} (${item.puntaje || 0} pts.)` }} />
                           <Badge variant="outline">{item.puntaje} pts.</Badge>
                         </div>
                         {item.tipo_item === 'seleccion_multiple' && (

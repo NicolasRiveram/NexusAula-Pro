@@ -86,7 +86,7 @@ serve(async (req) => {
         ]
       }
       \`\`\`
-      - El campo 'orden' es crucial y debe ser 1, 2 y 3 para las tres alternativas.
+      - El campo 'orden' es crucial y debe ser un valor numérico secuencial (1, 2, 3) para las tres alternativas.
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
 
       Pregunta original:

@@ -71,7 +71,11 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
 
       allItems.forEach(item => {
         const adaptation = usePieVersion && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
-        const alternativesToUse = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+        let alternativesToUse = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+
+        if (alternativesToUse) {
+          alternativesToUse = [...alternativesToUse].sort((a, b) => a.orden - b.orden);
+        }
 
         if (item.tipo_item === 'seleccion_multiple') {
           const shuffledAlts = seededShuffle(alternativesToUse, `${data.seed}-${rowLabel}-${item.id}`);
