@@ -1,56 +1,52 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse, fetchStudentResponseForEvaluation, getPublicImageUrl } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, submitEvaluationResponse, fetchStudentResponseForEvaluation, getPublicImageUrl } from '@/api/evaluationsApi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle, AlertTriangle, Target } from 'lucide-react';
+import { Loader2, CheckCircle, Target } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
-import { cn } from '@/lib/utils';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const EvaluationTakerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const navigate = useNavigate();
-  const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [existingResponseId, setExistingResponseId] = useState<string | null>(null);
+  const { user } = useAuth();
   const { control, handleSubmit, formState: { isSubmitting } } = useForm();
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!evaluationId) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
+  const { data, isLoading } = useQuery({
+    queryKey: ['evaluationTakerData', evaluationId, user?.id],
+    queryFn: async () => {
+      if (!user) throw new Error("Usuario no autenticado.");
+      const [evalData, existingResponse] = await Promise.all([
+        fetchEvaluationDetails(evaluationId!),
+        fetchStudentResponseForEvaluation(evaluationId!, user.id)
+      ]);
+      return { evaluation: evalData, existingResponseId: existingResponse?.id || null };
+    },
+    enabled: !!evaluationId && !!user,
+    onError: (error: any) => showError(`Error al cargar la evaluación: ${error.message}`),
+  });
 
-      try {
-        const [evalData, existingResponse] = await Promise.all([
-          fetchEvaluationDetails(evaluationId),
-          fetchStudentResponseForEvaluation(evaluationId, user.id)
-        ]);
-        
-        setEvaluation(evalData);
-        if (existingResponse) {
-          setExistingResponseId(existingResponse.id);
-        }
-      } catch (error: any) {
-        showError(`Error al cargar la evaluación: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [evaluationId, navigate]);
+  const { evaluation, existingResponseId } = data || {};
 
-  const onSubmit = async (data: any) => {
-    if (!evaluationId) return;
+  const mutation = useMutation({
+    mutationFn: (answers: { itemId: string; selectedAlternativeId: string }[]) => submitEvaluationResponse(evaluationId!, answers),
+    onSuccess: () => {
+      showSuccess("Evaluación enviada con éxito.");
+      navigate(`/dashboard/evaluacion/${evaluationId}/resultados`);
+    },
+    onError: (error: any) => {
+      showError(`Error al enviar: ${error.message}`);
+    }
+  });
 
-    const answers = Object.entries(data).map(([itemId, selectedAlternativeId]) => ({
+  const onSubmit = (formData: any) => {
+    const answers = Object.entries(formData).map(([itemId, selectedAlternativeId]) => ({
       itemId,
       selectedAlternativeId: selectedAlternativeId as string,
     }));
@@ -59,17 +55,10 @@ const EvaluationTakerPage = () => {
         showError("Debes responder todas las preguntas antes de enviar.");
         return;
     }
-
-    try {
-      await submitEvaluationResponse(evaluationId, answers);
-      showSuccess("Evaluación enviada con éxito.");
-      navigate(`/dashboard/evaluacion/${evaluationId}/resultados`); // Or maybe a student-specific results page later
-    } catch (error: any) {
-      showError(`Error al enviar: ${error.message}`);
-    }
+    mutation.mutate(answers);
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div className="container mx-auto flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 

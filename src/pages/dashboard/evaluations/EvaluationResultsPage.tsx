@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,14 +6,9 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { 
   fetchEvaluationDetails, 
   fetchEvaluationResultsSummary, 
-  EvaluationDetail, 
-  EvaluationResultSummary, 
   fetchEvaluationStatistics, 
-  EvaluationStatistics, 
   fetchItemAnalysis, 
-  ItemAnalysisResult,
-  fetchSkillAnalysisForEvaluation,
-  SkillAnalysisResult
+  fetchSkillAnalysisForEvaluation
 } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,38 +19,42 @@ import { calculateGrade } from '@/utils/evaluationUtils';
 import ScoreDistributionChart from '@/components/evaluations/results/ScoreDistributionChart';
 import ItemAnalysis from '@/components/evaluations/results/ItemAnalysis';
 import SkillPerformanceChart from '@/components/evaluations/results/SkillPerformanceChart';
+import { useQuery } from '@tanstack/react-query';
 
 const EvaluationResultsPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
-  const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
-  const [results, setResults] = useState<EvaluationResultSummary[]>([]);
-  const [stats, setStats] = useState<EvaluationStatistics | null>(null);
-  const [itemAnalysis, setItemAnalysis] = useState<ItemAnalysisResult[]>([]);
-  const [skillAnalysis, setSkillAnalysis] = useState<SkillAnalysisResult[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (evaluationId) {
-      setLoading(true);
-      Promise.all([
-        fetchEvaluationDetails(evaluationId),
-        fetchEvaluationResultsSummary(evaluationId),
-        fetchEvaluationStatistics(evaluationId),
-        fetchItemAnalysis(evaluationId),
-        fetchSkillAnalysisForEvaluation(evaluationId)
-      ]).then(([evalData, resultsData, statsData, analysisData, skillData]) => {
-        setEvaluation(evalData);
-        setResults(resultsData);
-        setStats(statsData);
-        setItemAnalysis(analysisData);
-        setSkillAnalysis(skillData);
-      }).catch(err => {
-        showError(`Error al cargar los resultados: ${err.message}`);
-      }).finally(() => {
-        setLoading(false);
-      });
-    }
-  }, [evaluationId]);
+  const { data: evaluation, isLoading: isLoadingEvaluation } = useQuery({
+    queryKey: ['evaluationDetails', evaluationId],
+    queryFn: () => fetchEvaluationDetails(evaluationId!),
+    enabled: !!evaluationId,
+  });
+
+  const { data: results = [], isLoading: isLoadingResults } = useQuery({
+    queryKey: ['evaluationResults', evaluationId],
+    queryFn: () => fetchEvaluationResultsSummary(evaluationId!),
+    enabled: !!evaluationId,
+  });
+
+  const { data: stats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['evaluationStats', evaluationId],
+    queryFn: () => fetchEvaluationStatistics(evaluationId!),
+    enabled: !!evaluationId,
+  });
+
+  const { data: itemAnalysis = [], isLoading: isLoadingItemAnalysis } = useQuery({
+    queryKey: ['itemAnalysis', evaluationId],
+    queryFn: () => fetchItemAnalysis(evaluationId!),
+    enabled: !!evaluationId,
+  });
+
+  const { data: skillAnalysis = [], isLoading: isLoadingSkillAnalysis } = useQuery({
+    queryKey: ['skillAnalysis', evaluationId],
+    queryFn: () => fetchSkillAnalysisForEvaluation(evaluationId!),
+    enabled: !!evaluationId,
+  });
+
+  const loading = isLoadingEvaluation || isLoadingResults || isLoadingStats || isLoadingItemAnalysis || isLoadingSkillAnalysis;
 
   const puntajeMaximo = useMemo(() => {
     if (!evaluation) return 0;

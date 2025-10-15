@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { useQuery } from '@tanstack/react-query';
 
 const formatTeacherNameForPrint = (fullName: string | null): string => {
   if (!fullName || fullName.trim() === '') {
@@ -50,9 +51,6 @@ const formatTeacherNameForPrint = (fullName: string | null): string => {
 const EvaluationDetailPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const navigate = useNavigate();
-  const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
-  const [teacherName, setTeacherName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -61,27 +59,25 @@ const EvaluationDetailPage = () => {
   const [printMode, setPrintMode] = useState<'regular' | 'pie'>('regular');
   const [showPieVersion, setShowPieVersion] = useState(false);
 
-  useEffect(() => {
-    if (evaluationId) {
-      setLoading(true);
-      fetchEvaluationDetails(evaluationId)
-        .then(async (evalData) => {
-          setEvaluation(evalData);
-          if (evalData.creado_por) {
-            const { data: profileData } = await supabase
-              .from('perfiles')
-              .select('nombre_completo')
-              .eq('id', evalData.creado_por)
-              .single();
-            if (profileData && profileData.nombre_completo) {
-              setTeacherName(profileData.nombre_completo);
-            }
-          }
-        })
-        .catch(err => showError(`Error al cargar la evaluación: ${err.message}`))
-        .finally(() => setLoading(false));
-    }
-  }, [evaluationId]);
+  const { data: evaluation, isLoading: loading } = useQuery({
+    queryKey: ['evaluationDetails', evaluationId],
+    queryFn: () => fetchEvaluationDetails(evaluationId!),
+    enabled: !!evaluationId,
+    onError: (err: any) => showError(`Error al cargar la evaluación: ${err.message}`),
+  });
+
+  const { data: teacherName } = useQuery({
+    queryKey: ['teacherProfile', evaluation?.creado_por],
+    queryFn: async () => {
+      const { data: profileData } = await supabase
+        .from('perfiles')
+        .select('nombre_completo')
+        .eq('id', evaluation!.creado_por)
+        .single();
+      return profileData?.nombre_completo || null;
+    },
+    enabled: !!evaluation?.creado_por,
+  });
 
   const hasAnyAdaptation = useMemo(() => {
     return evaluation?.evaluation_content_blocks.some(b => b.evaluacion_items.some(i => i.tiene_adaptacion_pie));

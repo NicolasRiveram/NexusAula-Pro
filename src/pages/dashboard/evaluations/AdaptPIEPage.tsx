@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,55 +9,43 @@ import { fetchEvaluationDetails, EvaluationDetail, EvaluationItem, generatePIEAd
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const AdaptPIEPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const navigate = useNavigate();
-  const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [adaptingItems, setAdaptingItems] = useState<string[]>([]);
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
   const [modifiedItems, setModifiedItems] = useState<Record<string, any>>({});
-  const [isSaving, setIsSaving] = useState(false);
 
-  const loadEvaluation = useCallback(async () => {
-    if (evaluationId) {
-      try {
-        const data = await fetchEvaluationDetails(evaluationId);
-        setEvaluation(data);
-      } catch (err: any) {
-        showError(`Error al cargar la evaluación: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-  }, [evaluationId]);
+  const { data: evaluation, isLoading: loading, refetch } = useQuery({
+    queryKey: ['evaluationDetailsForPIE', evaluationId],
+    queryFn: () => fetchEvaluationDetails(evaluationId!),
+    enabled: !!evaluationId,
+    onError: (err: any) => showError(`Error al cargar la evaluación: ${err.message}`),
+  });
 
-  useEffect(() => {
-    setLoading(true);
-    loadEvaluation();
-  }, [loadEvaluation]);
-
-  const handleAdaptSelected = async () => {
-    if (selectedItems.length === 0) return;
-
-    setAdaptingItems(selectedItems);
-    const itemsToAdapt = [...selectedItems];
-    setSelectedItems([]);
-    const toastId = showLoading(`Adaptando ${itemsToAdapt.length} pregunta(s)...`);
-
-    try {
-      const adaptationPromises = itemsToAdapt.map(async (itemId) => {
+  const adaptMutation = useMutation({
+    mutationFn: async (itemIds: string[]) => {
+      const adaptationPromises = itemIds.map(async (itemId) => {
         const adaptationDataFromAI = await generatePIEAdaptation(itemId);
         return { itemId, adaptationData: adaptationDataFromAI };
       });
-
-      const results = await Promise.all(adaptationPromises);
-
-      setEvaluation(prevEval => {
-        if (!prevEval) return null;
-        const newEval = JSON.parse(JSON.stringify(prevEval));
+      return await Promise.all(adaptationPromises);
+    },
+    onSuccess: (results) => {
+      const newModifications = results.reduce((acc, { itemId, adaptationData }) => {
+        acc[itemId] = adaptationData;
+        return acc;
+      }, {} as Record<string, any>);
+      setModifiedItems(prev => ({ ...prev, ...newModifications }));
+      
+      // Optimistically update the UI
+      queryClient.setQueryData(['evaluationDetailsForPIE', evaluationId], (oldData: EvaluationDetail | undefined) => {
+        if (!oldData) return oldData;
+        const newEval = JSON.parse(JSON.stringify(oldData));
         results.forEach(({ itemId, adaptationData }) => {
           for (const block of newEval.evaluation_content_blocks) {
             const itemIndex = block.evaluacion_items.findIndex((i: EvaluationItem) => i.id === itemId);
@@ -71,46 +59,44 @@ const AdaptPIEPage = () => {
         return newEval;
       });
 
-      const newModifications = results.reduce((acc, { itemId, adaptationData }) => {
-        acc[itemId] = adaptationData;
-        return acc;
-      }, {} as Record<string, any>);
-
-      setModifiedItems(prev => ({ ...prev, ...newModifications }));
-
-      dismissToast(toastId);
-      showSuccess(`${itemsToAdapt.length} pregunta(s) adaptada(s) localmente. Guarda los cambios para finalizar.`);
-    } catch (error: any) {
-      dismissToast(toastId);
+      showSuccess(`${results.length} pregunta(s) adaptada(s) localmente. Guarda los cambios para finalizar.`);
+      setSelectedItems([]);
+    },
+    onError: (error: any) => {
       showError(`Error durante la adaptación: ${error.message}`);
-    } finally {
-      setAdaptingItems([]);
     }
-  };
+  });
 
-  const handleSaveChanges = async () => {
-    const itemsToSave = Object.keys(modifiedItems);
-    if (itemsToSave.length === 0) {
-      navigate(`/dashboard/evaluacion/${evaluationId}`);
-      return;
-    }
-
-    setIsSaving(true);
-    const toastId = showLoading(`Guardando ${itemsToSave.length} adaptación(es)...`);
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const itemsToSave = Object.keys(modifiedItems);
+      if (itemsToSave.length === 0) return;
       const savePromises = itemsToSave.map(itemId => 
         savePIEAdaptation(itemId, modifiedItems[itemId])
       );
       await Promise.all(savePromises);
-      dismissToast(toastId);
+    },
+    onSuccess: () => {
       showSuccess("Todas las adaptaciones han sido guardadas exitosamente.");
       setModifiedItems({});
       navigate(`/dashboard/evaluacion/${evaluationId}`);
-    } catch (error: any) {
-      dismissToast(toastId);
+    },
+    onError: (error: any) => {
       showError(`Error al guardar los cambios: ${error.message}`);
-    } finally {
-      setIsSaving(false);
+    }
+  });
+
+  const handleAdaptSelected = () => {
+    if (selectedItems.length > 0) {
+      adaptMutation.mutate(selectedItems);
+    }
+  };
+
+  const handleSaveChanges = () => {
+    if (Object.keys(modifiedItems).length > 0) {
+      saveMutation.mutate();
+    } else {
+      navigate(`/dashboard/evaluacion/${evaluationId}`);
     }
   };
 
@@ -132,12 +118,12 @@ const AdaptPIEPage = () => {
           Volver sin Guardar
         </Link>
         <div className="flex gap-2">
-          <Button onClick={handleAdaptSelected} disabled={selectedItems.length === 0 || adaptingItems.length > 0 || isSaving}>
-            {adaptingItems.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          <Button onClick={handleAdaptSelected} disabled={selectedItems.length === 0 || adaptMutation.isPending || saveMutation.isPending}>
+            {adaptMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             Adaptar ({selectedItems.length}) Seleccionada(s)
           </Button>
-          <Button onClick={handleSaveChanges} disabled={isSaving || adaptingItems.length > 0}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          <Button onClick={handleSaveChanges} disabled={saveMutation.isPending || adaptMutation.isPending}>
+            {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Guardar Cambios y Volver
           </Button>
         </div>
@@ -150,7 +136,7 @@ const AdaptPIEPage = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {allItems.map(item => {
-            const isAdapting = adaptingItems.includes(item.id);
+            const isAdapting = adaptMutation.isPending && selectedItems.includes(item.id);
             const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
             const isAdapted = item.tiene_adaptacion_pie && adaptation;
             const isShowingOriginal = showOriginal[item.id];
