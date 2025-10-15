@@ -92,6 +92,12 @@ export interface AllPendingRequest {
   establecimiento_nombre: string;
 }
 
+export const checkAIHealth = async (): Promise<{ status: 'ok' | 'error'; message: string }> => {
+  const { data, error } = await supabase.functions.invoke('ai-health-check');
+  if (error) throw new Error(error.message);
+  return data;
+};
+
 export const fetchAllPendingRequests = async (): Promise<AllPendingRequest[]> => {
   const { data, error } = await supabase.rpc('get_all_pending_requests');
   if (error) throw new Error(`Error fetching all pending requests: ${error.message}`);
