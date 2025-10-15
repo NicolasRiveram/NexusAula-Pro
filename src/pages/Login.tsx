@@ -72,7 +72,7 @@ function Login() {
         <div className="p-8 pt-0">
           <Auth
             supabaseClient={supabase}
-            providers={[]} // Solo email/contraseña por ahora
+            providers={['google']}
             appearance={{
               theme: ThemeSupa,
               variables: {
