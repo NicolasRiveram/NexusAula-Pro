@@ -1,74 +1,65 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb, Calendar } from 'lucide-react';
-import { fetchUnitPlanDetails, updateClassStatus, updateClassDetails, UnitPlanDetail, ScheduledClass, UpdateClassPayload, updateMasterClassDetails } from '@/api/planningApi';
-import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
+import { fetchUnitPlanDetails, updateClassStatus, updateClassDetails, ScheduledClass, UpdateClassPayload, updateMasterClassDetails } from '@/api/planningApi';
+import { showError, showSuccess } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ClassCard from '@/components/planning/ClassCard';
 import ClassDetailDialog from '@/components/planning/ClassDetailDialog';
 import EditClassDialog from '@/components/planning/EditClassDialog';
 import { Button } from '@/components/ui/button';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const UnitPlanDetailPage = () => {
   const { planId } = useParams<{ planId: string }>();
-  const [plan, setPlan] = useState<UnitPlanDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [selectedClass, setSelectedClass] = useState<ScheduledClass | null>(null);
   const [isDetailOpen, setDetailOpen] = useState(false);
   const [isEditOpen, setEditOpen] = useState(false);
 
-  const loadPlan = useCallback(async () => {
-    if (planId) {
-      setLoading(true);
-      fetchUnitPlanDetails(planId)
-        .then(setPlan)
-        .catch(err => showError(`Error al cargar el plan: ${err.message}`))
-        .finally(() => setLoading(false));
-    }
-  }, [planId]);
+  const { data: plan, isLoading: loading } = useQuery({
+    queryKey: ['unitPlanDetails', planId],
+    queryFn: () => fetchUnitPlanDetails(planId!),
+    enabled: !!planId,
+    onError: (err: any) => showError(`Error al cargar el plan: ${err.message}`),
+  });
 
-  useEffect(() => {
-    loadPlan();
-  }, [loadPlan]);
-
-  const handleStatusChange = async (classId: string, newStatus: 'realizada' | 'programada') => {
-    const toastId = showLoading('Actualizando estado...');
-    try {
-      await updateClassStatus(classId, newStatus);
+  const statusMutation = useMutation({
+    mutationFn: ({ classId, newStatus }: { classId: string, newStatus: 'realizada' | 'programada' }) => updateClassStatus(classId, newStatus),
+    onSuccess: () => {
       showSuccess('Estado de la clase actualizado.');
-      loadPlan();
+      queryClient.invalidateQueries({ queryKey: ['unitPlanDetails', planId] });
       setDetailOpen(false);
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      dismissToast(toastId);
-    }
-  };
+    },
+    onError: (error: any) => showError(error.message),
+  });
 
-  const handleSaveEdit = async (classId: string, data: UpdateClassPayload) => {
-    const toastId = showLoading('Guardando cambios...');
-    try {
-      const classToEdit = plan?.clases.find(c => c.id === classId);
-      if (!classToEdit) throw new Error("Clase no encontrada");
-
-      if (classToEdit.estado === 'sin_programar') {
-        await updateMasterClassDetails(classId, data);
-      } else {
-        await updateClassDetails(classId, data);
-      }
-      
+  const saveMutation = useMutation({
+    mutationFn: ({ classId, data, isTemplate }: { classId: string, data: UpdateClassPayload, isTemplate: boolean }) => 
+      isTemplate ? updateMasterClassDetails(classId, data) : updateClassDetails(classId, data),
+    onSuccess: () => {
       showSuccess('Clase actualizada correctamente.');
       setEditOpen(false);
       setDetailOpen(false);
-      loadPlan();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      dismissToast(toastId);
+      queryClient.invalidateQueries({ queryKey: ['unitPlanDetails', planId] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
+
+  const handleStatusChange = (classId: string, newStatus: 'realizada' | 'programada') => {
+    statusMutation.mutate({ classId, newStatus });
+  };
+
+  const handleSaveEdit = (classId: string, data: UpdateClassPayload) => {
+    const classToEdit = plan?.clases.find(c => c.id === classId);
+    if (!classToEdit) {
+      showError("Clase no encontrada");
+      return;
     }
+    saveMutation.mutate({ classId, data, isTemplate: classToEdit.estado === 'sin_programar' });
   };
 
   const handleCardClick = (clase: ScheduledClass) => {
