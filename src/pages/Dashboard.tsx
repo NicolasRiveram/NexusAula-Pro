@@ -1,53 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useOutletContext } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { useTeacherTour } from '@/hooks/useTeacherTour';
 import TeacherTour from '@/components/tour/TeacherTour';
 import TrialBanner from '@/components/layout/TrialBanner';
+import { useAuth } from '@/contexts/AuthContext';
+import FullPageLoader from '@/components/layout/FullPageLoader';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<{ 
-    nombre_completo: string, 
-    rol: string, 
-    subscription_plan?: string,
-    trial_ends_at?: string | null,
-    quick_actions_prefs?: string[],
-    dashboard_widgets_prefs?: { order: string[], visible: Record<string, boolean> }
-  } | null>(null);
+  const { session, profile, loading } = useAuth();
   const { runTour, handleTourEnd } = useTeacherTour(profile?.rol || '');
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data, error } = await supabase
-          .from('perfiles')
-          .select('nombre_completo, rol, subscription_plan, trial_ends_at, quick_actions_prefs, dashboard_widgets_prefs')
-          .eq('id', user.id)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching profile:', error);
-          navigate('/login');
-        } else {
-          setProfile(data);
-        }
-      } else {
+    if (!loading) {
+      if (!session) {
         navigate('/login');
+      } else if (profile && !profile.perfil_completo) {
+        navigate('/configurar-perfil');
       }
-    };
-    fetchProfile();
-  }, [navigate]);
+    }
+  }, [session, profile, loading, navigate]);
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Cargando...
-      </div>
-    );
+  if (loading || !profile) {
+    return <FullPageLoader />;
   }
 
   const isTrial = profile.subscription_plan === 'prueba' && profile.rol !== 'estudiante';

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js';
+import { useAuth } from './AuthContext';
 
 // Tipos para el establecimiento
 export interface Establishment {
@@ -26,10 +26,10 @@ const EstablishmentContext = createContext<EstablishmentContextType | undefined>
 
 interface EstablishmentProviderProps {
   children: ReactNode;
-  session: Session | null;
 }
 
-export const EstablishmentProvider = ({ children, session }: EstablishmentProviderProps) => {
+export const EstablishmentProvider = ({ children }: EstablishmentProviderProps) => {
+  const { session } = useAuth();
   const [activeEstablishment, setActiveEstablishment] = useState<Establishment | null>(null);
   const [userEstablishments, setUserEstablishments] = useState<Establishment[]>([]);
   const [loadingEstablishments, setLoadingEstablishments] = useState(true);

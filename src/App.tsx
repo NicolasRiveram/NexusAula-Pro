@@ -3,12 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useState, useEffect, lazy, Suspense } from "react";
-import { Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { lazy, Suspense } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { EstablishmentProvider } from "./contexts/EstablishmentContext";
 import { DesignProvider } from "./contexts/DesignContext";
+import { AuthProvider } from "./contexts/AuthContext";
 import FullPageLoader from "./components/layout/FullPageLoader";
 
 // Lazy load all page components
@@ -67,26 +66,6 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-    
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) {
-    return <FullPageLoader />;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -94,62 +73,64 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <DesignProvider>
-              <EstablishmentProvider session={session}>
-                <Suspense fallback={<FullPageLoader />}>
-                  <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/start" element={<AppStart />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/configurar-perfil" element={<ProfileSetup />} />
-                    <Route path="/dashboard" element={<Dashboard />}>
-                      <Route index element={<DashboardIndex />} />
-                      <Route path="cursos" element={<CoursesPage />} />
-                      <Route path="cursos/:cursoAsignaturaId" element={<CourseDetailPage />} />
-                      <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
-                      <Route path="evaluacion" element={<EvaluationPage />} />
-                      <Route path="evaluacion/:evaluationId/responder" element={<EvaluationTakerPage />} />
-                      <Route path="proyectos" element={<ProjectsPage />} />
-                      <Route path="proyectos/:projectId" element={<ProjectDetailPage />} />
-                      <Route path="configuracion" element={<SettingsPage />} />
-                      <Route path="horario" element={<SchedulePage />} />
-                      <Route path="planificacion" element={<DidacticPlannerPage />} />
-                      <Route path="planificacion/nueva" element={<NewUnitPlan />} />
-                      <Route path="planificacion/editar/:planId" element={<EditUnitPlanPage />} />
-                      <Route path="planificacion/:planId" element={<UnitPlanDetailPage />} />
-                      <Route path="evaluacion/crear" element={<EvaluationBuilderPage />} />
-                      <Route path="evaluacion/editar/:evaluationId" element={<EvaluationBuilderPage />} />
-                      <Route path="evaluacion/:evaluationId" element={<EvaluationDetailPage />} />
-                      <Route path="evaluacion/:evaluationId/resultados" element={<EvaluationResultsPage />} />
-                      <Route path="evaluacion/:evaluationId/resultados/:responseId" element={<StudentResponseDetailPage />} />
-                      <Route path="evaluacion/:evaluationId/corregir" element={<EvaluationScannerPage />} />
-                      <Route path="evaluacion/adaptar/:evaluationId" element={<AdaptPIEPage />} />
-                      <Route path="rubricas" element={<RubricsPage />} />
-                      <Route path="rubricas/crear" element={<RubricBuilderPage />} />
-                      <Route path="rubricas/editar/:rubricId" element={<EditRubricPage />} />
-                      <Route path="rubricas/:rubricId" element={<RubricDetailPage />} />
-                      <Route path="rubricas/evaluar" element={<EvaluateRubricPage />} />
-                      <Route path="rubricas/evaluar/:rubricId" element={<EvaluateRubricPage />} />
-                      <Route path="analiticas" element={<AnalyticsPage />} />
-                      <Route path="informes" element={<ReportsPage />} />
-                      <Route path="informes/generar" element={<GenerateReportPage />} />
-                      <Route path="informes/:reportId" element={<ViewReportPage />} />
-                      <Route path="bitacora" element={<BitacoraPage />} />
-                      <Route path="mi-horario" element={<StudentSchedulePage />} />
-                      <Route path="mi-progreso" element={<MyProgressPage />} />
-                      <Route path="gestion/cursos" element={<ManageCoursesPage />} />
-                      <Route path="gestion/calendario" element={<ManageCalendarPage />} />
-                      <Route path="gestion/diseno" element={<DesignManagementPage />} />
-                      <Route path="generador-experto" element={<ExpertGeneratorPage />} />
-                      <Route path="payment/success" element={<SuccessPage />} />
-                      <Route path="payment/failure" element={<FailurePage />} />
-                      <Route path="payment/pending" element={<PendingPage />} />
-                    </Route>
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-              </EstablishmentProvider>
-            </DesignProvider>
+            <AuthProvider>
+              <DesignProvider>
+                <EstablishmentProvider>
+                  <Suspense fallback={<FullPageLoader />}>
+                    <Routes>
+                      <Route path="/" element={<LandingPage />} />
+                      <Route path="/start" element={<AppStart />} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/configurar-perfil" element={<ProfileSetup />} />
+                      <Route path="/dashboard" element={<Dashboard />}>
+                        <Route index element={<DashboardIndex />} />
+                        <Route path="cursos" element={<CoursesPage />} />
+                        <Route path="cursos/:cursoAsignaturaId" element={<CourseDetailPage />} />
+                        <Route path="estudiante/:studentId" element={<StudentDetailPage />} />
+                        <Route path="evaluacion" element={<EvaluationPage />} />
+                        <Route path="evaluacion/:evaluationId/responder" element={<EvaluationTakerPage />} />
+                        <Route path="proyectos" element={<ProjectsPage />} />
+                        <Route path="proyectos/:projectId" element={<ProjectDetailPage />} />
+                        <Route path="configuracion" element={<SettingsPage />} />
+                        <Route path="horario" element={<SchedulePage />} />
+                        <Route path="planificacion" element={<DidacticPlannerPage />} />
+                        <Route path="planificacion/nueva" element={<NewUnitPlan />} />
+                        <Route path="planificacion/editar/:planId" element={<EditUnitPlanPage />} />
+                        <Route path="planificacion/:planId" element={<UnitPlanDetailPage />} />
+                        <Route path="evaluacion/crear" element={<EvaluationBuilderPage />} />
+                        <Route path="evaluacion/editar/:evaluationId" element={<EvaluationBuilderPage />} />
+                        <Route path="evaluacion/:evaluationId" element={<EvaluationDetailPage />} />
+                        <Route path="evaluacion/:evaluationId/resultados" element={<EvaluationResultsPage />} />
+                        <Route path="evaluacion/:evaluationId/resultados/:responseId" element={<StudentResponseDetailPage />} />
+                        <Route path="evaluacion/:evaluationId/corregir" element={<EvaluationScannerPage />} />
+                        <Route path="evaluacion/adaptar/:evaluationId" element={<AdaptPIEPage />} />
+                        <Route path="rubricas" element={<RubricsPage />} />
+                        <Route path="rubricas/crear" element={<RubricBuilderPage />} />
+                        <Route path="rubricas/editar/:rubricId" element={<EditRubricPage />} />
+                        <Route path="rubricas/:rubricId" element={<RubricDetailPage />} />
+                        <Route path="rubricas/evaluar" element={<EvaluateRubricPage />} />
+                        <Route path="rubricas/evaluar/:rubricId" element={<EvaluateRubricPage />} />
+                        <Route path="analiticas" element={<AnalyticsPage />} />
+                        <Route path="informes" element={<ReportsPage />} />
+                        <Route path="informes/generar" element={<GenerateReportPage />} />
+                        <Route path="informes/:reportId" element={<ViewReportPage />} />
+                        <Route path="bitacora" element={<BitacoraPage />} />
+                        <Route path="mi-horario" element={<StudentSchedulePage />} />
+                        <Route path="mi-progreso" element={<MyProgressPage />} />
+                        <Route path="gestion/cursos" element={<ManageCoursesPage />} />
+                        <Route path="gestion/calendario" element={<ManageCalendarPage />} />
+                        <Route path="gestion/diseno" element={<DesignManagementPage />} />
+                        <Route path="generador-experto" element={<ExpertGeneratorPage />} />
+                        <Route path="payment/success" element={<SuccessPage />} />
+                        <Route path="payment/failure" element={<FailurePage />} />
+                        <Route path="payment/pending" element={<PendingPage />} />
+                      </Route>
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </EstablishmentProvider>
+              </DesignProvider>
+            </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
       </ThemeProvider>

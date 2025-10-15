@@ -4,57 +4,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDesign } from '@/contexts/DesignContext';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 function Login() {
   const { settings } = useDesign();
   const navigate = useNavigate();
+  const { session, profile, loading } = useAuth();
   const backgroundImageUrl = settings['login_background_url'];
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('perfiles')
-          .select('perfil_completo')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error("Error fetching profile after login:", profileError);
-          // Stay on login page on error, user can retry.
-        } else if (profileData?.perfil_completo) {
-          navigate('/dashboard');
-        } else {
-          navigate('/configurar-perfil');
-        }
+    if (!loading && session && profile) {
+      if (profile.perfil_completo) {
+        navigate('/dashboard');
+      } else {
+        navigate('/configurar-perfil');
       }
-    });
-
-    // Also check if user is already logged in when visiting /login
-    const checkInitialSession = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            const { data: profileData, error: profileError } = await supabase
-              .from('perfiles')
-              .select('perfil_completo')
-              .eq('id', session.user.id)
-              .single();
-
-            if (profileError && profileError.code !== 'PGRST116') {
-              // Do nothing, let them try to log in again.
-            } else if (profileData?.perfil_completo) {
-              navigate('/dashboard');
-            } else if (profileData) {
-              navigate('/configurar-perfil');
-            }
-        }
-    };
-    checkInitialSession();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
+    }
+  }, [session, profile, loading, navigate]);
 
   const backgroundStyle = backgroundImageUrl
     ? { backgroundImage: `url(${backgroundImageUrl})` }
