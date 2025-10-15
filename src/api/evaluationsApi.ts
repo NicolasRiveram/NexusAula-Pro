@@ -826,17 +826,8 @@ export const fetchItemsForBlock = async (blockId: string): Promise<EvaluationIte
 };
 
 export const generatePIEAdaptation = async (itemId: string) => {
-    const { data: item, error: fetchError } = await supabase
-        .from('evaluacion_items')
-        .select('enunciado, item_alternativas(*)')
-        .eq('id', itemId)
-        .single();
-
-    if (fetchError) throw new Error(`Error al obtener la pregunta para adaptar: ${fetchError.message}`);
-    if (!item) throw new Error('Pregunta no encontrada.');
-
     const { data, error } = await supabase.functions.invoke('adapt-question-pie', {
-        body: { item }
+        body: { itemId }
     });
     if (error instanceof FunctionsHttpError) {
         const errorMessage = await error.context.json();

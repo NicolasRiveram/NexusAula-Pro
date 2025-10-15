@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,23 +37,42 @@ serve(async (req) => {
   }
 
   try {
+    const { itemId } = await req.json();
+    if (!itemId) {
+      throw new Error("El ID del ítem (itemId) es requerido.");
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: item, error: fetchError } = await supabaseAdmin
+      .from('evaluacion_items')
+      .select('enunciado, item_alternativas(*)')
+      .eq('id', itemId)
+      .single();
+
+    if (fetchError) throw new Error(`Error al obtener la pregunta para adaptar: ${fetchError.message}`);
+    if (!item) throw new Error('Pregunta no encontrada.');
+
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
       throw new Error("La clave de API de Gemini no está configurada.");
     }
-
-    const { item } = await req.json();
     
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
     const prompt = `
-      Eres un asistente experto en adaptaciones curriculares para el Programa de Integración Escolar (PIE) de Chile.
-      Tu tarea es adaptar una pregunta de selección múltiple para hacerla más accesible.
-      Aplica las siguientes reglas estrictas:
-      1.  **Simplifica el lenguaje** del enunciado para que sea más directo y fácil de comprender.
-      2.  **Resalta palabras clave** en el enunciado usando markdown bold (**palabra**).
-      3.  **Reduce el número de alternativas de 4 a 3**, eliminando el distractor menos plausible o más confuso.
-      4.  **Simplifica el texto** de las 3 alternativas restantes.
+      Eres un experto psicopedagogo y especialista en diseño de evaluaciones para el Programa de Integración Escolar (PIE) de Chile.
+      Tu tarea es adaptar una pregunta de selección múltiple para hacerla más accesible, clara y directa para estudiantes con necesidades de apoyo.
+      Aplica las siguientes reglas estrictas e inquebrantables:
+      1.  **Simplifica el Enunciado:** Reformula la pregunta usando un lenguaje más simple y directo, eliminando ambigüedades.
+      2.  **Resalta Palabras Clave:** Identifica y marca en negrita (usando markdown bold, por ejemplo **palabra**) los conceptos o palabras más importantes dentro del nuevo enunciado para enfocar la atención del estudiante.
+      3.  **Reduce Alternativas:** Analiza las alternativas originales y elimina la que sea menos plausible o más confusa, dejando solo 3 opciones en total.
+      4.  **Mantén la Coherencia:** La alternativa que era correcta originalmente debe seguir siendo la correcta entre las 3 restantes.
+      5.  **Simplifica Alternativas:** Reescribe el texto de las 3 alternativas finales para que sean más cortas y fáciles de entender.
       
       Devuelve un objeto JSON con la siguiente estructura:
       \`\`\`json
@@ -65,7 +85,6 @@ serve(async (req) => {
         ]
       }
       \`\`\`
-      - Asegúrate de que la alternativa correcta original siga siendo la correcta entre las 3 restantes.
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
 
       Pregunta original:
