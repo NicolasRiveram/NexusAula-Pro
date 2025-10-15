@@ -6,9 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from '@/components/ui/label';
 import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
@@ -35,6 +32,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import PrintEvaluationDialog, { PrintFormData } from '@/components/evaluations/printable/PrintEvaluationDialog';
 import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -42,57 +41,65 @@ interface DashboardContext {
 
 const EvaluationPage = () => {
   const navigate = useNavigate();
-  const [teacherEvaluations, setTeacherEvaluations] = useState<Evaluation[]>([]);
-  const [studentEvaluations, setStudentEvaluations] = useState<StudentEvaluation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const { activeEstablishment } = useEstablishment();
   const { profile } = useOutletContext<DashboardContext>();
+  const { user } = useAuth();
   const isStudent = profile.rol === 'estudiante';
 
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [evaluationToPrint, setEvaluationToPrint] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-
   const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
   const [evaluationForAnswerSheet, setEvaluationForAnswerSheet] = useState<string | null>(null);
-
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [evaluationToDelete, setEvaluationToDelete] = useState<Evaluation | null>(null);
-
   const [selectedEvaluations, setSelectedEvaluations] = useState<string[]>([]);
   const [isBulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  
   const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
   const [evaluationForAnswerKey, setEvaluationForAnswerKey] = useState<string | null>(null);
 
-  const loadEvaluations = async () => {
-    if (!activeEstablishment) {
-      setTeacherEvaluations([]);
-      setStudentEvaluations([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      try {
-        if (isStudent) {
-          const data = await fetchStudentEvaluations(user.id, activeEstablishment.id);
-          setStudentEvaluations(data);
-        } else {
-          const data = await fetchEvaluations(user.id, activeEstablishment.id);
-          setTeacherEvaluations(data);
-        }
-      } catch (err: any) {
-        showError(`Error al cargar evaluaciones: ${err.message}`);
+  const { data: evaluationsData, isLoading: loading } = useQuery({
+    queryKey: ['evaluations', user?.id, activeEstablishment?.id, isStudent],
+    queryFn: async () => {
+      if (isStudent) {
+        return await fetchStudentEvaluations(user!.id, activeEstablishment!.id);
+      } else {
+        return await fetchEvaluations(user!.id, activeEstablishment!.id);
       }
-    }
-    setLoading(false);
-  };
+    },
+    enabled: !!user && !!activeEstablishment,
+  });
 
-  useEffect(() => {
-    loadEvaluations();
-  }, [activeEstablishment, isStudent]);
+  const teacherEvaluations = !isStudent ? (evaluationsData as Evaluation[]) || [] : [];
+  const studentEvaluations = isStudent ? (evaluationsData as StudentEvaluation[]) || [] : [];
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteEvaluation,
+    onSuccess: (_, deletedId) => {
+      const deletedEval = teacherEvaluations.find(e => e.id === deletedId);
+      showSuccess(`Evaluación "${deletedEval?.titulo}" eliminada.`);
+      queryClient.invalidateQueries({ queryKey: ['evaluations', user?.id, activeEstablishment?.id, isStudent] });
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => {
+      setDeleteDialogOpen(false);
+      setEvaluationToDelete(null);
+    }
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: deleteMultipleEvaluations,
+    onSuccess: (_, deletedIds) => {
+      showSuccess(`${deletedIds.length} evaluaciones eliminadas.`);
+      setSelectedEvaluations([]);
+      queryClient.invalidateQueries({ queryKey: ['evaluations', user?.id, activeEstablishment?.id, isStudent] });
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => {
+      setBulkDeleteDialogOpen(false);
+    }
+  });
 
   const handleSelectionChange = (evaluationId: string, isSelected: boolean) => {
     setSelectedEvaluations(prev => 
@@ -292,35 +299,15 @@ const EvaluationPage = () => {
     setDeleteDialogOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!evaluationToDelete) return;
-    const toastId = showLoading("Eliminando evaluación...");
-    try {
-      await deleteEvaluation(evaluationToDelete.id);
-      showSuccess(`Evaluación "${evaluationToDelete.titulo}" eliminada.`);
-      loadEvaluations();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      dismissToast(toastId);
-      setDeleteDialogOpen(false);
-      setEvaluationToDelete(null);
+  const confirmDelete = () => {
+    if (evaluationToDelete) {
+      deleteMutation.mutate(evaluationToDelete.id);
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedEvaluations.length === 0) return;
-    const toastId = showLoading(`Eliminando ${selectedEvaluations.length} evaluaciones...`);
-    try {
-      await deleteMultipleEvaluations(selectedEvaluations);
-      showSuccess(`${selectedEvaluations.length} evaluaciones eliminadas.`);
-      setSelectedEvaluations([]);
-      loadEvaluations();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      dismissToast(toastId);
-      setBulkDeleteDialogOpen(false);
+  const handleBulkDelete = () => {
+    if (selectedEvaluations.length > 0) {
+      bulkDeleteMutation.mutate(selectedEvaluations);
     }
   };
 
@@ -457,27 +444,27 @@ const EvaluationPage = () => {
 
     return (
       <>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold">Banco de Evaluaciones</h1>
             <p className="text-muted-foreground">Crea, gestiona y comparte tus instrumentos de evaluación.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full md:w-auto">
             {selectedEvaluations.length > 0 ? (
-              <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)}>
+              <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)} className="w-full">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar ({selectedEvaluations.length})
               </Button>
             ) : (
               <>
-                <Button asChild variant="outline" disabled={!activeEstablishment}>
+                <Button asChild variant="outline" disabled={!activeEstablishment} className="w-1/2">
                   <Link to="/dashboard/rubricas/crear">
                     <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
                   </Link>
                 </Button>
-                <Button asChild disabled={!activeEstablishment}>
+                <Button asChild disabled={!activeEstablishment} className="w-1/2">
                   <Link to="/dashboard/evaluacion/crear">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Evaluación
+                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Evaluación
                   </Link>
                 </Button>
               </>
@@ -598,7 +585,7 @@ const EvaluationPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
+            <AlertDialogAction onClick={confirmDelete}>
               Sí, eliminar evaluación
             </AlertDialogAction>
           </AlertDialogFooter>
