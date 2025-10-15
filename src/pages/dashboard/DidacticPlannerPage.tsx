@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, MoreVertical, Eye, Pencil, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -63,39 +63,41 @@ const DidacticPlannerPage = () => {
     }
   };
 
-  const groupedPlans = unitPlans.reduce((acc, plan) => {
-    const levels = new Set<string>();
-    plan.unidad_maestra_curso_asignatura_link.forEach(link => {
-      if (link.curso_asignaturas?.cursos?.niveles?.nombre) {
-        levels.add(link.curso_asignaturas.cursos.niveles.nombre);
-      }
-    });
-
-    if (levels.size === 0) {
-        const key = 'Plantillas sin Asignar';
-        if (!acc[key]) acc[key] = [];
-        if (!acc[key].some(p => p.id === plan.id)) {
-            acc[key].push(plan);
+  const groupedPlans = useMemo(() => {
+    return unitPlans.reduce((acc, plan) => {
+      const levels = new Set<string>();
+      plan.unidad_maestra_curso_asignatura_link.forEach(link => {
+        if (link.curso_asignaturas?.cursos?.niveles?.nombre) {
+          levels.add(link.curso_asignaturas.cursos.niveles.nombre);
         }
-    } else {
-        levels.forEach(levelName => {
-            if (!acc[levelName]) {
-                acc[levelName] = [];
-            }
-            if (!acc[levelName].some(p => p.id === plan.id)) {
-                acc[levelName].push(plan);
-            }
-        });
-    }
+      });
 
-    return acc;
-  }, {} as Record<string, UnitPlan[]>);
+      if (levels.size === 0) {
+          const key = 'Plantillas sin Asignar';
+          if (!acc[key]) acc[key] = [];
+          if (!acc[key].some(p => p.id === plan.id)) {
+              acc[key].push(plan);
+          }
+      } else {
+          levels.forEach(levelName => {
+              if (!acc[levelName]) {
+                  acc[levelName] = [];
+              }
+              if (!acc[levelName].some(p => p.id === plan.id)) {
+                  acc[levelName].push(plan);
+              }
+          });
+      }
 
-  const sortedLevels = Object.keys(groupedPlans).sort((a, b) => {
+      return acc;
+    }, {} as Record<string, UnitPlan[]>);
+  }, [unitPlans]);
+
+  const sortedLevels = useMemo(() => Object.keys(groupedPlans).sort((a, b) => {
     if (a === 'Plantillas sin Asignar') return 1;
     if (b === 'Plantillas sin Asignar') return -1;
     return a.localeCompare(b);
-  });
+  }), [groupedPlans]);
 
   return (
     <>
