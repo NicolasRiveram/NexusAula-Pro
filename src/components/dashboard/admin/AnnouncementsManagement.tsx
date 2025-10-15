@@ -11,6 +11,16 @@ import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
 import { format, parseISO, isWithinInterval, isFuture, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
 import AnnouncementEditDialog from './AnnouncementEditDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const AnnouncementsManagement = () => {
   const { activeEstablishment } = useEstablishment();
@@ -18,6 +28,8 @@ const AnnouncementsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [isAlertOpen, setAlertOpen] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<Announcement | null>(null);
 
   const loadAnnouncements = async () => {
     if (!activeEstablishment) {
@@ -61,14 +73,22 @@ const AnnouncementsManagement = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (announcement: Announcement) => {
-    if (!window.confirm(`¿Estás seguro de que quieres eliminar el anuncio "${announcement.titulo}"?`)) return;
+  const handleDelete = (announcement: Announcement) => {
+    setAnnouncementToDelete(announcement);
+    setAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!announcementToDelete) return;
     try {
-      await deleteAnnouncement(announcement.id);
+      await deleteAnnouncement(announcementToDelete.id);
       showSuccess("Anuncio eliminado.");
       loadAnnouncements();
     } catch (error: any) {
       showError(error.message);
+    } finally {
+      setAlertOpen(false);
+      setAnnouncementToDelete(null);
     }
   };
 
@@ -134,6 +154,20 @@ const AnnouncementsManagement = () => {
         onSaved={loadAnnouncements}
         announcement={selectedAnnouncement}
       />
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el anuncio "{announcementToDelete?.titulo}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

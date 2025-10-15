@@ -34,6 +34,8 @@ import WidgetCard from '@/components/dashboard/teacher/WidgetCard';
 import { useOutletContext } from 'react-router-dom';
 import { updateDashboardWidgetsPrefs } from '@/api/settingsApi';
 import { showError } from '@/utils/toast';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardContext {
   profile: {
@@ -49,6 +51,15 @@ const TeacherDashboard = () => {
   const { activeEstablishment } = useEstablishment();
   const { profile } = useOutletContext<DashboardContext>();
   const [widgetPrefs, setWidgetPrefs] = useState(profile?.dashboard_widgets_prefs);
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
+
+  useEffect(() => {
+    if (profile?.dashboard_widgets_prefs) {
+      setWidgetPrefs(profile.dashboard_widgets_prefs);
+    }
+    // We set loading to false even if prefs are missing, to show the default layout
+    setLoadingPrefs(false);
+  }, [profile]);
 
   const { data: user } = useQuery({
     queryKey: ['user'],
@@ -100,6 +111,20 @@ const TeacherDashboard = () => {
     proyectos_activos: { title: 'Proyectos Activos', description: 'Tus proyectos ABP en curso.', component: <ActiveProjectsWidget />, className: 'lg:col-span-1' },
   };
 
+  if (loadingPrefs) {
+    return (
+      <div className="container mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-24 lg:col-span-3" />
+          <Skeleton className="h-96 lg:col-span-2" />
+          <Skeleton className="h-96 lg:col-span-1" />
+          <Skeleton className="h-80 lg:col-span-1" />
+          <Skeleton className="h-80 lg:col-span-2" />
+        </div>
+      </div>
+    );
+  }
+
   const visibleWidgets = widgetPrefs ? widgetPrefs.order.filter(id => widgetPrefs.visible[id]) : [];
 
   return (
@@ -111,9 +136,11 @@ const TeacherDashboard = () => {
               const widget = widgetComponents[widgetId];
               if (!widget) return null;
               return (
-                <WidgetCard key={widgetId} id={widgetId} title={widget.title} description={widget.description} className={widget.className}>
-                  {widget.component}
-                </WidgetCard>
+                <ErrorBoundary key={widgetId} fallbackMessage={`No se pudo cargar el widget "${widget.title}".`}>
+                  <WidgetCard id={widgetId} title={widget.title} description={widget.description} className={widget.className}>
+                    {widget.component}
+                  </WidgetCard>
+                </ErrorBoundary>
               );
             })}
           </div>

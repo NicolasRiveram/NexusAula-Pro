@@ -13,6 +13,16 @@ import JoinProjectDialog from '@/components/projects/JoinProjectDialog';
 import LinkUnitDialog from '@/components/projects/LinkUnitDialog';
 import StageEditDialog from '@/components/projects/StageEditDialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface DashboardContext {
   profile: { rol: string };
@@ -29,6 +39,8 @@ const ProjectDetailPage = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { profile } = useOutletContext<DashboardContext>();
   const isStudent = profile.rol === 'estudiante';
+  const [isAlertOpen, setAlertOpen] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
     const getUserId = async () => {
@@ -52,32 +64,50 @@ const ProjectDetailPage = () => {
     loadProject();
   }, [loadProject]);
 
-  const handleUnlinkCourse = async (cursoAsignaturaId: string) => {
-    if (!projectId || !window.confirm("¿Estás seguro de que quieres desvincular este curso del proyecto?")) return;
-    const toastId = showLoading("Desvinculando curso...");
-    try {
-        await unlinkCourseFromProject(projectId, cursoAsignaturaId);
-        dismissToast(toastId);
-        showSuccess("Curso desvinculado.");
-        loadProject();
-    } catch (error: any) {
-        dismissToast(toastId);
-        showError(error.message);
-    }
+  const handleUnlinkCourse = (cursoAsignaturaId: string, cursoNombre: string) => {
+    setAlertConfig({
+      title: `¿Desvincular "${cursoNombre}"?`,
+      description: "Esta acción desvinculará el curso de este proyecto, pero no eliminará el curso en sí.",
+      onConfirm: async () => {
+        if (!projectId) return;
+        const toastId = showLoading("Desvinculando curso...");
+        try {
+          await unlinkCourseFromProject(projectId, cursoAsignaturaId);
+          dismissToast(toastId);
+          showSuccess("Curso desvinculado.");
+          loadProject();
+        } catch (error: any) {
+          dismissToast(toastId);
+          showError(error.message);
+        } finally {
+          setAlertOpen(false);
+        }
+      }
+    });
+    setAlertOpen(true);
   };
 
-  const handleUnlinkUnit = async (unidadId: string) => {
-    if (!projectId || !window.confirm("¿Estás seguro de que quieres desvincular esta unidad del proyecto?")) return;
-    const toastId = showLoading("Desvinculando unidad...");
-    try {
-        await unlinkUnitFromProject(projectId, unidadId);
-        dismissToast(toastId);
-        showSuccess("Unidad desvinculada.");
-        loadProject();
-    } catch (error: any) {
-        dismissToast(toastId);
-        showError(error.message);
-    }
+  const handleUnlinkUnit = (unidadId: string, unidadNombre: string) => {
+    setAlertConfig({
+      title: `¿Desvincular la unidad "${unidadNombre}"?`,
+      description: "Esta acción desvinculará la unidad de este proyecto, pero no eliminará la unidad en sí.",
+      onConfirm: async () => {
+        if (!projectId) return;
+        const toastId = showLoading("Desvinculando unidad...");
+        try {
+          await unlinkUnitFromProject(projectId, unidadId);
+          dismissToast(toastId);
+          showSuccess("Unidad desvinculada.");
+          loadProject();
+        } catch (error: any) {
+          dismissToast(toastId);
+          showError(error.message);
+        } finally {
+          setAlertOpen(false);
+        }
+      }
+    });
+    setAlertOpen(true);
   };
 
   const handleAddStage = () => {
@@ -90,15 +120,23 @@ const ProjectDetailPage = () => {
     setStageDialogOpen(true);
   };
 
-  const handleDeleteStage = async (stage: ProjectStage) => {
-    if (!window.confirm(`¿Seguro que quieres eliminar la etapa "${stage.nombre}"?`)) return;
-    try {
-      await deleteStage(stage.id);
-      showSuccess("Etapa eliminada.");
-      loadProject();
-    } catch (error: any) {
-      showError(error.message);
-    }
+  const handleDeleteStage = (stage: ProjectStage) => {
+    setAlertConfig({
+      title: `¿Eliminar la etapa "${stage.nombre}"?`,
+      description: "Esta acción no se puede deshacer y eliminará permanentemente la etapa del proyecto.",
+      onConfirm: async () => {
+        try {
+          await deleteStage(stage.id);
+          showSuccess("Etapa eliminada.");
+          loadProject();
+        } catch (error: any) {
+          showError(error.message);
+        } finally {
+          setAlertOpen(false);
+        }
+      }
+    });
+    setAlertOpen(true);
   };
 
   const handleToggleStageStatus = async (stage: ProjectStage) => {
@@ -182,7 +220,7 @@ const ProjectDetailPage = () => {
                       <p className="text-xs text-muted-foreground">{link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}</p>
                     </div>
                     {isCourseOwner && !isStudent && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkCourse(link.curso_asignaturas.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkCourse(link.curso_asignaturas.id, `${link.curso_asignaturas.cursos.niveles.nombre} ${link.curso_asignaturas.cursos.nombre}`)}>
                             <LogOut className="h-4 w-4 text-destructive" />
                         </Button>
                     )}
@@ -239,7 +277,7 @@ const ProjectDetailPage = () => {
                                             <p className="text-sm text-muted-foreground">{link.unidades.curso_asignaturas.cursos.niveles.nombre} {link.unidades.curso_asignaturas.cursos.nombre}</p>
                                         </div>
                                         {isOwner && !isStudent && (
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleUnlinkUnit(link.unidades.id); }}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleUnlinkUnit(link.unidades.id, link.unidades.nombre); }}>
                                                 <Link2Off className="h-4 w-4 text-destructive" />
                                             </Button>
                                         )}
@@ -292,6 +330,18 @@ const ProjectDetailPage = () => {
           />
         </>
       )}
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertConfig?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{alertConfig?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={alertConfig?.onConfirm}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
