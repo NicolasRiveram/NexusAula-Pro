@@ -1,51 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, User, Clock, FileText, Send, CheckCircle, BookOpen } from 'lucide-react';
-import { fetchStudentCourseDetails, fetchStudentEvaluationsForCourse, StudentCourse, StudentCourseEvaluation, fetchClassesForStudentCourse, StudentCourseClass } from '@/api/studentApi';
-import { fetchScheduleForCourse, ScheduleBlock } from '@/api/scheduleApi';
+import { fetchStudentCourseDetails, fetchStudentEvaluationsForCourse, fetchClassesForStudentCourse } from '@/api/studentApi';
+import { fetchScheduleForCourse } from '@/api/scheduleApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const diasSemana = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 const StudentCourseDetailPage = () => {
   const { cursoAsignaturaId } = useParams<{ cursoAsignaturaId: string }>();
-  const [course, setCourse] = useState<StudentCourse | null>(null);
-  const [evaluations, setEvaluations] = useState<StudentCourseEvaluation[]>([]);
-  const [schedule, setSchedule] = useState<ScheduleBlock[]>([]);
-  const [classes, setClasses] = useState<StudentCourseClass[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!cursoAsignaturaId) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const { data: course, isLoading: isLoadingCourse } = useQuery({
+    queryKey: ['studentCourseDetails', user?.id, cursoAsignaturaId],
+    queryFn: () => fetchStudentCourseDetails(user!.id, cursoAsignaturaId!),
+    enabled: !!user && !!cursoAsignaturaId,
+    onError: (err: any) => showError(`Error al cargar detalles: ${err.message}`),
+  });
 
-      setLoading(true);
-      try {
-        const [courseData, evalsData, scheduleData, classesData] = await Promise.all([
-          fetchStudentCourseDetails(user.id, cursoAsignaturaId),
-          fetchStudentEvaluationsForCourse(user.id, cursoAsignaturaId),
-          fetchScheduleForCourse(cursoAsignaturaId),
-          fetchClassesForStudentCourse(cursoAsignaturaId),
-        ]);
-        setCourse(courseData);
-        setEvaluations(evalsData);
-        setSchedule(scheduleData);
-        setClasses(classesData);
-      } catch (error: any) {
-        showError(`Error al cargar los detalles del curso: ${error.message}`);
-      }
-      setLoading(false);
-    };
-    loadData();
-  }, [cursoAsignaturaId]);
+  const { data: evaluations = [], isLoading: isLoadingEvals } = useQuery({
+    queryKey: ['studentCourseEvals', user?.id, cursoAsignaturaId],
+    queryFn: () => fetchStudentEvaluationsForCourse(user!.id, cursoAsignaturaId!),
+    enabled: !!user && !!cursoAsignaturaId,
+    onError: (err: any) => showError(`Error al cargar evaluaciones: ${err.message}`),
+  });
+
+  const { data: schedule = [], isLoading: isLoadingSchedule } = useQuery({
+    queryKey: ['courseSchedule', cursoAsignaturaId],
+    queryFn: () => fetchScheduleForCourse(cursoAsignaturaId!),
+    enabled: !!cursoAsignaturaId,
+    onError: (err: any) => showError(`Error al cargar horario: ${err.message}`),
+  });
+
+  const { data: classes = [], isLoading: isLoadingClasses } = useQuery({
+    queryKey: ['studentCourseClasses', cursoAsignaturaId],
+    queryFn: () => fetchClassesForStudentCourse(cursoAsignaturaId!),
+    enabled: !!cursoAsignaturaId,
+    onError: (err: any) => showError(`Error al cargar clases: ${err.message}`),
+  });
+
+  const loading = isLoadingCourse || isLoadingEvals || isLoadingSchedule || isLoadingClasses;
 
   if (loading) {
     return <div className="container mx-auto flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -55,7 +57,7 @@ const StudentCourseDetailPage = () => {
     return <div className="container mx-auto"><p>No se pudo encontrar la información del curso.</p></div>;
   }
 
-  const pendingEvals = evaluations.filter(e => e.status === 'Pendiente' && !isPast(parseISO(e.fecha_aplicacion)));
+  const pendingEvals = evaluations.filter(e => e.status === 'Pendiente' && e.fecha_aplicacion && !isPast(parseISO(e.fecha_aplicacion)));
   const completedEvals = evaluations.filter(e => e.status === 'Completado');
 
   return (
@@ -112,7 +114,7 @@ const StudentCourseDetailPage = () => {
                     <div key={e.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
                       <div>
                         <p className="font-medium">{e.titulo}</p>
-                        <p className="text-sm text-muted-foreground">Fecha: {format(parseISO(e.fecha_aplicacion), 'PPP', { locale: es })}</p>
+                        <p className="text-sm text-muted-foreground">Fecha: {e.fecha_aplicacion ? format(parseISO(e.fecha_aplicacion), 'PPP', { locale: es }) : 'Sin fecha'}</p>
                       </div>
                       <Button asChild><Link to={`/dashboard/evaluacion/${e.id}/responder`}><Send className="mr-2 h-4 w-4" /> Responder</Link></Button>
                     </div>

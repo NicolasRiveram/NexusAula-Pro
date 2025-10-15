@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { fetchNiveles, crearCurso, inscribirYCrearEstudiantes, Nivel } from '@/api/coursesApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   nivelId: z.string().uuid("Debes seleccionar un nivel."),
@@ -29,8 +30,12 @@ interface CreateCourseDialogProps {
 
 const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose, onCourseCreated }) => {
   const { activeEstablishment } = useEstablishment();
-  const [niveles, setNiveles] = useState<Nivel[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({
+    queryKey: ['niveles'],
+    queryFn: fetchNiveles,
+  });
 
   const { register, handleSubmit, control, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -38,54 +43,50 @@ const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose
   });
 
   useEffect(() => {
-    if (isOpen) {
-      fetchNiveles()
-        .then(setNiveles)
-        .catch(err => showError(`Error al cargar niveles: ${err.message}`));
-    } else {
+    if (!isOpen) {
       reset({ anio: new Date().getFullYear(), estudiantesTexto: '', nombre: '', nivelId: undefined });
     }
   }, [isOpen, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!activeEstablishment) {
-      showError("No hay un establecimiento activo seleccionado.");
-      return;
-    }
+  const mutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      if (!activeEstablishment) throw new Error("No hay un establecimiento activo seleccionado.");
+      
+      const toastId = showLoading("Creando curso...");
+      try {
+        const nuevoCursoId = await crearCurso(data.nombre, data.nivelId, data.anio, activeEstablishment.id);
+        dismissToast(toastId);
+        showSuccess(`Curso "${data.nombre}" creado exitosamente.`);
 
-    setIsSubmitting(true);
-    const toastId = showLoading("Creando curso...");
+        if (data.estudiantesTexto && data.estudiantesTexto.trim().length > 0) {
+          const estudiantes = data.estudiantesTexto.trim().split('\n').map(line => {
+            const parts = line.split(',').map(s => s.trim());
+            return { nombre_completo: parts[0] || null, rut: parts[1] || null, email: parts[2] || null };
+          }).filter(e => e.nombre_completo);
 
-    try {
-      const nuevoCursoId = await crearCurso(data.nombre, data.nivelId, data.anio, activeEstablishment.id);
-      dismissToast(toastId);
-      showSuccess(`Curso "${data.nombre}" creado exitosamente.`);
-
-      if (data.estudiantesTexto && data.estudiantesTexto.trim().length > 0) {
-        const estudiantes = data.estudiantesTexto.trim().split('\n').map(line => {
-          const parts = line.split(',').map(s => s.trim());
-          const nombre_completo = parts[0] || null;
-          const rut = parts[1] || null;
-          const email = parts[2] || null;
-          return { nombre_completo, rut, email };
-        }).filter(e => e.nombre_completo); // Solo procesar si al menos hay un nombre
-
-        if (estudiantes.length > 0) {
-          const studentToastId = showLoading(`Inscribiendo ${estudiantes.length} estudiantes...`);
-          await inscribirYCrearEstudiantes(nuevoCursoId, estudiantes);
-          dismissToast(studentToastId);
-          showSuccess("Proceso de inscripción completado. Puedes descargar las credenciales desde la página de detalles del curso.");
+          if (estudiantes.length > 0) {
+            const studentToastId = showLoading(`Inscribiendo ${estudiantes.length} estudiantes...`);
+            await inscribirYCrearEstudiantes(nuevoCursoId, estudiantes);
+            dismissToast(studentToastId);
+            showSuccess("Proceso de inscripción completado. Puedes descargar las credenciales desde la página de detalles del curso.");
+          }
         }
+      } catch (error) {
+        dismissToast(toastId);
+        throw error;
       }
-
+    },
+    onSuccess: () => {
       onCourseCreated();
       onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
+    },
+    onError: (error: any) => {
       showError(`Error al crear el curso: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -108,7 +109,7 @@ const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
                     <SelectContent>
-                      {niveles.map(nivel => <SelectItem key={nivel.id} value={nivel.id}>{nivel.nombre}</SelectItem>)}
+                      {isLoadingNiveles ? <SelectItem value="loading" disabled>Cargando...</SelectItem> : niveles.map(nivel => <SelectItem key={nivel.id} value={nivel.id}>{nivel.nombre}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}
@@ -145,8 +146,8 @@ const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando...' : 'Crear Curso'}
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Creando...' : 'Crear Curso'}
             </Button>
           </DialogFooter>
         </form>

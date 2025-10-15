@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { inscribirYCrearEstudiantes } from '@/api/coursesApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Download, UserPlus, Loader2 } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   estudiantesTexto: z.string().min(1, "Debes ingresar al menos un estudiante."),
@@ -31,7 +32,6 @@ interface EnrollStudentsDialogProps {
 }
 
 const EnrollStudentsDialog: React.FC<EnrollStudentsDialogProps> = ({ isOpen, onClose, onStudentsEnrolled, cursoId, cursoNombre }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<'form' | 'result'>('form');
   const [newCredentials, setNewCredentials] = useState<NewCredential[]>([]);
 
@@ -68,65 +68,55 @@ const EnrollStudentsDialog: React.FC<EnrollStudentsDialogProps> = ({ isOpen, onC
     document.body.removeChild(link);
   };
 
-  const onSubmit = async (data: FormData) => {
-    if (!cursoId) {
-      showError("No se ha seleccionado un curso válido.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const toastId = showLoading("Procesando lista de estudiantes...");
-
-    try {
+  const mutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      if (!cursoId) throw new Error("No se ha seleccionado un curso válido.");
+      
       const estudiantes = data.estudiantesTexto.trim().split('\n').map(line => {
         const parts = line.split(',').map(s => s.trim());
-        const nombre_completo = parts[0] || null;
-        const rut = parts[1] || null;
-        const email = parts[2] || null;
-        return { nombre_completo, rut, email };
+        return { nombre_completo: parts[0] || null, rut: parts[1] || null, email: parts[2] || null };
       }).filter(e => e.nombre_completo);
 
-      if (estudiantes.length > 0) {
-        const result = await inscribirYCrearEstudiantes(cursoId, estudiantes);
-        dismissToast(toastId);
+      if (estudiantes.length === 0) throw new Error("No se encontraron estudiantes válidos en el texto ingresado.");
+      
+      return await inscribirYCrearEstudiantes(cursoId, estudiantes);
+    },
+    onSuccess: (result) => {
+      const resultados = result.resultados || [];
+      const creados = resultados.filter((r: any) => r.status === 'creado_e_inscrito');
+      const inscritos = resultados.filter((r: any) => r.status === 'inscrito_existente').length;
+      const yaInscritos = resultados.filter((r: any) => r.status === 'ya_inscrito').length;
+      const errores = resultados.filter((r: any) => r.status === 'error');
 
-        const resultados = result.resultados || [];
-        const creados = resultados.filter((r: any) => r.status === 'creado_e_inscrito');
-        const inscritos = resultados.filter((r: any) => r.status === 'inscrito_existente').length;
-        const yaInscritos = resultados.filter((r: any) => r.status === 'ya_inscrito').length;
-        const errores = resultados.filter((r: any) => r.status === 'error');
+      let successMessage = `Proceso completado para "${cursoNombre}".`;
+      successMessage += `\n- ${creados.length} nuevos estudiantes creados e inscritos.`;
+      successMessage += `\n- ${inscritos} estudiantes existentes inscritos.`;
+      if (yaInscritos > 0) successMessage += `\n- ${yaInscritos} ya estaban en el curso.`;
+      
+      showSuccess(successMessage, { duration: 8000 });
 
-        let successMessage = `Proceso completado para "${cursoNombre}".`;
-        successMessage += `\n- ${creados.length} nuevos estudiantes creados e inscritos.`;
-        successMessage += `\n- ${inscritos} estudiantes existentes inscritos.`;
-        if (yaInscritos > 0) successMessage += `\n- ${yaInscritos} ya estaban en el curso.`;
-        
-        showSuccess(successMessage, { duration: 8000 });
-
-        if (creados.length > 0) {
-          setNewCredentials(creados.map((c: any) => ({ name: c.nombre_completo, email: c.generated_email, pass: c.generated_password })));
-        }
-
-        if (errores.length > 0) {
-          let errorMessage = `Se encontraron ${errores.length} errores:`;
-          errores.forEach((e: any) => {
-            errorMessage += `\n- ${e.nombre_completo}: ${e.mensaje}`;
-          });
-          showError(errorMessage, { duration: 10000 });
-        }
-
-        onStudentsEnrolled();
-        setStep('result');
-      } else {
-        dismissToast(toastId);
-        showError("No se encontraron estudiantes válidos en el texto ingresado.");
+      if (creados.length > 0) {
+        setNewCredentials(creados.map((c: any) => ({ name: c.nombre_completo, email: c.generated_email, pass: c.generated_password })));
       }
-    } catch (error: any) {
-      dismissToast(toastId);
+
+      if (errores.length > 0) {
+        let errorMessage = `Se encontraron ${errores.length} errores:`;
+        errores.forEach((e: any) => {
+          errorMessage += `\n- ${e.nombre_completo}: ${e.mensaje}`;
+        });
+        showError(errorMessage, { duration: 10000 });
+      }
+
+      onStudentsEnrolled();
+      setStep('result');
+    },
+    onError: (error: any) => {
       showError(`Error al inscribir estudiantes: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -157,9 +147,9 @@ const EnrollStudentsDialog: React.FC<EnrollStudentsDialogProps> = ({ isOpen, onC
               </div>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={handleClose}>Cancelar</Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                  {isSubmitting ? 'Inscribiendo...' : 'Inscribir Estudiantes'}
+                <Button type="submit" disabled={mutation.isPending}>
+                  {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                  {mutation.isPending ? 'Inscribiendo...' : 'Inscribir Estudiantes'}
                 </Button>
               </DialogFooter>
             </form>

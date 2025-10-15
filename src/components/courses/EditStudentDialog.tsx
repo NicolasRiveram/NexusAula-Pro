@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { updateStudentProfile, Estudiante } from '@/api/coursesApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
+import { useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   nombre_completo: z.string().min(3, "El nombre es requerido."),
@@ -25,8 +26,6 @@ interface EditStudentDialogProps {
 }
 
 const EditStudentDialog: React.FC<EditStudentDialogProps> = ({ isOpen, onClose, onStudentUpdated, student }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -41,27 +40,23 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({ isOpen, onClose, 
     }
   }, [student, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!student) {
-      showError("No se ha seleccionado un estudiante para editar.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const toastId = showLoading("Actualizando información...");
-
-    try {
-      await updateStudentProfile(student.id, data);
-      dismissToast(toastId);
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => {
+      if (!student) throw new Error("No se ha seleccionado un estudiante para editar.");
+      return updateStudentProfile(student.id, data);
+    },
+    onSuccess: () => {
       showSuccess("Estudiante actualizado correctamente.");
       onStudentUpdated();
       onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
+    },
+    onError: (error: any) => {
       showError(`Error al actualizar: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -91,8 +86,8 @@ const EditStudentDialog: React.FC<EditStudentDialogProps> = ({ isOpen, onClose, 
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </DialogFooter>
         </form>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, BookUp, MoreVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

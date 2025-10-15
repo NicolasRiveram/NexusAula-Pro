@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, updateStudentProfile, CursoAsignatura, Estudiante } from '@/api/coursesApi';
+import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, updateStudentProfile, Estudiante } from '@/api/coursesApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -11,34 +11,38 @@ import EditStudentDialog from '@/components/courses/EditStudentDialog';
 import CourseScheduleManager from '@/components/courses/CourseScheduleManager';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-const CourseDetailPage = () => {
+const TeacherCourseDetailPage = () => {
   const { cursoAsignaturaId } = useParams<{ cursoAsignaturaId: string }>();
-  const [cursoInfo, setCursoInfo] = useState<CursoAsignatura | null>(null);
-  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Estudiante | null>(null);
 
-  const loadData = useCallback(async () => {
-    if (!cursoAsignaturaId) return;
-    setLoading(true);
-    try {
-      const info = await fetchDetallesCursoAsignatura(cursoAsignaturaId);
-      setCursoInfo(info);
-      if (info) {
-        const studentsData = await fetchEstudiantesPorCurso(info.curso.id);
-        setEstudiantes(studentsData);
-      }
-    } catch (error: any) {
-      showError(`Error al cargar los detalles del curso: ${error.message}`);
-    }
-    setLoading(false);
-  }, [cursoAsignaturaId]);
+  const { data: cursoInfo, isLoading: isLoadingInfo } = useQuery({
+    queryKey: ['courseDetails', cursoAsignaturaId],
+    queryFn: () => fetchDetallesCursoAsignatura(cursoAsignaturaId!),
+    enabled: !!cursoAsignaturaId,
+    onError: (error: any) => showError(`Error al cargar los detalles del curso: ${error.message}`),
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: estudiantes = [], isLoading: isLoadingStudents, refetch: refetchStudents } = useQuery({
+    queryKey: ['courseStudents', cursoInfo?.curso.id],
+    queryFn: () => fetchEstudiantesPorCurso(cursoInfo!.curso.id),
+    enabled: !!cursoInfo,
+    onError: (error: any) => showError(`Error al cargar los estudiantes: ${error.message}`),
+  });
+
+  const pieToggleMutation = useMutation({
+    mutationFn: ({ studentId, newStatus }: { studentId: string, newStatus: boolean }) => updateStudentProfile(studentId, { apoyo_pie: newStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courseStudents', cursoInfo?.curso.id] });
+    },
+    onError: (error: any) => {
+      showError(`Error al actualizar el estado PIE: ${error.message}`);
+      queryClient.invalidateQueries({ queryKey: ['courseStudents', cursoInfo?.curso.id] });
+    }
+  });
 
   const handleDownloadCredentials = () => {
     if (!cursoInfo || estudiantes.length === 0) {
@@ -47,10 +51,8 @@ const CourseDetailPage = () => {
     }
 
     const doc = new jsPDF();
-
     doc.setFontSize(18);
     doc.text(`Credenciales de Acceso - ${cursoInfo.curso.nivel.nombre} ${cursoInfo.curso.nombre}`, 14, 22);
-
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text("A continuación se listan los datos de acceso para los estudiantes.", 14, 30);
@@ -78,28 +80,11 @@ const CourseDetailPage = () => {
     setEditDialogOpen(true);
   };
 
-  const handlePieToggle = async (studentId: string, newStatus: boolean) => {
-    // Actualización optimista de la UI
-    setEstudiantes(currentEstudiantes =>
-      currentEstudiantes.map(s =>
-        s.id === studentId ? { ...s, apoyo_pie: newStatus } : s
-      )
-    );
-
-    try {
-      await updateStudentProfile(studentId, { apoyo_pie: newStatus });
-    } catch (error: any) {
-      showError(`Error al actualizar el estado PIE: ${error.message}`);
-      // Revertir el cambio en la UI si hay un error
-      setEstudiantes(currentEstudiantes =>
-        currentEstudiantes.map(s =>
-          s.id === studentId ? { ...s, apoyo_pie: !newStatus } : s
-        )
-      );
-    }
+  const handlePieToggle = (studentId: string, newStatus: boolean) => {
+    pieToggleMutation.mutate({ studentId, newStatus });
   };
 
-  if (loading) {
+  if (isLoadingInfo || isLoadingStudents) {
     return <div className="container mx-auto"><p>Cargando detalles del curso...</p></div>;
   }
 
@@ -182,11 +167,11 @@ const CourseDetailPage = () => {
       <EditStudentDialog
         isOpen={isEditDialogOpen}
         onClose={() => setEditDialogOpen(false)}
-        onStudentUpdated={loadData}
+        onStudentUpdated={() => refetchStudents()}
         student={selectedStudent}
       />
     </div>
   );
 };
 
-export default CourseDetailPage;
+export default TeacherCourseDetailPage;
