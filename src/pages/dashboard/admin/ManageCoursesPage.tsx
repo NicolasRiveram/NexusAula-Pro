@@ -21,30 +21,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 type CursoConNivelId = CursoBase & { nivel: { id: string, nombre: string } };
 
 const ManageCoursesPage = () => {
   const { activeEstablishment } = useEstablishment();
-  const [courses, setCourses] = useState<CursoConNivelId[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<CursoConNivelId | null>(null);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<CursoConNivelId | null>(null);
 
-  const loadCourses = async () => {
-    if (!activeEstablishment) {
-      setCourses([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
+  const { data: courses = [], isLoading: loading } = useQuery({
+    queryKey: ['establishmentCourses', activeEstablishment?.id],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('cursos')
         .select('id, nombre, anio, niveles(id, nombre)')
-        .eq('establecimiento_id', activeEstablishment.id)
+        .eq('establecimiento_id', activeEstablishment!.id)
         .order('anio', { ascending: false })
         .order('nombre');
       if (error) throw new Error(error.message);
@@ -57,17 +52,25 @@ const ManageCoursesPage = () => {
           anio: c.anio,
           nivel: c.niveles,
         }));
-      setCourses(formattedCourses);
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return formattedCourses;
+    },
+    enabled: !!activeEstablishment,
+  });
 
-  useEffect(() => {
-    loadCourses();
-  }, [activeEstablishment]);
+  const deleteMutation = useMutation({
+    mutationFn: deleteCourse,
+    onSuccess: () => {
+      showSuccess("Curso eliminado.");
+      queryClient.invalidateQueries({ queryKey: ['establishmentCourses', activeEstablishment?.id] });
+    },
+    onError: (error: any) => {
+      showError(error.message);
+    },
+    onSettled: () => {
+      setAlertOpen(false);
+      setCourseToDelete(null);
+    }
+  });
 
   const handleAdd = () => {
     setSelectedCourse(null);
@@ -84,17 +87,9 @@ const ManageCoursesPage = () => {
     setAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!courseToDelete) return;
-    try {
-      await deleteCourse(courseToDelete.id);
-      showSuccess("Curso eliminado.");
-      loadCourses();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setAlertOpen(false);
-      setCourseToDelete(null);
+  const confirmDelete = () => {
+    if (courseToDelete) {
+      deleteMutation.mutate(courseToDelete.id);
     }
   };
 
@@ -149,7 +144,7 @@ const ManageCoursesPage = () => {
       <CourseEditDialog
         isOpen={isDialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSaved={loadCourses}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['establishmentCourses', activeEstablishment?.id] })}
         course={selectedCourse || undefined}
       />
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
