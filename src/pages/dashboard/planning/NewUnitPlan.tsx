@@ -6,19 +6,19 @@ import { Link } from 'react-router-dom';
 import Step1UnitConfig, { UnitPlanFormData } from './Step1_UnitConfig';
 import Step2ReviewSuggestions, { AISuggestions } from './Step2_ReviewSuggestions';
 import Step3ClassSequence, { ClassPlan } from './Step3_ClassSequence';
-import { createUnitPlan, updateUnitPlanSuggestions, saveMasterPlanClasses, linkNewUnitsToProject } from '@/api/planningApi';
+import { createUnitPlan, updateUnitPlanSuggestions, saveMasterPlanClasses } from '@/api/planningApi';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { format } from 'date-fns';
 import AskClassCountDialog from '@/components/planning/AskClassCountDialog';
+import { useMutation } from '@tanstack/react-query';
 
 const NewUnitPlan = () => {
   const navigate = useNavigate();
   const { activeEstablishment } = useEstablishment();
   const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
   
   const [unitMasterId, setUnitMasterId] = useState<string | null>(null);
   const [proyectoId, setProyectoId] = useState<string | null>(null);
@@ -28,23 +28,21 @@ const NewUnitPlan = () => {
   const [isAskCountDialogOpen, setIsAskCountDialogOpen] = useState(false);
   const [tempAiSuggestions, setTempAiSuggestions] = useState<AISuggestions | null>(null);
 
-  const handleStep1Submit = async (data: UnitPlanFormData) => {
-    setIsLoading(true);
-    setUnitPlanData(data);
-    try {
+  const step1Mutation = useMutation({
+    mutationFn: async (data: UnitPlanFormData) => {
+      setUnitPlanData(data);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error("Usuario no autenticado.");
       if (!activeEstablishment) throw new Error("No hay un establecimiento activo seleccionado.");
 
       const newUnitId = await createUnitPlan(data, session.user.id, activeEstablishment.id);
-      setUnitMasterId(newUnitId);
       
       if (data.proyectoId && data.proyectoId !== 'none') {
         setProyectoId(data.proyectoId);
       } else {
         setProyectoId(null);
       }
-      
+
       const { data: suggestions, error } = await supabase.functions.invoke('generate-unit-suggestions', {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: { 
@@ -55,47 +53,44 @@ const NewUnitPlan = () => {
       });
 
       if (error) throw error;
-      
+      return { newUnitId, suggestions };
+    },
+    onSuccess: ({ newUnitId, suggestions }) => {
+      setUnitMasterId(newUnitId);
       setAiSuggestions(suggestions);
       showSuccess("Sugerencias de Objetivos y Proyecto generadas.");
       setStep(2);
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       if (error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json();
-        showError(`Error en el paso 1: ${errorMessage.error}`);
+        error.context.json().then((errorMessage: any) => {
+          showError(`Error en el paso 1: ${errorMessage.error}`);
+        });
       } else {
         showError(`Error en el paso 1: ${error.message}`);
       }
-    } finally {
-      setIsLoading(false);
     }
-  };
+  });
 
-  const handleGenerateWithManualCount = async (count: number) => {
-    setIsAskCountDialogOpen(false);
-    if (!unitMasterId || !tempAiSuggestions) {
-      showError("Faltan datos para generar las clases.");
-      return;
-    }
-    setIsLoading(true);
-    try {
+  const generateSequenceMutation = useMutation({
+    mutationFn: async ({ suggestions, classCount }: { suggestions: AISuggestions, classCount: number }) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Usuario no autenticado.");
 
       const BATCH_SIZE = 8;
-      const totalBatches = Math.ceil(count / BATCH_SIZE);
+      const totalBatches = Math.ceil(classCount / BATCH_SIZE);
       let allSequences: ClassPlan[] = [];
 
-      for (let i = 0; i < count; i += BATCH_SIZE) {
+      for (let i = 0; i < classCount; i += BATCH_SIZE) {
         const batchNumber = (i / BATCH_SIZE) + 1;
-        const countInBatch = Math.min(BATCH_SIZE, count - i);
+        const countInBatch = Math.min(BATCH_SIZE, classCount - i);
         const batchToastId = showLoading(`Generando clases ${i + 1} a ${i + countInBatch} (lote ${batchNumber}/${totalBatches})...`);
 
         const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
           headers: { Authorization: `Bearer ${session.access_token}` },
           body: { 
-            suggestions: tempAiSuggestions, 
-            projectContext: proyectoId, 
+            suggestions, 
+            projectContext: !!proyectoId, 
             classCount: countInBatch,
             batchNumber,
             totalBatches,
@@ -107,36 +102,38 @@ const NewUnitPlan = () => {
 
         allSequences = [...allSequences, ...sequence];
       }
-      
+      return allSequences;
+    },
+    onSuccess: (allSequences) => {
       const sequenceWithTempIds = allSequences.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
         ...cls,
         id: `temp_${index}`,
         fecha: '',
       }));
-
       setClassSequence(sequenceWithTempIds);
-      showSuccess("Secuencia de clases generada como plantillas.");
+      showSuccess("Secuencia de clases generada.");
       setStep(3);
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       if (error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json();
-        showError(`Error al generar secuencia: ${errorMessage.error}`);
+        error.context.json().then((errorMessage: any) => {
+          showError(`Error al generar secuencia: ${errorMessage.error}`);
+        });
       } else {
         showError(`Error al generar secuencia: ${error.message}`);
       }
-    } finally {
-      setIsLoading(false);
+    },
+    onSettled: () => {
+      setIsAskCountDialogOpen(false);
       setTempAiSuggestions(null);
     }
-  };
+  });
 
-  const handleStep2Confirm = async (data: AISuggestions) => {
-    if (!unitMasterId || !unitPlanData || !activeEstablishment) {
-      showError("Faltan datos de la unidad o del establecimiento.");
-      return;
-    }
-    setIsLoading(true);
-    try {
+  const step2Mutation = useMutation({
+    mutationFn: async (data: AISuggestions) => {
+      if (!unitMasterId || !unitPlanData || !activeEstablishment) {
+        throw new Error("Faltan datos de la unidad o del establecimiento.");
+      }
       await updateUnitPlanSuggestions(unitMasterId, data);
       setAiSuggestions(data);
 
@@ -148,80 +145,52 @@ const NewUnitPlan = () => {
       });
 
       if (countError) throw countError;
-
+      return { classCount, suggestions: data };
+    },
+    onSuccess: ({ classCount, suggestions }) => {
       if (classCount > 0) {
         showSuccess(`Se generará una secuencia de ${classCount} clases.`);
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error("Usuario no autenticado.");
-
-        const BATCH_SIZE = 8;
-        const totalBatches = Math.ceil(classCount / BATCH_SIZE);
-        let allSequences: ClassPlan[] = [];
-
-        for (let i = 0; i < classCount; i += BATCH_SIZE) {
-          const batchNumber = (i / BATCH_SIZE) + 1;
-          const countInBatch = Math.min(BATCH_SIZE, classCount - i);
-          const batchToastId = showLoading(`Generando clases ${i + 1} a ${i + countInBatch} (lote ${batchNumber}/${totalBatches})...`);
-
-          const { data: sequence, error } = await supabase.functions.invoke('generate-class-sequence', {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-            body: { 
-              suggestions: data, 
-              projectContext: proyectoId, 
-              classCount: countInBatch,
-              batchNumber,
-              totalBatches,
-            },
-          });
-          
-          dismissToast(batchToastId);
-          if (error) throw error;
-
-          allSequences = [...allSequences, ...sequence];
-        }
-        
-        const sequenceWithTempIds = allSequences.map((cls: Omit<ClassPlan, 'id' | 'fecha'>, index: number) => ({
-          ...cls,
-          id: `temp_${index}`,
-          fecha: '',
-        }));
-
-        setClassSequence(sequenceWithTempIds);
-        setStep(3);
+        generateSequenceMutation.mutate({ suggestions, classCount });
       } else {
-        setTempAiSuggestions(data);
+        setTempAiSuggestions(suggestions);
         setIsAskCountDialogOpen(true);
       }
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       if (error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json();
-        showError(`Error en el paso 2: ${errorMessage.error}`);
+        error.context.json().then((errorMessage: any) => {
+          showError(`Error en el paso 2: ${errorMessage.error}`);
+        });
       } else {
         showError(`Error en el paso 2: ${error.message}`);
       }
-    } finally {
-      setIsLoading(false);
+    }
+  });
+
+  const step3Mutation = useMutation({
+    mutationFn: async (data: { classes: ClassPlan[] }) => {
+      if (!unitMasterId) throw new Error("Error: No se encontró el ID de la unidad para guardar.");
+      const classesToSave = data.classes.map(({ id, fecha, ...rest }) => rest);
+      await saveMasterPlanClasses(unitMasterId, classesToSave);
+    },
+    onSuccess: () => {
+      showSuccess("¡Planificación guardada exitosamente! Ahora puedes programarla desde la página de edición.");
+      setTimeout(() => navigate('/dashboard/planificacion'), 2000);
+    },
+    onError: (error: any) => {
+      showError(`Error al guardar la planificación: ${error.message}`);
+    }
+  });
+
+  const handleGenerateWithManualCount = (count: number) => {
+    if (tempAiSuggestions) {
+      generateSequenceMutation.mutate({ suggestions: tempAiSuggestions, classCount: count });
+    } else {
+      showError("Faltan datos para generar las clases.");
     }
   };
 
-  const handleStep3Save = async (data: { classes: ClassPlan[] }) => {
-    if (!unitMasterId) {
-      showError("Error: No se encontró el ID de la unidad para guardar.");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const classesToSave = data.classes.map(({ id, fecha, ...rest }) => rest);
-      await saveMasterPlanClasses(unitMasterId, classesToSave);
-      
-      showSuccess("¡Planificación guardada exitosamente! Ahora puedes programarla desde la página de edición.");
-      setTimeout(() => navigate('/dashboard/planificacion'), 2000);
-    } catch (error: any) {
-      showError(`Error al guardar la planificación: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = step1Mutation.isPending || step2Mutation.isPending || generateSequenceMutation.isPending || step3Mutation.isPending;
 
   const getStepDescription = () => {
     switch (step) {
@@ -253,9 +222,9 @@ const NewUnitPlan = () => {
             </div>
           )}
 
-          {!isLoading && step === 1 && <Step1UnitConfig onFormSubmit={handleStep1Submit} isLoading={isLoading} />}
-          {!isLoading && step === 2 && aiSuggestions && <Step2ReviewSuggestions suggestions={aiSuggestions} onConfirm={handleStep2Confirm} isLoading={isLoading} />}
-          {!isLoading && step === 3 && classSequence && <Step3ClassSequence classSequence={classSequence} onSave={handleStep3Save} isLoading={isLoading} />}
+          {!isLoading && step === 1 && <Step1UnitConfig onFormSubmit={(data) => step1Mutation.mutate(data)} isLoading={step1Mutation.isPending} />}
+          {!isLoading && step === 2 && aiSuggestions && <Step2ReviewSuggestions suggestions={aiSuggestions} onConfirm={(data) => step2Mutation.mutate(data)} isLoading={step2Mutation.isPending || generateSequenceMutation.isPending} />}
+          {!isLoading && step === 3 && classSequence && <Step3ClassSequence classSequence={classSequence} onSave={(data) => step3Mutation.mutate(data)} isLoading={step3Mutation.isPending} />}
         </CardContent>
       </Card>
       <AskClassCountDialog
