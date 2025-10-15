@@ -69,10 +69,11 @@ serve(async (req) => {
       Tu tarea es adaptar una pregunta de selección múltiple para hacerla más accesible, clara y directa para estudiantes con necesidades de apoyo.
       Aplica las siguientes reglas estrictas e inquebrantables:
       1.  **Simplifica el Enunciado:** Reformula la pregunta usando un lenguaje más simple y directo, eliminando ambigüedades.
-      2.  **Resalta Palabras Clave:** Identifica y marca en negrita (usando markdown bold, por ejemplo **palabra**) los conceptos o palabras más importantes dentro del nuevo enunciado para enfocar la atención del estudiante.
+      2.  **Resalta Palabras Clave:** Identifica y marca en negrita (usando markdown bold, por ejemplo **palabra**) los conceptos o palabras más importantes DENTRO DEL NUEVO ENUNCIADO para enfocar la atención del estudiante.
       3.  **Reduce Alternativas:** Analiza las alternativas originales y elimina la que sea menos plausible o más confusa, dejando solo 3 opciones en total.
       4.  **Mantén la Coherencia:** La alternativa que era correcta originalmente debe seguir siendo la correcta entre las 3 restantes.
       5.  **Simplifica Alternativas:** Reescribe el texto de las 3 alternativas finales para que sean más cortas y fáciles de entender.
+      6.  **IMPORTANTE:** NO uses negritas ni ningún otro formato de texto en las alternativas. El resaltado es solo para el enunciado.
       
       Devuelve un objeto JSON con la siguiente estructura:
       \`\`\`json
