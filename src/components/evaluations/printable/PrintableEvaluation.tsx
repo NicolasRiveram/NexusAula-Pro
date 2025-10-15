@@ -11,9 +11,10 @@ interface PrintableEvaluationProps {
   teacherName: string;
   totalScore: number;
   rowLabel?: string;
+  usePieAdaptations?: boolean;
 }
 
-const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore, rowLabel }) => {
+const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, establishment, fontSize, teacherName, totalScore, rowLabel, usePieAdaptations = false }) => {
   const logoUrl = establishment?.logo_url ? getLogoPublicUrl(establishment.logo_url) : null;
   const passingScore = totalScore * 0.6;
   const subjectNames = [...new Set(evaluation.curso_asignaturas.map(ca => ca.asignatura.nombre))].join(' / ');
@@ -78,20 +79,26 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
                   <div className="content-block">{contentElement}</div>
                 </div>
               )}
-              {(block.evaluacion_items || []).map(item => (
-                <div key={item.id} className="question-item">
-                  <p className="question-enunciado">{item.orden}. {item.enunciado || ''} ({item.puntaje || 0} pts.)</p>
-                  {item.tipo_item === 'seleccion_multiple' && (
-                    <ul className="alternatives-list">
-                      {(item.item_alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
-                        <li key={alt.id}>
-                          {String.fromCharCode(97 + index)}) {alt.texto || ''}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
+              {(block.evaluacion_items || []).map(item => {
+                const adaptation = usePieAdaptations && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
+                const enunciado = adaptation ? adaptation.enunciado_adaptado : item.enunciado;
+                const alternativas = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+
+                return (
+                  <div key={item.id} className="question-item">
+                    <p className="question-enunciado" dangerouslySetInnerHTML={{ __html: `${item.orden}. ${enunciado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')} (${item.puntaje || 0} pts.)` }} />
+                    {item.tipo_item === 'seleccion_multiple' && (
+                      <ul className="alternatives-list">
+                        {(alternativas || []).map((alt, index) => (
+                          <li key={index}>
+                            {String.fromCharCode(97 + index)}) {alt.texto || ''}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}

@@ -49,6 +49,7 @@ const EvaluationDetailPage = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
   const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
+  const [printMode, setPrintMode] = useState<'regular' | 'pie'>('regular');
 
   useEffect(() => {
     if (evaluationId) {
@@ -140,6 +141,7 @@ const EvaluationDetailPage = () => {
             teacherName={formattedTeacherName || 'Docente no especificado'}
             totalScore={totalPuntaje}
             rowLabel={formData.rows > 1 ? rowLabel : undefined}
+            usePieAdaptations={printMode === 'pie'}
           />
         );
       }
@@ -160,15 +162,20 @@ const EvaluationDetailPage = () => {
     }
   };
 
+  const handleAnswerSheetClick = (evaluationId: string) => {
+    setEvaluationForAnswerSheet(evaluationId);
+    setAnswerSheetModalOpen(true);
+  };
+
   const handleConfirmPrintAnswerSheets = async (formData: AnswerSheetFormData) => {
-    if (!evaluationId || !activeEstablishment) return;
+    if (!evaluationForAnswerSheet || !activeEstablishment) return;
     setIsPrinting(true);
     const toastId = showLoading("Generando hojas de respuesta y pautas...");
 
     try {
       const [evaluation, students] = await Promise.all([
-        fetchEvaluationDetails(evaluationId),
-        fetchStudentsForEvaluation(evaluationId),
+        fetchEvaluationDetails(evaluationForAnswerSheet),
+        fetchStudentsForEvaluation(evaluationForAnswerSheet),
       ]);
 
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
@@ -271,8 +278,8 @@ const EvaluationDetailPage = () => {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 justify-end">
-                <Button variant="outline" onClick={() => setAnswerKeyDialogOpen(true)}><ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta</Button>
-                <Button variant="outline" onClick={() => setPrintModalOpen(true)}><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+                <Button variant="outline" onClick={() => { setPrintMode('regular'); setPrintModalOpen(true); }}><Download className="mr-2 h-4 w-4" /> Descargar</Button>
+                <Button variant="outline" onClick={() => { setPrintMode('pie'); setPrintModalOpen(true); }}><Download className="mr-2 h-4 w-4" /> Descargar Versión PIE</Button>
                 <Button onClick={() => navigate(`/dashboard/evaluacion/editar/${evaluation.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
                 <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}><BarChart className="mr-2 h-4 w-4" /> Ver Resultados</Button>
                 {hasScannableQuestions && (
@@ -320,15 +327,15 @@ const EvaluationDetailPage = () => {
                   {block.evaluacion_items.map(item => (
                     <div key={item.id}>
                       <div className="flex justify-between items-start">
-                        <p className="font-semibold">{item.orden}. {item.enunciado}</p>
+                        <p className="font-semibold">{item.orden}. {item.enunciado || ''} ({item.puntaje || 0} pts.)</p>
                         <Badge variant="outline">{item.puntaje} pts.</Badge>
                       </div>
                       {item.tipo_item === 'seleccion_multiple' && (
-                        <ul className="mt-2 space-y-2 text-sm pl-5">
-                          {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
+                        <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                          {(item.item_alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
                             <li key={alt.id} className={cn("flex items-center", alt.es_correcta && "font-bold")}>
                               <span className="mr-2">{String.fromCharCode(97 + index)})</span>
-                              <span>{alt.texto}</span>
+                              <span>{alt.texto || ''}</span>
                             </li>
                           ))}
                         </ul>

@@ -6,46 +6,27 @@ const corsHeaders = {
 }
 
 function cleanAndParseJson(text: string): any {
-  // Attempt to find JSON within markdown code blocks
   const markdownMatch = text.match(/```json([\s\S]*?)```/);
   let potentialJson = markdownMatch ? markdownMatch[1].trim() : text;
 
-  // Find the start of a JSON object or array
-  const firstBracket = potentialJson.indexOf('[');
   const firstBrace = potentialJson.indexOf('{');
-  
-  let startIndex = -1;
-  if (firstBracket === -1) {
-    startIndex = firstBrace;
-  } else if (firstBrace === -1) {
-    startIndex = firstBracket;
-  } else {
-    startIndex = Math.min(firstBracket, firstBrace);
+  if (firstBrace === -1) {
+    throw new Error("La respuesta de la IA no contenía un objeto JSON.");
   }
 
-  if (startIndex === -1) {
-    console.error("No JSON start character ([ or {) found in AI response:", potentialJson);
-    throw new Error("La respuesta de la IA no contenía un objeto o array JSON.");
-  }
-
-  // Find the end of the JSON object or array
-  const lastBracket = potentialJson.lastIndexOf(']');
   const lastBrace = potentialJson.lastIndexOf('}');
-  const endIndex = Math.max(lastBracket, lastBrace);
-
-  if (endIndex === -1) {
-    console.error("No JSON end character (] or }) found in AI response:", potentialJson);
-    throw new Error("El objeto o array JSON en la respuesta de la IA estaba incompleto.");
+  if (lastBrace === -1) {
+    throw new Error("El objeto JSON en la respuesta de la IA estaba incompleto.");
   }
 
-  const jsonString = potentialJson.substring(startIndex, endIndex + 1);
+  const jsonString = potentialJson.substring(firstBrace, lastBrace + 1);
 
   try {
     return JSON.parse(jsonString);
   } catch (error) {
     console.error("Failed to parse extracted JSON:", error);
     console.error("Extracted string for parsing:", jsonString);
-    throw new Error("La respuesta de la IA no tenía un formato JSON válido, incluso después de intentar extraerlo.");
+    throw new Error("La respuesta de la IA no tenía un formato JSON válido.");
   }
 }
 
