@@ -19,19 +19,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 const RubricsPage = () => {
   const { activeEstablishment } = useEstablishment();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [rubricToDelete, setRubricToDelete] = useState<Rubric | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  const { data: rubrics = [], isLoading: loading, refetch: loadRubrics } = useQuery({
+  const { data: rubrics = [], isLoading: loading } = useQuery({
     queryKey: ['rubrics', user?.id, activeEstablishment?.id],
     queryFn: () => fetchRubrics(user!.id, activeEstablishment!.id),
     enabled: !!user && !!activeEstablishment,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteRubric,
+    onSuccess: () => {
+      showSuccess("Rúbrica eliminada.");
+      queryClient.invalidateQueries({ queryKey: ['rubrics', user?.id, activeEstablishment?.id] });
+    },
+    onError: (error: any) => {
+      showError(error.message);
+    },
+    onSettled: () => {
+      setIsAlertOpen(false);
+      setRubricToDelete(null);
+    }
   });
 
   const handleDeleteClick = (rubric: Rubric) => {
@@ -39,17 +55,9 @@ const RubricsPage = () => {
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!rubricToDelete) return;
-    try {
-      await deleteRubric(rubricToDelete.id);
-      showSuccess("Rúbrica eliminada.");
-      loadRubrics();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsAlertOpen(false);
-      setRubricToDelete(null);
+  const confirmDelete = () => {
+    if (rubricToDelete) {
+      deleteMutation.mutate(rubricToDelete.id);
     }
   };
 
