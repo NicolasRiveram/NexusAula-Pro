@@ -17,6 +17,8 @@ import { fetchNiveles, fetchDocenteAsignaturas, Nivel, Asignatura } from '@/api/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const step1Schema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
@@ -34,12 +36,9 @@ type Step1FormData = z.infer<typeof step1Schema>;
 const RubricBuilderPage = () => {
   const navigate = useNavigate();
   const { activeEstablishment } = useEstablishment();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSuggestingOAs, setIsSuggestingOAs] = useState(false);
   const [rubricId, setRubricId] = useState<string | null>(null);
-  const [niveles, setNiveles] = useState<Nivel[]>([]);
-  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
 
   const { control: step1Control, handleSubmit: handleStep1Submit, formState: { errors: step1Errors }, getValues, setValue } = useForm<Step1FormData>({
     resolver: zodResolver(step1Schema),
@@ -51,36 +50,23 @@ const RubricBuilderPage = () => {
   const { control: step2Control, handleSubmit: handleStep2Submit, reset: resetStep2 } = useForm<{ criterios: RubricContent['criterios'] }>();
   const { fields } = useFieldArray({ control: step2Control, name: "criterios" });
 
-  useEffect(() => {
-    const loadData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        showError("No se pudo identificar al usuario.");
-        return;
-      }
+  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({
+    queryKey: ['niveles'],
+    queryFn: fetchNiveles,
+  });
 
-      try {
-        const [nivelesData, asignaturasData] = await Promise.all([
-          fetchNiveles(),
-          fetchDocenteAsignaturas(user.id)
-        ]);
-        setNiveles(nivelesData);
-        setAsignaturas(asignaturasData);
-      } catch (err: any) {
-        showError(`Error al cargar datos iniciales: ${err.message}`);
-      }
-    };
-    loadData();
-  }, []);
+  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({
+    queryKey: ['docenteAsignaturas', user?.id],
+    queryFn: () => fetchDocenteAsignaturas(user!.id),
+    enabled: !!user,
+  });
 
-  const handleSuggestOAs = async () => {
-    const { nivelId, asignaturaId, descripcion } = getValues();
-    if (!nivelId || !asignaturaId || !descripcion) {
-      showError("Por favor, selecciona nivel, asignatura y escribe una descripción para sugerir OAs.");
-      return;
-    }
-    setIsSuggestingOAs(true);
-    try {
+  const suggestOAsMutation = useMutation({
+    mutationFn: async () => {
+      const { nivelId, asignaturaId, descripcion } = getValues();
+      if (!nivelId || !asignaturaId || !descripcion) {
+        throw new Error("Por favor, selecciona nivel, asignatura y escribe una descripción para sugerir OAs.");
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Usuario no autenticado.");
 
@@ -89,29 +75,28 @@ const RubricBuilderPage = () => {
         body: { nivelId, asignaturaId, tema: descripcion },
       });
       if (error) throw error;
-      setValue('objetivosSugeridos', data.suggestions);
+      return data.suggestions;
+    },
+    onSuccess: (suggestions) => {
+      setValue('objetivosSugeridos', suggestions);
       showSuccess("Objetivos de aprendizaje sugeridos.");
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(`Error al sugerir OAs: ${error.message}`);
-    } finally {
-      setIsSuggestingOAs(false);
     }
-  };
+  });
 
-  const onStep1Submit = async (data: Step1FormData) => {
-    if (!activeEstablishment) {
-      showError("Debes seleccionar un establecimiento activo.");
-      return;
-    }
-    setIsLoading(true);
-    try {
+  const step1Mutation = useMutation({
+    mutationFn: async (data: Step1FormData) => {
+      if (!activeEstablishment) throw new Error("Debes seleccionar un establecimiento activo.");
+      
       const newRubricId = await createRubric(data.nombre, data.actividad_a_evaluar, data.descripcion, activeEstablishment.id, data.categoria);
       setRubricId(newRubricId);
 
       const nivelNombre = niveles.find(n => n.id === data.nivelId)?.nombre || '';
       const asignaturaNombre = asignaturas.find(a => a.id === data.asignaturaId)?.nombre || '';
 
-      const aiContent = await generateRubricWithAI({
+      return await generateRubricWithAI({
         activity: data.actividad_a_evaluar,
         description: data.descripcion,
         nivelNombre,
@@ -119,30 +104,32 @@ const RubricBuilderPage = () => {
         cantidadCategorias: data.cantidadCategorias,
         objetivos: data.objetivosSugeridos || 'No especificados',
       });
+    },
+    onSuccess: (aiContent) => {
       resetStep2({ criterios: aiContent.criterios });
-      
       showSuccess("Rúbrica generada por IA. Ahora puedes revisarla y guardarla.");
       setStep(2);
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  });
 
-  const onStep2Submit = async (data: { criterios: RubricContent['criterios'] }) => {
-    if (!rubricId) return;
-    setIsLoading(true);
-    try {
-      await saveGeneratedRubricContent(rubricId, { criterios: data.criterios });
+  const step2Mutation = useMutation({
+    mutationFn: (data: { criterios: RubricContent['criterios'] }) => {
+      if (!rubricId) throw new Error("No se encontró el ID de la rúbrica.");
+      return saveGeneratedRubricContent(rubricId, { criterios: data.criterios });
+    },
+    onSuccess: () => {
       showSuccess("Rúbrica guardada exitosamente.");
       navigate('/dashboard/rubricas');
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  });
+
+  const isLoading = step1Mutation.isPending || step2Mutation.isPending;
 
   return (
     <div className="container mx-auto space-y-6">
@@ -160,13 +147,13 @@ const RubricBuilderPage = () => {
         </CardHeader>
         <CardContent>
           {step === 1 && (
-            <form onSubmit={handleStep1Submit(onStep1Submit)} className="space-y-4">
+            <form onSubmit={handleStep1Submit((data) => step1Mutation.mutate(data))} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="nivelId">Nivel Educativo</Label>
                   <Controller name="nivelId" control={step1Control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingNiveles}>
+                      <SelectTrigger><SelectValue placeholder={isLoadingNiveles ? "Cargando..." : "Selecciona un nivel"} /></SelectTrigger>
                       <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
                     </Select>
                   )} />
@@ -175,8 +162,8 @@ const RubricBuilderPage = () => {
                 <div>
                   <Label htmlFor="asignaturaId">Asignatura</Label>
                   <Controller name="asignaturaId" control={step1Control} render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingAsignaturas}>
+                      <SelectTrigger><SelectValue placeholder={isLoadingAsignaturas ? "Cargando..." : "Selecciona una asignatura"} /></SelectTrigger>
                       <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
                     </Select>
                   )} />
@@ -208,8 +195,8 @@ const RubricBuilderPage = () => {
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <Label htmlFor="objetivosSugeridos">Objetivos de Aprendizaje</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs}>
-                    {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  <Button type="button" variant="outline" size="sm" onClick={() => suggestOAsMutation.mutate()} disabled={suggestOAsMutation.isPending}>
+                    {suggestOAsMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                     Sugerir OAs
                   </Button>
                 </div>
@@ -229,7 +216,7 @@ const RubricBuilderPage = () => {
             </form>
           )}
           {step === 2 && (
-            <form onSubmit={handleStep2Submit(onStep2Submit)} className="space-y-6">
+            <form onSubmit={handleStep2Submit((data) => step2Mutation.mutate(data))} className="space-y-6">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
