@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils';
 import { MultiSelect } from '@/components/MultiSelect';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Badge } from '@/components/ui/badge';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
@@ -47,58 +49,64 @@ interface Step1GeneralInfoProps {
 
 const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, control, isSubmitting, setValue, getValues }) => {
   const { activeEstablishment } = useEstablishment();
-  const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
-  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
-  const [niveles, setNiveles] = useState<Nivel[]>([]);
-  const [objetivos, setObjetivos] = useState<ObjetivoAprendizaje[]>([]);
-  const [loadingOAs, setLoadingOAs] = useState(false);
-  const [isSuggestingOAs, setIsSuggestingOAs] = useState(false);
+  const { user } = useAuth();
   const [currentSkill, setCurrentSkill] = useState('');
   
   const { errors } = useFormState({ control });
   const [asignaturaId, nivelId, habilidades] = useWatch({ control, name: ['asignaturaId', 'nivelId', 'habilidades'] });
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (activeEstablishment) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            const [asignaturasData, nivelesData, cursosData] = await Promise.all([
-              fetchDocenteAsignaturas(user.id),
-              fetchDocenteNiveles(user.id),
-              fetchCursosAsignaturasDocente(user.id, activeEstablishment.id)
-            ]);
-            setAsignaturas(asignaturasData);
-            setNiveles(nivelesData);
-            setCursosAsignaturas(cursosData);
-          } catch (err: any) {
-            showError(`Error al cargar datos: ${err.message}`);
-          }
-        }
-      }
-    };
-    loadData();
-  }, [activeEstablishment]);
+  const { data: asignaturas = [] } = useQuery({
+    queryKey: ['docenteAsignaturas', user?.id],
+    queryFn: () => fetchDocenteAsignaturas(user!.id),
+    enabled: !!user,
+  });
 
-  useEffect(() => {
-    const loadOAs = async () => {
-      if (nivelId && asignaturaId) {
-        setLoadingOAs(true);
-        try {
-          const oasData = await fetchObjetivosAprendizaje([nivelId], [asignaturaId]);
-          setObjetivos(oasData);
-        } catch (err: any) {
-          showError(`Error al cargar OAs: ${err.message}`);
-        } finally {
-          setLoadingOAs(false);
-        }
-      } else {
-        setObjetivos([]);
+  const { data: niveles = [] } = useQuery({
+    queryKey: ['docenteNiveles', user?.id],
+    queryFn: () => fetchDocenteNiveles(user!.id),
+    enabled: !!user,
+  });
+
+  const { data: cursosAsignaturas = [] } = useQuery({
+    queryKey: ['cursosAsignaturasDocente', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  const { data: objetivos = [], isLoading: loadingOAs } = useQuery({
+    queryKey: ['objetivosAprendizaje', nivelId, asignaturaId],
+    queryFn: () => fetchObjetivosAprendizaje([nivelId], [asignaturaId]),
+    enabled: !!nivelId && !!asignaturaId,
+  });
+
+  const suggestOAsMutation = useMutation({
+    mutationFn: async () => {
+      if (!nivelId || !asignaturaId || !habilidades || habilidades.length === 0) {
+        throw new Error("Por favor, selecciona nivel, asignatura y agrega al menos una habilidad para obtener sugerencias.");
       }
-    };
-    loadOAs();
-  }, [nivelId, asignaturaId]);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No hay sesión de usuario activa.");
+
+      const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { nivelId, asignaturaId, tema: habilidades.join(', ') },
+      });
+
+      if (error) throw error;
+      return data.suggestions;
+    },
+    onSuccess: (suggestions) => {
+      setValue('objetivosSugeridos', suggestions);
+      showSuccess("Objetivos de aprendizaje sugeridos por la IA.");
+    },
+    onError: (error: any) => {
+      if (error instanceof FunctionsHttpError) {
+        error.context.json().then((errorMessage: any) => showError(`Error al sugerir OAs: ${errorMessage.error}`));
+      } else {
+        showError(`Error al sugerir OAs: ${error.message}`);
+      }
+    }
+  });
 
   const handleAddSkill = () => {
     if (currentSkill.trim()) {
@@ -113,38 +121,6 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
   const handleRemoveSkill = (skillToRemove: string) => {
     const currentHabilidades = getValues('habilidades') || [];
     setValue('habilidades', currentHabilidades.filter((s: string) => s !== skillToRemove), { shouldValidate: true });
-  };
-
-  const handleSuggestOAs = async () => {
-    if (!nivelId || !asignaturaId || !habilidades || habilidades.length === 0) {
-      showError("Por favor, selecciona nivel, asignatura y agrega al menos una habilidad para obtener sugerencias.");
-      return;
-    }
-    
-    setIsSuggestingOAs(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No hay sesión de usuario activa.");
-
-      const { data, error } = await supabase.functions.invoke('suggest-learning-objectives', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { nivelId, asignaturaId, tema: habilidades.join(', ') },
-      });
-
-      if (error instanceof FunctionsHttpError) {
-        const errorMessage = await error.context.json();
-        throw new Error(errorMessage.error);
-      } else if (error) {
-        throw error;
-      }
-
-      setValue('objetivosSugeridos', data.suggestions);
-      showSuccess("Objetivos de aprendizaje sugeridos por la IA.");
-    } catch (error: any) {
-      showError(`Error al sugerir OAs: ${error.message}`);
-    } finally {
-      setIsSuggestingOAs(false);
-    }
   };
 
   return (
@@ -278,8 +254,8 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
       <div className="space-y-2">
         <div className="flex justify-between items-center mb-1">
           <Label htmlFor="objetivosSugeridos">Objetivos de Aprendizaje (Opcional)</Label>
-          <Button type="button" variant="outline" size="sm" onClick={handleSuggestOAs} disabled={isSuggestingOAs || !habilidades || habilidades.length === 0 || !nivelId || !asignaturaId}>
-            {isSuggestingOAs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          <Button type="button" variant="outline" size="sm" onClick={() => suggestOAsMutation.mutate()} disabled={suggestOAsMutation.isPending || !habilidades || habilidades.length === 0 || !nivelId || !asignaturaId}>
+            {suggestOAsMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             Sugerir OAs
           </Button>
         </div>

@@ -1,8 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy, ChevronDown } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails, deleteEvaluationItem, decreaseQuestionDifficulty } from '@/api/evaluationsApi';
+import { 
+  fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, 
+  generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, 
+  generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, 
+  getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, 
+  updateEvaluationItemDetails, deleteEvaluationItem, decreaseQuestionDifficulty 
+} from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -21,6 +27,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import AddSyllabusBlockDialog from './AddSyllabusBlockDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Step2ContentBlocksProps {
   evaluationId: string;
@@ -47,7 +54,7 @@ const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onDecrea
     const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
     const [localScore, setLocalScore] = useState(item.puntaje);
 
-    useEffect(() => {
+    React.useEffect(() => {
         setLocalScore(item.puntaje);
     }, [item.puntaje]);
 
@@ -162,13 +169,7 @@ function SortableItem({ id, children }: { id: string, children: (props: any) => 
 }
 
 const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep, temario, getEvaluationContext }) => {
-  const [blocks, setBlocks] = useState<EvaluationContentBlock[]>([]);
-  const [questionsByBlock, setQuestionsByBlock] = useState<Record<string, EvaluationItem[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [generatingForBlock, setGeneratingForBlock] = useState<string | null>(null);
-  const [adaptingItemId, setAdaptingItemId] = useState<string | null>(null);
-  const [increasingDifficultyId, setIncreasingDifficultyId] = useState<string | null>(null);
-  const [decreasingDifficultyId, setDecreasingDifficultyId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
   const [isAddSyllabusDialogOpen, setAddSyllabusDialogOpen] = useState(false);
   const [isAddImageDialogOpen, setAddImageDialogOpen] = useState(false);
@@ -183,266 +184,93 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  const { data: blocks = [], isLoading: loading } = useQuery({
+    queryKey: ['contentBlocks', evaluationId],
+    queryFn: () => fetchContentBlocks(evaluationId),
+    onSuccess: (data) => {
+      const initialExpansionState: Record<string, boolean> = {};
+      data.forEach(block => initialExpansionState[block.id] = true);
+      setExpandedBlocks(initialExpansionState);
+    },
+  });
 
   const toggleBlockExpansion = (blockId: string) => {
     setExpandedBlocks(prev => ({ ...prev, [blockId]: !prev[blockId] }));
   };
 
-  const loadBlocksAndQuestions = useCallback(async () => {
-    setLoading(true);
-    try {
-      const blockData = await fetchContentBlocks(evaluationId);
-      setBlocks(blockData);
-      
-      const questionsPromises = blockData.map(block => fetchItemsForBlock(block.id));
-      const questionsResults = await Promise.all(questionsPromises);
-      
-      const questionsMap: Record<string, EvaluationItem[]> = {};
-      const initialExpansionState: Record<string, boolean> = {};
-      blockData.forEach((block, index) => {
-        questionsMap[block.id] = questionsResults[index];
-        initialExpansionState[block.id] = true;
-      });
-      setQuestionsByBlock(questionsMap);
-      setExpandedBlocks(initialExpansionState);
+  const createMutationOptions = (successMessage: string) => ({
+    onSuccess: () => {
+      showSuccess(successMessage);
+      queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
 
-    } catch (error: any) {
-      showError(`Error al cargar bloques y preguntas: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [evaluationId]);
-
-  useEffect(() => {
-    loadBlocksAndQuestions();
-  }, [loadBlocksAndQuestions]);
+  const deleteBlockMutation = useMutation({ mutationFn: deleteContentBlock, ...createMutationOptions("Bloque eliminado.") });
+  const deleteItemMutation = useMutation({ mutationFn: deleteEvaluationItem, ...createMutationOptions("Pregunta eliminada.") });
+  const adaptPIEMutation = useMutation({ mutationFn: (itemId: string) => generatePIEAdaptation(itemId).then(data => savePIEAdaptation(itemId, data)), ...createMutationOptions("Pregunta adaptada para PIE.") });
+  const increaseDifficultyMutation = useMutation({ mutationFn: increaseQuestionDifficulty, ...createMutationOptions("Dificultad aumentada.") });
+  const decreaseDifficultyMutation = useMutation({ mutationFn: decreaseQuestionDifficulty, ...createMutationOptions("Dificultad disminuida.") });
+  const updateTitleMutation = useMutation({ mutationFn: (vars: { blockId: string, title: string }) => updateContentBlock(vars.blockId, { title: vars.title }) });
+  const updateVisibilityMutation = useMutation({ mutationFn: (vars: { blockId: string, visible: boolean }) => updateContentBlock(vars.blockId, { visible_en_evaluacion: vars.visible }), ...createMutationOptions("Visibilidad actualizada.") });
+  const updateScoreMutation = useMutation({ mutationFn: (vars: { itemId: string, score: number }) => updateEvaluationItemDetails(vars.itemId, { puntaje: vars.score }) });
+  const reorderMutation = useMutation({ mutationFn: reorderContentBlocks, onError: (error: any) => { showError(error.message); queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] }); } });
+  const generateQuestionsMutation = useMutation({
+    mutationFn: (vars: { block: EvaluationContentBlock, count: number }) => generateQuestionsFromBlock(vars.block, vars.count, getEvaluationContext()).then(qs => saveGeneratedQuestions(evaluationId, vars.block.id, qs)),
+    ...createMutationOptions("Preguntas generadas."),
+  });
+  const createFromPlanMutation = useMutation({
+    mutationFn: async (plan: UnitPlan) => {
+      const contentText = `Contenido de la unidad: ${plan.titulo}\n\n${plan.descripcion_contenidos}`;
+      await createContentBlock(evaluationId, 'text', { text: contentText }, blocks.length + 1, `Desde Plan: ${plan.titulo}`);
+    },
+    ...createMutationOptions("Bloque creado desde plan."),
+  });
+  const createFromResourceMutation = useMutation({
+    mutationFn: async (resourceId: string) => {
+      const blocksToImport = await fetchEvaluationContentForImport(resourceId);
+      if (blocksToImport.length === 0) throw new Error("El recurso no tiene contenido para importar.");
+      const createBlockPromises = blocksToImport.map((block, index) =>
+        createContentBlock(evaluationId, block.block_type, block.content, blocks.length + index + 1, block.title || undefined)
+      );
+      await Promise.all(createBlockPromises);
+      return blocksToImport.length;
+    },
+    onSuccess: (count) => {
+      showSuccess(`Se importaron ${count} bloques.`);
+      queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
+  const editQuestionMutation = useMutation({
+    mutationFn: (vars: { item: EvaluationItem, data: any }) => updateEvaluationItem(vars.item.id, vars.data),
+    onSuccess: () => {
+      showSuccess("Pregunta actualizada.");
+      setEditingItem(null);
+      queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-        setBlocks((items) => {
-            const oldIndex = items.findIndex((item) => item.id === active.id);
-            const newIndex = items.findIndex((item) => item.id === over.id);
-            const newOrder = arrayMove(items, oldIndex, newIndex);
-            
-            const blockIds = newOrder.map(b => b.id);
-            
-            reorderContentBlocks(blockIds).catch(err => {
-                showError(`Error al reordenar: ${err.message}`);
-                loadBlocksAndQuestions(); 
-            });
-
-            return newOrder;
-        });
-    }
-  };
-
-  const handleTitleChange = async (blockId: string, newTitle: string) => {
-    setBlocks(prevBlocks => 
-        prevBlocks.map(b => b.id === blockId ? { ...b, title: newTitle } : b)
-    );
-    try {
-        await updateContentBlock(blockId, { title: newTitle });
-    } catch (error: any) {
-        showError(`Error al guardar el título: ${error.message}`);
-        loadBlocksAndQuestions(); 
-    }
-  };
-
-  const handleVisibilityChange = async (blockId: string, newVisibility: boolean) => {
-    setBlocks(prevBlocks => 
-        prevBlocks.map(b => b.id === blockId ? { ...b, visible_en_evaluacion: newVisibility } : b)
-    );
-    try {
-        await updateContentBlock(blockId, { visible_en_evaluacion: newVisibility });
-        showSuccess("Visibilidad del bloque actualizada.");
-    } catch (error: any) {
-        showError(`Error al actualizar la visibilidad: ${error.message}`);
-        loadBlocksAndQuestions(); 
-    }
-  };
-
-  const handleDeleteBlock = async (blockId: string) => {
-    try {
-      await deleteContentBlock(blockId);
-      showSuccess("Bloque eliminado.");
-      loadBlocksAndQuestions();
-    } catch (error: any) {
-      showError(`Error al eliminar el bloque: ${error.message}`);
-    }
-  };
-
-  const handleDeleteItem = async (itemId: string) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar esta pregunta? Esta acción no se puede deshacer.")) {
-      return;
-    }
-    const toastId = showLoading("Eliminando pregunta...");
-    try {
-      await deleteEvaluationItem(itemId);
-      showSuccess("Pregunta eliminada.");
-      loadBlocksAndQuestions();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      dismissToast(toastId);
-    }
-  };
-
-  const handleGenerateQuestions = async (block: EvaluationContentBlock, count: number) => {
-    setGeneratingForBlock(block.id);
-    try {
-        const evaluationContext = getEvaluationContext();
-        const generatedQuestions = await generateQuestionsFromBlock(block, count, evaluationContext);
-        await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions);
-        showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
-        loadBlocksAndQuestions();
-    } catch (error: any) {
-        showError(error.message);
-    } finally {
-        setGeneratingForBlock(null);
-    }
-  };
-
-  const handleAddManualQuestion = (blockId: string) => {
-    setActiveBlockId(blockId);
-    setAddQuestionDialogOpen(true);
-  };
-
-  const handleAdaptPIE = async (itemId: string) => {
-    setAdaptingItemId(itemId);
-    try {
-        const adaptationData = await generatePIEAdaptation(itemId);
-        await savePIEAdaptation(itemId, adaptationData);
-        showSuccess("Pregunta adaptada para PIE exitosamente.");
-        loadBlocksAndQuestions();
-    } catch (error: any) {
-        showError(`Error al adaptar la pregunta: ${error.message}`);
-    } finally {
-        setAdaptingItemId(null);
-    }
-  };
-
-  const handleEditSave = async (item: EvaluationItem, data: any) => {
-    try {
-        await updateEvaluationItem(item.id, data);
-        showSuccess("Pregunta actualizada.");
-        setEditingItem(null);
-        loadBlocksAndQuestions();
-    } catch (error: any) {
-        showError(`Error al guardar: ${error.message}`);
-    }
-  };
-
-  const handleIncreaseDifficulty = async (itemId: string) => {
-    setIncreasingDifficultyId(itemId);
-    try {
-        await increaseQuestionDifficulty(itemId);
-        showSuccess("Dificultad de la pregunta aumentada.");
-        loadBlocksAndQuestions();
-    } catch (error: any) {
-        showError(`Error al aumentar dificultad: ${error.message}`);
-    } finally {
-        setIncreasingDifficultyId(null);
-    }
-  };
-
-  const handleDecreaseDifficulty = async (itemId: string) => {
-    setDecreasingDifficultyId(itemId);
-    try {
-        await decreaseQuestionDifficulty(itemId);
-        showSuccess("Dificultad de la pregunta disminuida.");
-        loadBlocksAndQuestions();
-    } catch (error: any) {
-        showError(`Error al disminuir la dificultad: ${error.message}`);
-    } finally {
-        setDecreasingDifficultyId(null);
-    }
-  };
-
-  const handlePlanSelected = async (plan: UnitPlan) => {
-    const toastId = showLoading("Creando bloque desde el plan...");
-    try {
-      const contentText = `Contenido de la unidad: ${plan.titulo}\n\n${plan.descripcion_contenidos}`;
-      await createContentBlock(
-        evaluationId,
-        'text',
-        { text: contentText },
-        blocks.length + 1,
-        `Desde Plan: ${plan.titulo}`
-      );
-      showSuccess("Bloque de contenido creado desde el plan didáctico.");
-      loadBlocksAndQuestions();
-    } catch (error: any) {
-      showError(`Error al crear el bloque: ${error.message}`);
-    } finally {
-      dismissToast(toastId);
-    }
-  };
-
-  const handleResourceSelected = async (resourceId: string) => {
-    const toastId = showLoading("Importando contenido del recurso...");
-    try {
-      const blocksToImport = await fetchEvaluationContentForImport(resourceId);
-      if (blocksToImport.length === 0) {
-        showError("El recurso seleccionado no tiene contenido para importar.");
-        dismissToast(toastId);
-        return;
-      }
-
-      const createBlockPromises = blocksToImport.map((block, index) =>
-        createContentBlock(
-          evaluationId,
-          block.block_type,
-          block.content,
-          blocks.length + index + 1,
-          block.title || undefined
-        )
-      );
-      await Promise.all(createBlockPromises);
-
-      showSuccess(`Se importaron ${blocksToImport.length} bloques de contenido.`);
-      loadBlocksAndQuestions();
-    } catch (error: any) {
-      showError(`Error al importar el recurso: ${error.message}`);
-    } finally {
-      dismissToast(toastId);
+      const oldIndex = blocks.findIndex((item) => item.id === active.id);
+      const newIndex = blocks.findIndex((item) => item.id === over.id);
+      const newOrder = arrayMove(blocks, oldIndex, newIndex);
+      queryClient.setQueryData(['contentBlocks', evaluationId], newOrder); // Optimistic update
+      reorderMutation.mutate(newOrder.map(b => b.id));
     }
   };
 
   const handleEditBlock = (block: EvaluationContentBlock) => {
     setEditingBlock(block);
-    if (block.block_type === 'text') {
-      setAddTextDialogOpen(true);
-    } else if (block.block_type === 'image') {
-      setAddImageDialogOpen(true);
-    } else if (block.block_type === 'syllabus') {
-      setAddSyllabusDialogOpen(true);
-    }
-  };
-
-  const handleScoreChange = async (itemId: string, newScore: number) => {
-    setQuestionsByBlock(prev => {
-        const newQuestions = { ...prev };
-        for (const blockId in newQuestions) {
-            const itemIndex = newQuestions[blockId].findIndex(i => i.id === itemId);
-            if (itemIndex !== -1) {
-                newQuestions[blockId][itemIndex] = { ...newQuestions[blockId][itemIndex], puntaje: newScore };
-                break;
-            }
-        }
-        return newQuestions;
-    });
-
-    try {
-        await updateEvaluationItemDetails(itemId, { puntaje: newScore });
-    } catch (error: any) {
-        showError(error.message);
-        loadBlocksAndQuestions();
-    }
+    if (block.block_type === 'text') setAddTextDialogOpen(true);
+    else if (block.block_type === 'image') setAddImageDialogOpen(true);
+    else if (block.block_type === 'syllabus') setAddSyllabusDialogOpen(true);
   };
 
   return (
@@ -479,14 +307,10 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                                 placeholder={`Título del Bloque ${block.orden}`}
                                 className="text-base font-semibold border-none focus-visible:ring-1 focus-visible:ring-ring p-0 h-auto bg-transparent"
                                 onClick={(e) => e.stopPropagation()}
-                                onBlur={(e) => {
-                                    if (e.target.value !== (block.title || '')) {
-                                        handleTitleChange(block.id, e.target.value);
-                                    }
-                                }}
+                                onBlur={(e) => { if (e.target.value !== (block.title || '')) updateTitleMutation.mutate({ blockId: block.id, title: e.target.value }); }}
                               />
                               <CardDescription>
-                                {questionsByBlock[block.id]?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
+                                {block.evaluacion_items?.length || 0} preguntas generadas. Haz clic para {expandedBlocks[block.id] ? 'ocultar' : 'mostrar'}.
                               </CardDescription>
                             </div>
                           </div>
@@ -495,21 +319,15 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                                      <Switch
-                                          id={`visibility-${block.id}`}
-                                          checked={block.visible_en_evaluacion}
-                                          onCheckedChange={(checked) => handleVisibilityChange(block.id, checked)}
-                                      />
+                                      <Switch id={`visibility-${block.id}`} checked={block.visible_en_evaluacion} onCheckedChange={(checked) => updateVisibilityMutation.mutate({ blockId: block.id, visible: checked })} />
                                       <Label htmlFor={`visibility-${block.id}`} className="text-xs text-muted-foreground">Visible</Label>
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Si está activado, el contenido de este bloque será visible para el estudiante.</p>
-                                </TooltipContent>
+                                <TooltipContent><p>Si está activado, el contenido de este bloque será visible para el estudiante.</p></TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditBlock(block); }}><Edit className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteBlock(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteBlockMutation.mutate(block.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                             <ChevronsUpDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedBlocks[block.id] && "rotate-180")} />
                           </div>
                         </CardHeader>
@@ -526,38 +344,30 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                       {expandedBlocks[block.id] && (
                         <div className="pl-6 border-l-2 border-primary ml-4 space-y-3 py-4 mt-2">
                           <div className="flex justify-end items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleAddManualQuestion(block.id)}>
+                            <Button variant="outline" size="sm" onClick={() => { setActiveBlockId(block.id); setAddQuestionDialogOpen(true); }}>
                                 <PlusCircle className="h-4 w-4 mr-2" /> Añadir Pregunta Manual
                             </Button>
                             <div className="flex items-center gap-2">
-                                <Input
-                                    type="number"
-                                    min="1"
-                                    max="10"
-                                    value={questionCounts[block.id] || 3}
-                                    onChange={(e) => setQuestionCounts(prev => ({ ...prev, [block.id]: parseInt(e.target.value, 10) || 3 }))}
-                                    className="w-16 h-9"
-                                />
-                                <Button onClick={() => handleGenerateQuestions(block, questionCounts[block.id] || 3)} disabled={generatingForBlock === block.id}>
-                                  {generatingForBlock === block.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                                <Input type="number" min="1" max="10" value={questionCounts[block.id] || 3} onChange={(e) => setQuestionCounts(prev => ({ ...prev, [block.id]: parseInt(e.target.value, 10) || 3 }))} className="w-16 h-9" />
+                                <Button onClick={() => generateQuestionsMutation.mutate({ block, count: questionCounts[block.id] || 3 })} disabled={generateQuestionsMutation.isPending}>
+                                  {generateQuestionsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
                                   Generar
                                 </Button>
                             </div>
                           </div>
-                          {questionsByBlock[block.id] && questionsByBlock[block.id].length > 0 ? (
-                            questionsByBlock[block.id].map(item => (
+                          {block.evaluacion_items && block.evaluacion_items.length > 0 ? (
+                            block.evaluacion_items.map(item => (
                               <QuestionItem 
-                                  key={item.id} 
-                                  item={item} 
-                                  onAdaptPIE={handleAdaptPIE}
+                                  key={item.id} item={item} 
+                                  onAdaptPIE={() => adaptPIEMutation.mutate(item.id)}
                                   onEdit={setEditingItem}
-                                  onIncreaseDifficulty={handleIncreaseDifficulty}
-                                  onDecreaseDifficulty={handleDecreaseDifficulty}
-                                  onScoreChange={handleScoreChange}
-                                  onDelete={handleDeleteItem}
-                                  isAdapting={adaptingItemId === item.id}
-                                  isIncreasingDifficulty={increasingDifficultyId === item.id}
-                                  isDecreasingDifficulty={decreasingDifficultyId === item.id}
+                                  onIncreaseDifficulty={() => increaseDifficultyMutation.mutate(item.id)}
+                                  onDecreaseDifficulty={() => decreaseDifficultyMutation.mutate(item.id)}
+                                  onScoreChange={(itemId, newScore) => updateScoreMutation.mutate({ itemId, score: newScore })}
+                                  onDelete={() => deleteItemMutation.mutate(item.id)}
+                                  isAdapting={adaptPIEMutation.isPending && adaptPIEMutation.variables === item.id}
+                                  isIncreasingDifficulty={increaseDifficultyMutation.isPending && increaseDifficultyMutation.variables === item.id}
+                                  isDecreasingDifficulty={decreaseDifficultyMutation.isPending && decreaseDifficultyMutation.variables === item.id}
                               />
                             ))
                           ) : (
@@ -583,13 +393,13 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         <Button onClick={onNextStep} disabled={blocks.length === 0}>Continuar a Revisión Final</Button>
       </div>
 
-      <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => { setAddTextDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
-      <AddSyllabusBlockDialog isOpen={isAddSyllabusDialogOpen} onClose={() => { setAddSyllabusDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
-      <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => { setAddImageDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
-      {activeBlockId && <AddQuestionDialog isOpen={isAddQuestionDialogOpen} onClose={() => setAddQuestionDialogOpen(false)} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} blockId={activeBlockId} />}
-      <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
-      <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
-      <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={handleEditSave} item={editingItem} />
+      <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => { setAddTextDialogOpen(false); setEditingBlock(null); }} onSave={() => queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] })} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
+      <AddSyllabusBlockDialog isOpen={isAddSyllabusDialogOpen} onClose={() => { setAddSyllabusDialogOpen(false); setEditingBlock(null); }} onSave={() => queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] })} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
+      <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => { setAddImageDialogOpen(false); setEditingBlock(null); }} onSave={() => queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] })} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
+      {activeBlockId && <AddQuestionDialog isOpen={isAddQuestionDialogOpen} onClose={() => setAddQuestionDialogOpen(false)} onSave={() => queryClient.invalidateQueries({ queryKey: ['contentBlocks', evaluationId] })} evaluationId={evaluationId} blockId={activeBlockId} />}
+      <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={(plan) => createFromPlanMutation.mutate(plan)} />
+      <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={(id) => createFromResourceMutation.mutate(id)} currentEvaluationId={evaluationId} />
+      <EditQuestionDialog isOpen={!!editingItem} onClose={() => setEditingItem(null)} onSave={(item, data) => editQuestionMutation.mutate({ item, data })} item={editingItem} />
     </div>
   );
 };

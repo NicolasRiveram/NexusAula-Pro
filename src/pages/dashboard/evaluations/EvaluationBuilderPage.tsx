@@ -13,6 +13,7 @@ import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvalu
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const evaluationBuilderSchema = step1Schema.extend({
   randomizar_preguntas: z.boolean().default(false),
@@ -25,13 +26,11 @@ type EvaluationBuilderFormData = z.infer<typeof evaluationBuilderSchema>;
 const EvaluationBuilderPage = () => {
   const navigate = useNavigate();
   const { evaluationId: evaluationIdFromParams } = useParams<{ evaluationId: string }>();
+  const queryClient = useQueryClient();
   
   const [isEditMode] = useState(!!evaluationIdFromParams);
   const [step, setStep] = useState(1);
   const [evaluationId, setEvaluationId] = useState<string | null>(evaluationIdFromParams || null);
-  const [evaluationDetails, setEvaluationDetails] = useState<EvaluationDetail | null>(null);
-  const [loadingInitialData, setLoadingInitialData] = useState(isEditMode);
-  const [habilidades, setHabilidades] = useState<string[]>([]);
 
   const { control, handleSubmit, formState: { isSubmitting }, reset, getValues, setValue } = useForm<EvaluationBuilderFormData>({
     resolver: zodResolver(evaluationBuilderSchema),
@@ -53,43 +52,35 @@ const EvaluationBuilderPage = () => {
     }
   });
 
-  useEffect(() => {
-    if (isEditMode && evaluationId) {
-      const loadEvaluationData = async () => {
-        try {
-          const data = await fetchEvaluationDetails(evaluationId);
-          setEvaluationDetails(data);
-          const fetchedHabilidades = data.evaluacion_habilidades.map(eh => eh.habilidades.nombre);
-          setHabilidades(fetchedHabilidades);
-          reset({
-            titulo: data.titulo,
-            descripcion: data.descripcion || '',
-            tipo: data.tipo,
-            momento_evaluativo: data.momento_evaluativo,
-            habilidades: fetchedHabilidades,
-            fecha_aplicacion: data.fecha_aplicacion ? parseISO(data.fecha_aplicacion) : undefined,
-            cursoAsignaturaIds: data.curso_asignaturas.map((link: any) => link.id),
-            objetivos_aprendizaje_ids: data.evaluacion_objetivos.map(eo => eo.oa_id),
-            randomizar_preguntas: data.randomizar_preguntas,
-            randomizar_alternativas: data.randomizar_alternativas,
-            estandar_esperado: data.estandar_esperado || '',
-            asignaturaId: data.curso_asignaturas[0]?.asignatura.id,
-            nivelId: data.curso_asignaturas[0]?.curso.nivel.id,
-          });
-        } catch (error: any) {
-          showError(`Error al cargar datos para editar: ${error.message}`);
-          navigate('/dashboard/evaluacion');
-        } finally {
-          setLoadingInitialData(false);
-        }
-      };
-      loadEvaluationData();
+  const { data: evaluationDetails, isLoading: loadingInitialData } = useQuery({
+    queryKey: ['evaluationDetails', evaluationId],
+    queryFn: () => fetchEvaluationDetails(evaluationId!),
+    enabled: isEditMode && !!evaluationId,
+    onSuccess: (data) => {
+      reset({
+        titulo: data.titulo,
+        descripcion: data.descripcion || '',
+        tipo: data.tipo,
+        momento_evaluativo: data.momento_evaluativo,
+        habilidades: data.evaluacion_habilidades.map(eh => eh.habilidades.nombre),
+        fecha_aplicacion: data.fecha_aplicacion ? parseISO(data.fecha_aplicacion) : undefined,
+        cursoAsignaturaIds: data.curso_asignaturas.map((link: any) => link.id),
+        objetivos_aprendizaje_ids: data.evaluacion_objetivos.map(eo => eo.oa_id),
+        randomizar_preguntas: data.randomizar_preguntas,
+        randomizar_alternativas: data.randomizar_alternativas,
+        estandar_esperado: data.estandar_esperado || '',
+        asignaturaId: data.curso_asignaturas[0]?.asignatura.id,
+        nivelId: data.curso_asignaturas[0]?.curso.nivel.id,
+      });
+    },
+    onError: (error: any) => {
+      showError(`Error al cargar datos para editar: ${error.message}`);
+      navigate('/dashboard/evaluacion');
     }
-  }, [isEditMode, evaluationId, reset, navigate]);
+  });
 
-  const handleStep1Submit = async (data: EvaluationStep1Data) => {
-    const toastId = showLoading(isEditMode ? "Actualizando evaluación..." : "Creando evaluación...");
-    try {
+  const step1Mutation = useMutation({
+    mutationFn: async (data: EvaluationStep1Data) => {
       const payload: CreateEvaluationData & { objetivos_aprendizaje_ids: string[] } = {
         titulo: data.titulo,
         tipo: data.tipo,
@@ -103,30 +94,28 @@ const EvaluationBuilderPage = () => {
 
       if (isEditMode && evaluationId) {
         await updateEvaluation(evaluationId, payload);
-        showSuccess("Información general actualizada.");
+        return evaluationId;
       } else {
-        const newEvaluationId = await createEvaluation(payload);
-        setEvaluationId(newEvaluationId);
-        showSuccess("Información general guardada. Ahora añade contenido.");
+        return await createEvaluation(payload);
       }
-      
-      setHabilidades(data.habilidades || []);
-      dismissToast(toastId);
+    },
+    onSuccess: (newOrUpdatedId) => {
+      if (!isEditMode) {
+        setEvaluationId(newOrUpdatedId);
+        showSuccess("Información general guardada. Ahora añade contenido.");
+      } else {
+        showSuccess("Información general actualizada.");
+      }
       setStep(2);
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Error: ${error.message}`);
-    }
-  };
+    },
+    onError: (error: any) => showError(`Error: ${error.message}`),
+  });
 
-  const handleNextFromContent = async () => {
-    if (!evaluationId) return;
-    const toastId = showLoading("Cargando y preparando revisión final...");
-    try {
+  const prepareForReviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!evaluationId) throw new Error("ID de evaluación no encontrado.");
       const data = await fetchEvaluationDetails(evaluationId);
-      setEvaluationDetails(data);
-
-      // Auto-generate standard if empty
+      
       if (!data.estandar_esperado) {
         const questions = data.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
         if (questions.length > 0) {
@@ -144,21 +133,20 @@ const EvaluationBuilderPage = () => {
           setValue('estandar_esperado', aiData.standard);
         }
       }
-
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['evaluationDetails', evaluationId] });
       setStep(3);
-    } catch (error: any) {
-      showError(`Error al preparar la revisión: ${error.message}`);
-    } finally {
-      dismissToast(toastId);
-    }
-  };
+    },
+    onError: (error: any) => showError(`Error al preparar la revisión: ${error.message}`),
+  });
 
-  const handleFinalSubmit = async () => {
-    if (!evaluationId || !evaluationDetails) return;
-    const formData = getValues();
-    const toastId = showLoading("Finalizando y guardando configuración...");
-    try {
-      // 1. Save main settings
+  const finalSubmitMutation = useMutation({
+    mutationFn: async () => {
+      if (!evaluationId || !evaluationDetails) throw new Error("Datos de evaluación incompletos.");
+      const formData = getValues();
+      
       await updateEvaluation(evaluationId, {
         titulo: formData.titulo,
         tipo: formData.tipo,
@@ -173,7 +161,6 @@ const EvaluationBuilderPage = () => {
         objetivos_aprendizaje_ids: formData.objetivos_aprendizaje_ids || [],
       });
 
-      // 2. Generate and save "Aspectos a Evaluar" if not present
       if (!evaluationDetails.aspectos_a_evaluar_ia) {
         const questions = evaluationDetails.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
         const questionsSummary = questions.map(q => ({
@@ -185,23 +172,17 @@ const EvaluationBuilderPage = () => {
         const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-evaluation-aspects', {
           body: { evaluationTitle: evaluationDetails.titulo, questions: questionsSummary },
         });
-
         if (aiError) throw aiError;
 
-        await supabase
-          .from('evaluaciones')
-          .update({ aspectos_a_evaluar_ia: aiData.aspects })
-          .eq('id', evaluationId);
+        await supabase.from('evaluaciones').update({ aspectos_a_evaluar_ia: aiData.aspects }).eq('id', evaluationId);
       }
-
+    },
+    onSuccess: () => {
       showSuccess("Evaluación guardada y configurada exitosamente.");
       navigate(`/dashboard/evaluacion/${evaluationId}`);
-    } catch (error: any) {
-      showError(`Error al finalizar: ${error.message}`);
-    } finally {
-      dismissToast(toastId);
-    }
-  };
+    },
+    onError: (error: any) => showError(`Error al finalizar: ${error.message}`),
+  });
 
   const getStepDescription = () => {
     switch (step) {
@@ -231,9 +212,9 @@ const EvaluationBuilderPage = () => {
             </div>
           ) : step === 1 ? (
             <Step1GeneralInfo 
-              onFormSubmit={handleSubmit(handleStep1Submit)} 
+              onFormSubmit={handleSubmit((data) => step1Mutation.mutate(data))} 
               control={control} 
-              isSubmitting={isSubmitting}
+              isSubmitting={step1Mutation.isPending}
               setValue={setValue}
               getValues={getValues}
             />
@@ -241,8 +222,8 @@ const EvaluationBuilderPage = () => {
             <Step2ContentBlocks 
               evaluationId={evaluationId} 
               evaluationTitle={getValues('titulo')}
-              onNextStep={handleNextFromContent}
-              temario={habilidades.join(', ')}
+              onNextStep={() => prepareForReviewMutation.mutate()}
+              temario={(getValues('habilidades') || []).join(', ')}
               getEvaluationContext={() => getValues('descripcion')}
             />
           ) : step === 3 && evaluationDetails ? (
@@ -255,8 +236,8 @@ const EvaluationBuilderPage = () => {
               <ChevronLeft className="mr-2 h-4 w-4" /> Atrás
             </Button>
             {step === 3 && (
-              <Button onClick={handleFinalSubmit} disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              <Button onClick={() => finalSubmitMutation.mutate()} disabled={finalSubmitMutation.isPending}>
+                {finalSubmitMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Finalizar y Guardar
               </Button>
             )}
