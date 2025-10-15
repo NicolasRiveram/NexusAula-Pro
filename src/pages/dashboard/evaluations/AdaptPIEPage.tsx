@@ -58,7 +58,7 @@ const AdaptPIEPage = () => {
     }
   };
 
-  const allItems = evaluation?.evaluation_content_blocks.flatMap(b => b.evaluacion_items) || [];
+  const allItems = evaluation?.evaluation_content_blocks.flatMap(b => b.evaluacion_items || []) || [];
 
   if (loading) {
     return <div className="container mx-auto flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -104,7 +104,7 @@ const AdaptPIEPage = () => {
                   <div className="flex-1">
                     <Label htmlFor={`item-${item.id}`} className="font-semibold">{item.orden}. {item.enunciado}</Label>
                     <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {item.item_alternativas.sort((a, b) => a.orden - b.orden).map((alt, index) => (
+                      {(item.item_alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
                         <li key={alt.id} className={cn(alt.es_correcta && "font-bold text-primary")}>
                           {String.fromCharCode(97 + index)}) {alt.texto}
                         </li>
@@ -120,7 +120,7 @@ const AdaptPIEPage = () => {
                     </h5>
                     <p className="text-sm font-medium" dangerouslySetInnerHTML={{ __html: adaptation.enunciado_adaptado.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
                     <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {adaptation.alternativas_adaptadas.map((alt, index) => (
+                      {(adaptation.alternativas_adaptadas || []).map((alt, index) => (
                         <li key={index} className={cn(alt.es_correcta && "font-semibold text-primary")}>
                           {String.fromCharCode(97 + index)}) {alt.texto}
                         </li>
