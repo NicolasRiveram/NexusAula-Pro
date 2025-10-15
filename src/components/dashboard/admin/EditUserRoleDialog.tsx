@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateUserRole, EstablishmentUser } from '@/api/adminApi';
 import { showError, showSuccess } from '@/utils/toast';
+import { useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   newRole: z.string().min(1, "Debes seleccionar un rol."),
@@ -25,7 +26,6 @@ interface EditUserRoleDialogProps {
 
 const EditUserRoleDialog: React.FC<EditUserRoleDialogProps> = ({ isOpen, onClose, user, onUserUpdated }) => {
   const { activeEstablishment } = useEstablishment();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -37,19 +37,23 @@ const EditUserRoleDialog: React.FC<EditUserRoleDialogProps> = ({ isOpen, onClose
     }
   }, [user, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!user || !activeEstablishment) return;
-    setIsSubmitting(true);
-    try {
-      await updateUserRole(user.perfil_id, activeEstablishment.id, data.newRole);
-      showSuccess(`El rol de ${user.nombre_completo} ha sido actualizado.`);
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => {
+      if (!user || !activeEstablishment) throw new Error("Datos insuficientes para actualizar el rol.");
+      return updateUserRole(user.perfil_id, activeEstablishment.id, data.newRole);
+    },
+    onSuccess: () => {
+      showSuccess(`El rol de ${user?.nombre_completo} ha sido actualizado.`);
       onUserUpdated();
       onClose();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -82,8 +86,8 @@ const EditUserRoleDialog: React.FC<EditUserRoleDialogProps> = ({ isOpen, onClose
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </DialogFooter>
         </form>

@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { saveAnnouncement, Announcement } from '@/api/adminApi';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { showError, showSuccess } from '@/utils/toast';
+import { useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
@@ -38,7 +39,7 @@ interface AnnouncementEditDialogProps {
 
 const AnnouncementEditDialog: React.FC<AnnouncementEditDialogProps> = ({ isOpen, onClose, onSaved, announcement }) => {
   const { activeEstablishment } = useEstablishment();
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -54,21 +55,28 @@ const AnnouncementEditDialog: React.FC<AnnouncementEditDialogProps> = ({ isOpen,
     }
   }, [announcement, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!activeEstablishment) return;
-    try {
-      await saveAnnouncement({
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => {
+      if (!activeEstablishment) throw new Error("No hay un establecimiento activo.");
+      return saveAnnouncement({
         titulo: data.titulo,
         mensaje: data.mensaje,
         fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
         fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
       }, activeEstablishment.id, announcement?.id);
+    },
+    onSuccess: () => {
       showSuccess("Anuncio guardado exitosamente.");
       onSaved();
       onClose();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -114,7 +122,7 @@ const AnnouncementEditDialog: React.FC<AnnouncementEditDialogProps> = ({ isOpen,
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar Anuncio'}</Button>
+            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Guardando...' : 'Guardar Anuncio'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
