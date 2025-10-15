@@ -17,37 +17,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface NivelesManagementProps {
   niveles: Nivel[];
-  onDataChange: () => void;
   selectedNiveles: string[];
   setSelectedNiveles: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: (type: 'nivel') => void;
+  openBulkDeleteDialog: () => void;
 }
 
-const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, onDataChange, selectedNiveles, setSelectedNiveles, openBulkDeleteDialog }) => {
+const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, selectedNiveles, setSelectedNiveles, openBulkDeleteDialog }) => {
+  const queryClient = useQueryClient();
   const [isNivelDialogOpen, setNivelDialogOpen] = useState(false);
   const [selectedNivel, setSelectedNivel] = useState<Nivel | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [nivelToDelete, setNivelToDelete] = useState<Nivel | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteNivel,
+    onSuccess: () => {
+      showSuccess('Nivel eliminado.');
+      queryClient.invalidateQueries({ queryKey: ['niveles'] });
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => {
+      setIsAlertOpen(false);
+      setNivelToDelete(null);
+    }
+  });
 
   const handleDeleteClick = (item: Nivel) => {
     setNivelToDelete(item);
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!nivelToDelete) return;
-    try {
-      await deleteNivel(nivelToDelete.id);
-      showSuccess('Nivel eliminado.');
-      onDataChange();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsAlertOpen(false);
-      setNivelToDelete(null);
+  const confirmDelete = () => {
+    if (nivelToDelete) {
+      deleteMutation.mutate(nivelToDelete.id);
     }
   };
 
@@ -55,7 +61,7 @@ const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, onDataCh
     <>
       <div className="flex justify-end mb-4">
         {selectedNiveles.length > 0 ? (
-          <Button variant="destructive" onClick={() => openBulkDeleteDialog('nivel')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedNiveles.length})</Button>
+          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedNiveles.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedNivel(null); setNivelDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Nivel</Button>
         )}
@@ -88,7 +94,7 @@ const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, onDataCh
           ))}
         </TableBody>
       </Table>
-      <NivelEditDialog isOpen={isNivelDialogOpen} onClose={() => setNivelDialogOpen(false)} onSaved={onDataChange} nivel={selectedNivel} />
+      <NivelEditDialog isOpen={isNivelDialogOpen} onClose={() => setNivelDialogOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['niveles'] })} nivel={selectedNivel} />
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -18,17 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface EjesManagementProps {
   ejes: Eje[];
   asignaturas: Asignatura[];
-  onDataChange: () => void;
   selectedEjes: string[];
   setSelectedEjes: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: (type: 'eje') => void;
+  openBulkDeleteDialog: () => void;
 }
 
-const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDataChange, selectedEjes, setSelectedEjes, openBulkDeleteDialog }) => {
+const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, selectedEjes, setSelectedEjes, openBulkDeleteDialog }) => {
+  const queryClient = useQueryClient();
   const [isEjeDialogOpen, setEjeDialogOpen] = useState(false);
   const [selectedEje, setSelectedEje] = useState<Eje | null>(null);
   const [ejeAsignaturaFilter, setEjeAsignaturaFilter] = useState<string>('all');
@@ -42,22 +43,27 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDa
     return ejes.filter(eje => eje.asignatura_id === ejeAsignaturaFilter);
   }, [ejes, ejeAsignaturaFilter]);
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteEje,
+    onSuccess: () => {
+      showSuccess('Eje eliminado.');
+      queryClient.invalidateQueries({ queryKey: ['ejes'] });
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => {
+      setIsAlertOpen(false);
+      setEjeToDelete(null);
+    }
+  });
+
   const handleDeleteClick = (item: Eje) => {
     setEjeToDelete(item);
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!ejeToDelete) return;
-    try {
-      await deleteEje(ejeToDelete.id);
-      showSuccess('Eje eliminado.');
-      onDataChange();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsAlertOpen(false);
-      setEjeToDelete(null);
+  const confirmDelete = () => {
+    if (ejeToDelete) {
+      deleteMutation.mutate(ejeToDelete.id);
     }
   };
 
@@ -74,7 +80,7 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDa
           </Select>
         </div>
         {selectedEjes.length > 0 ? (
-          <Button variant="destructive" onClick={() => openBulkDeleteDialog('eje')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedEjes.length})</Button>
+          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedEjes.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedEje(null); setEjeDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Eje</Button>
         )}
@@ -107,7 +113,7 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDa
           ))}
         </TableBody>
       </Table>
-      <EjeEditDialog isOpen={isEjeDialogOpen} onClose={() => setEjeDialogOpen(false)} onSaved={onDataChange} eje={selectedEje} asignaturas={asignaturas} />
+      <EjeEditDialog isOpen={isEjeDialogOpen} onClose={() => setEjeDialogOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['ejes'] })} eje={selectedEje} asignaturas={asignaturas} />
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

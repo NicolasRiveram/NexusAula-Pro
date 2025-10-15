@@ -21,19 +21,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface ObjetivosManagementProps {
   oas: ObjetivoAprendizaje[];
   niveles: Nivel[];
   asignaturas: Asignatura[];
   ejes: Eje[];
-  onDataChange: () => void;
   selectedOas: string[];
   setSelectedOas: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: (type: 'oa') => void;
+  openBulkDeleteDialog: () => void;
 }
 
-const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles, asignaturas, ejes, onDataChange, selectedOas, setSelectedOas, openBulkDeleteDialog }) => {
+const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles, asignaturas, ejes, selectedOas, setSelectedOas, openBulkDeleteDialog }) => {
+  const queryClient = useQueryClient();
   const [isOaDialogOpen, setOaDialogOpen] = useState(false);
   const [selectedOa, setSelectedOa] = useState<ObjetivoAprendizaje | null>(null);
   const [oaNivelFilter, setOaNivelFilter] = useState<string>('all');
@@ -66,25 +67,41 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
     });
   }, [oas, oaNivelFilter, oaAsignaturaFilter]);
 
-  const handleBulkSave = async () => {
+  const bulkInsertMutation = useMutation({
+    mutationFn: (vars: { nivelId: string, asignaturaId: string, ejeId: string, text: string }) => 
+      bulkInsertObjectives(vars.nivelId, vars.asignaturaId, vars.ejeId, vars.text),
+    onSuccess: (result) => {
+      showSuccess(result.message);
+      setBulkText('');
+      queryClient.invalidateQueries({ queryKey: ['oas'] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteObjetivoAprendizaje,
+    onSuccess: () => {
+      showSuccess('OA eliminado.');
+      queryClient.invalidateQueries({ queryKey: ['oas'] });
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => {
+      setIsAlertOpen(false);
+      setOaToDelete(null);
+    }
+  });
+
+  const handleBulkSave = () => {
     if (!selectedBulkNivel || !selectedBulkAsignatura || !selectedBulkEje || !bulkText) {
       showError("Por favor, completa todos los campos: Nivel, Asignatura, Eje y pega los objetivos.");
       return;
     }
-    setIsBulkSaving(true);
-    const toastId = showLoading("Procesando y guardando objetivos...");
-    try {
-      const result = await bulkInsertObjectives(selectedBulkNivel, selectedBulkAsignatura, selectedBulkEje, bulkText);
-      dismissToast(toastId);
-      showSuccess(result.message);
-      setBulkText('');
-      onDataChange();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-    } finally {
-      setIsBulkSaving(false);
-    }
+    bulkInsertMutation.mutate({
+      nivelId: selectedBulkNivel,
+      asignaturaId: selectedBulkAsignatura,
+      ejeId: selectedBulkEje,
+      text: bulkText,
+    });
   };
 
   const handleDeleteClick = (item: ObjetivoAprendizaje) => {
@@ -92,17 +109,9 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!oaToDelete) return;
-    try {
-      await deleteObjetivoAprendizaje(oaToDelete.id);
-      showSuccess('OA eliminado.');
-      onDataChange();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsAlertOpen(false);
-      setOaToDelete(null);
+  const confirmDelete = () => {
+    if (oaToDelete) {
+      deleteMutation.mutate(oaToDelete.id);
     }
   };
 
@@ -149,9 +158,9 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
             />
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleBulkSave} disabled={isBulkSaving}>
-              {isBulkSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {isBulkSaving ? 'Guardando...' : 'Guardar Objetivos'}
+            <Button onClick={handleBulkSave} disabled={bulkInsertMutation.isPending}>
+              {bulkInsertMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {bulkInsertMutation.isPending ? 'Guardando...' : 'Guardar Objetivos'}
             </Button>
           </div>
         </CardContent>
@@ -168,7 +177,7 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
           </Select>
         </div>
         {selectedOas.length > 0 ? (
-          <Button variant="destructive" onClick={() => openBulkDeleteDialog('oa')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
+          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedOa(null); setOaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear OA</Button>
         )}
@@ -207,7 +216,7 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
           ))}
         </TableBody>
       </Table>
-      <ObjetivoAprendizajeEditDialog isOpen={isOaDialogOpen} onClose={() => setOaDialogOpen(false)} onSaved={onDataChange} oa={selectedOa} niveles={niveles} asignaturas={asignaturas} ejes={ejes} />
+      <ObjetivoAprendizajeEditDialog isOpen={isOaDialogOpen} onClose={() => setOaDialogOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['oas'] })} oa={selectedOa} niveles={niveles} asignaturas={asignaturas} ejes={ejes} />
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
   fetchAllNiveles, Nivel, deleteMultipleNiveles,
@@ -8,7 +8,7 @@ import {
   fetchAllObjetivosAprendizaje, ObjetivoAprendizaje, deleteMultipleObjetivosAprendizaje,
   fetchCurriculumUploadJobs, CurriculumUploadJob
 } from '@/api/superAdminApi';
-import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import NivelesManagement from './curriculum/NivelesManagement';
 import AsignaturasManagement from './curriculum/AsignaturasManagement';
@@ -31,7 +31,7 @@ import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import UrlUploadForm from './curriculum/UrlUploadForm';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const CurriculumUploadForm = ({ niveles, asignaturas, onUploadSuccess }: { niveles: Nivel[], asignaturas: Asignatura[], onUploadSuccess: () => void }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -221,55 +221,49 @@ const CurriculumManagement = () => {
   const [isBulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleteConfig, setBulkDeleteConfig] = useState<{ type: string; count: number; onConfirm: () => void } | null>(null);
 
-  const handleConfirmBulkDelete = async (
-    type: string,
-    deleteFn: (ids: string[]) => Promise<void>,
-    idsToDelete: string[],
-    clearSelectionFn: React.Dispatch<React.SetStateAction<string[]>>,
-    queryKey: string
-  ) => {
-    try {
-      await deleteFn(idsToDelete);
-      showSuccess(`${idsToDelete.length} ${type}(s) eliminados.`);
-      clearSelectionFn([]);
-      queryClient.invalidateQueries({ queryKey: [queryKey] });
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setBulkDeleteOpen(false);
-    }
+  const createBulkDeleteMutation = (queryKey: string, deleteFn: (ids: string[]) => Promise<void>, setSelectedFn: React.Dispatch<React.SetStateAction<string[]>>) => {
+    return useMutation({
+      mutationFn: deleteFn,
+      onSuccess: (_, variables) => {
+        showSuccess(`${variables.length} item(s) eliminados.`);
+        queryClient.invalidateQueries({ queryKey: [queryKey] });
+        setSelectedFn([]);
+      },
+      onError: (error: any) => showError(error.message),
+      onSettled: () => setBulkDeleteOpen(false),
+    });
   };
+
+  const bulkDeleteNivelesMutation = createBulkDeleteMutation('niveles', deleteMultipleNiveles, setSelectedNiveles);
+  const bulkDeleteAsignaturasMutation = createBulkDeleteMutation('asignaturas', deleteMultipleAsignaturas, setSelectedAsignaturas);
+  const bulkDeleteEjesMutation = createBulkDeleteMutation('ejes', deleteMultipleEjes, setSelectedEjes);
+  const bulkDeleteHabilidadesMutation = createBulkDeleteMutation('habilidades', deleteMultipleHabilidades, setSelectedHabilidades);
+  const bulkDeleteOasMutation = createBulkDeleteMutation('oas', deleteMultipleObjetivosAprendizaje, setSelectedOas);
 
   const openBulkDeleteDialog = (type: 'nivel' | 'asignatura' | 'eje' | 'habilidad' | 'oa') => {
     let count = 0;
     let onConfirm: () => void;
-    let queryKey = '';
 
     switch (type) {
       case 'nivel':
         count = selectedNiveles.length;
-        queryKey = 'niveles';
-        onConfirm = () => handleConfirmBulkDelete('nivel', deleteMultipleNiveles, selectedNiveles, setSelectedNiveles, queryKey);
+        onConfirm = () => bulkDeleteNivelesMutation.mutate(selectedNiveles);
         break;
       case 'asignatura':
         count = selectedAsignaturas.length;
-        queryKey = 'asignaturas';
-        onConfirm = () => handleConfirmBulkDelete('asignatura', deleteMultipleAsignaturas, selectedAsignaturas, setSelectedAsignaturas, queryKey);
+        onConfirm = () => bulkDeleteAsignaturasMutation.mutate(selectedAsignaturas);
         break;
       case 'eje':
         count = selectedEjes.length;
-        queryKey = 'ejes';
-        onConfirm = () => handleConfirmBulkDelete('eje', deleteMultipleEjes, selectedEjes, setSelectedEjes, queryKey);
+        onConfirm = () => bulkDeleteEjesMutation.mutate(selectedEjes);
         break;
       case 'habilidad':
         count = selectedHabilidades.length;
-        queryKey = 'habilidades';
-        onConfirm = () => handleConfirmBulkDelete('habilidad', deleteMultipleHabilidades, selectedHabilidades, setSelectedHabilidades, queryKey);
+        onConfirm = () => bulkDeleteHabilidadesMutation.mutate(selectedHabilidades);
         break;
       case 'oa':
         count = selectedOas.length;
-        queryKey = 'oas';
-        onConfirm = () => handleConfirmBulkDelete('objetivo de aprendizaje', deleteMultipleObjetivosAprendizaje, selectedOas, setSelectedOas, queryKey);
+        onConfirm = () => bulkDeleteOasMutation.mutate(selectedOas);
         break;
     }
 
@@ -297,7 +291,6 @@ const CurriculumManagement = () => {
           <AccordionContent>
             <NivelesManagement 
               niveles={niveles} 
-              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['niveles'] })} 
               selectedNiveles={selectedNiveles}
               setSelectedNiveles={setSelectedNiveles}
               openBulkDeleteDialog={() => openBulkDeleteDialog('nivel')}
@@ -309,7 +302,6 @@ const CurriculumManagement = () => {
           <AccordionContent>
             <AsignaturasManagement
               asignaturas={asignaturas}
-              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['asignaturas'] })}
               selectedAsignaturas={selectedAsignaturas}
               setSelectedAsignaturas={setSelectedAsignaturas}
               openBulkDeleteDialog={() => openBulkDeleteDialog('asignatura')}
@@ -322,7 +314,6 @@ const CurriculumManagement = () => {
             <EjesManagement
               ejes={ejes}
               asignaturas={asignaturas}
-              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['ejes'] })}
               selectedEjes={selectedEjes}
               setSelectedEjes={setSelectedEjes}
               openBulkDeleteDialog={() => openBulkDeleteDialog('eje')}
@@ -334,7 +325,6 @@ const CurriculumManagement = () => {
           <AccordionContent>
             <HabilidadesManagement
               habilidades={habilidades}
-              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['habilidades'] })}
               selectedHabilidades={selectedHabilidades}
               setSelectedHabilidades={setSelectedHabilidades}
               openBulkDeleteDialog={() => openBulkDeleteDialog('habilidad')}
@@ -349,7 +339,6 @@ const CurriculumManagement = () => {
               niveles={niveles}
               asignaturas={asignaturas}
               ejes={ejes}
-              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['oas'] })}
               selectedOas={selectedOas}
               setSelectedOas={setSelectedOas}
               openBulkDeleteDialog={() => openBulkDeleteDialog('oa')}

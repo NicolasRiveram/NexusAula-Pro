@@ -17,37 +17,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface AsignaturasManagementProps {
   asignaturas: Asignatura[];
-  onDataChange: () => void;
   selectedAsignaturas: string[];
   setSelectedAsignaturas: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: (type: 'asignatura') => void;
+  openBulkDeleteDialog: () => void;
 }
 
-const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignaturas, onDataChange, selectedAsignaturas, setSelectedAsignaturas, openBulkDeleteDialog }) => {
+const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignaturas, selectedAsignaturas, setSelectedAsignaturas, openBulkDeleteDialog }) => {
+  const queryClient = useQueryClient();
   const [isAsignaturaDialogOpen, setAsignaturaDialogOpen] = useState(false);
   const [selectedAsignatura, setSelectedAsignatura] = useState<Asignatura | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [asignaturaToDelete, setAsignaturaToDelete] = useState<Asignatura | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAsignatura,
+    onSuccess: () => {
+      showSuccess('Asignatura eliminada.');
+      queryClient.invalidateQueries({ queryKey: ['asignaturas'] });
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => {
+      setIsAlertOpen(false);
+      setAsignaturaToDelete(null);
+    }
+  });
 
   const handleDeleteClick = (item: Asignatura) => {
     setAsignaturaToDelete(item);
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!asignaturaToDelete) return;
-    try {
-      await deleteAsignatura(asignaturaToDelete.id);
-      showSuccess('Asignatura eliminada.');
-      onDataChange();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsAlertOpen(false);
-      setAsignaturaToDelete(null);
+  const confirmDelete = () => {
+    if (asignaturaToDelete) {
+      deleteMutation.mutate(asignaturaToDelete.id);
     }
   };
 
@@ -55,7 +61,7 @@ const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignatur
     <>
       <div className="flex justify-end mb-4">
         {selectedAsignaturas.length > 0 ? (
-          <Button variant="destructive" onClick={() => openBulkDeleteDialog('asignatura')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedAsignaturas.length})</Button>
+          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedAsignaturas.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedAsignatura(null); setAsignaturaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Asignatura</Button>
         )}
@@ -88,7 +94,7 @@ const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignatur
           ))}
         </TableBody>
       </Table>
-      <AsignaturaEditDialog isOpen={isAsignaturaDialogOpen} onClose={() => setAsignaturaDialogOpen(false)} onSaved={onDataChange} asignatura={selectedAsignatura} />
+      <AsignaturaEditDialog isOpen={isAsignaturaDialogOpen} onClose={() => setAsignaturaDialogOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['asignaturas'] })} asignatura={selectedAsignatura} />
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

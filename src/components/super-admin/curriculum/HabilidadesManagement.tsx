@@ -17,37 +17,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface HabilidadesManagementProps {
   habilidades: Habilidad[];
-  onDataChange: () => void;
   selectedHabilidades: string[];
   setSelectedHabilidades: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: (type: 'habilidad') => void;
+  openBulkDeleteDialog: () => void;
 }
 
-const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidades, onDataChange, selectedHabilidades, setSelectedHabilidades, openBulkDeleteDialog }) => {
+const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidades, selectedHabilidades, setSelectedHabilidades, openBulkDeleteDialog }) => {
+  const queryClient = useQueryClient();
   const [isHabilidadDialogOpen, setHabilidadDialogOpen] = useState(false);
   const [selectedHabilidad, setSelectedHabilidad] = useState<Habilidad | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [habilidadToDelete, setHabilidadToDelete] = useState<Habilidad | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteHabilidad,
+    onSuccess: () => {
+      showSuccess('Habilidad eliminada.');
+      queryClient.invalidateQueries({ queryKey: ['habilidades'] });
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => {
+      setIsAlertOpen(false);
+      setHabilidadToDelete(null);
+    }
+  });
 
   const handleDeleteClick = (item: Habilidad) => {
     setHabilidadToDelete(item);
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!habilidadToDelete) return;
-    try {
-      await deleteHabilidad(habilidadToDelete.id);
-      showSuccess('Habilidad eliminada.');
-      onDataChange();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsAlertOpen(false);
-      setHabilidadToDelete(null);
+  const confirmDelete = () => {
+    if (habilidadToDelete) {
+      deleteMutation.mutate(habilidadToDelete.id);
     }
   };
 
@@ -55,7 +61,7 @@ const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidad
     <>
       <div className="flex justify-end mb-4">
         {selectedHabilidades.length > 0 ? (
-          <Button variant="destructive" onClick={() => openBulkDeleteDialog('habilidad')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedHabilidades.length})</Button>
+          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedHabilidades.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedHabilidad(null); setHabilidadDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Habilidad</Button>
         )}
@@ -88,7 +94,7 @@ const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidad
           ))}
         </TableBody>
       </Table>
-      <HabilidadEditDialog isOpen={isHabilidadDialogOpen} onClose={() => setHabilidadDialogOpen(false)} onSaved={onDataChange} habilidad={selectedHabilidad} />
+      <HabilidadEditDialog isOpen={isHabilidadDialogOpen} onClose={() => setHabilidadDialogOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['habilidades'] })} habilidad={selectedHabilidad} />
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
