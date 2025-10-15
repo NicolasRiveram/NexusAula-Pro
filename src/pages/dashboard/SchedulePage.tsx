@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { fetchTeacherSchedule, deleteScheduleBlock, ScheduleBlock } from '@/api/scheduleApi';
-import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
+import { fetchCursosAsignaturasDocente } from '@/api/coursesApi';
 import { showError, showSuccess } from '@/utils/toast';
 import ScheduleEditDialog from '@/components/schedule/ScheduleEditDialog';
 import {
@@ -18,46 +17,46 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const diasSemana = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 const SchedulePage = () => {
-  const [schedule, setSchedule] = useState<ScheduleBlock[]>([]);
-  const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlock | null>(null);
   const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
   const { activeEstablishment } = useEstablishment();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const loadData = useCallback(async () => {
-    if (!activeEstablishment) {
-      setSchedule([]);
-      setCursosAsignaturas([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      try {
-        const [scheduleData, cursosData] = await Promise.all([
-          fetchTeacherSchedule(user.id, activeEstablishment.id),
-          fetchCursosAsignaturasDocente(user.id, activeEstablishment.id),
-        ]);
-        setSchedule(scheduleData);
-        setCursosAsignaturas(cursosData);
-      } catch (error: any) {
-        showError(`Error al cargar datos: ${error.message}`);
-      }
-    }
-    setLoading(false);
-  }, [activeEstablishment]);
+  const { data: schedule = [], isLoading: isLoadingSchedule } = useQuery({
+    queryKey: ['teacherSchedule', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchTeacherSchedule(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: cursosAsignaturas = [], isLoading: isLoadingCursos } = useQuery({
+    queryKey: ['teacherCoursesForSchedule', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteScheduleBlock,
+    onSuccess: () => {
+      showSuccess("Bloque de horario eliminado.");
+      queryClient.invalidateQueries({ queryKey: ['teacherSchedule'] });
+    },
+    onError: (error: any) => {
+      showError(`Error al eliminar: ${error.message}`);
+    },
+    onSettled: () => {
+      setAlertOpen(false);
+      setBlockToDelete(null);
+    }
+  });
 
   const handleAdd = () => {
     setSelectedBlock(null);
@@ -69,17 +68,9 @@ const SchedulePage = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!blockToDelete) return;
-    try {
-      await deleteScheduleBlock(blockToDelete);
-      showSuccess("Bloque de horario eliminado.");
-      loadData();
-    } catch (error: any) {
-      showError(`Error al eliminar: ${error.message}`);
-    } finally {
-      setAlertOpen(false);
-      setBlockToDelete(null);
+  const handleDelete = () => {
+    if (blockToDelete) {
+      deleteMutation.mutate(blockToDelete);
     }
   };
 
@@ -87,6 +78,8 @@ const SchedulePage = () => {
     (acc[block.dia_semana] = acc[block.dia_semana] || []).push(block);
     return acc;
   }, {} as Record<number, ScheduleBlock[]>);
+
+  const loading = isLoadingSchedule || isLoadingCursos;
 
   return (
     <div className="container mx-auto space-y-6">
@@ -143,7 +136,7 @@ const SchedulePage = () => {
       <ScheduleEditDialog
         isOpen={isDialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSaved={loadData}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['teacherSchedule'] })}
         scheduleBlock={selectedBlock}
         cursosAsignaturas={cursosAsignaturas}
       />

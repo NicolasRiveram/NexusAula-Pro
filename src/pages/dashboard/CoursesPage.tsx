@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, BookUp, MoreVertical, BookOpen } from 'lucide-react';
+import { PlusCircle, BookUp, MoreVertical } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -21,7 +20,7 @@ import EnrollStudentsDialog from '@/components/courses/EnrollStudentsDialog';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardContext {
@@ -34,6 +33,7 @@ interface DashboardContext {
 const CoursesPage = () => {
   const { profile } = useOutletContext<DashboardContext>();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const isStudent = profile.rol === 'estudiante';
   const isTrial = profile.subscription_plan === 'prueba';
 
@@ -43,7 +43,7 @@ const CoursesPage = () => {
   const [selectedCourse, setSelectedCourse] = useState<{ id: string; nombre: string } | null>(null);
   const { activeEstablishment } = useEstablishment();
 
-  const { data: coursesData, isLoading: loading, refetch: loadCourses } = useQuery({
+  const { data: coursesData, isLoading: loading } = useQuery({
     queryKey: ['courses', user?.id, activeEstablishment?.id, isStudent],
     queryFn: async () => {
       if (!user || !activeEstablishment) return isStudent ? [] : {};
@@ -257,12 +257,12 @@ const CoursesPage = () => {
           <CreateCourseDialog
             isOpen={isCreateDialogOpen}
             onClose={() => setCreateDialogOpen(false)}
-            onCourseCreated={loadCourses}
+            onCourseCreated={() => queryClient.invalidateQueries({ queryKey: ['courses'] })}
           />
           <AssignSubjectDialog
             isOpen={isAssignDialogOpen}
             onClose={() => setAssignDialogOpen(false)}
-            onSubjectAssigned={loadCourses}
+            onSubjectAssigned={() => queryClient.invalidateQueries({ queryKey: ['courses'] })}
           />
           <EnrollStudentsDialog
             isOpen={isEnrollDialogOpen}

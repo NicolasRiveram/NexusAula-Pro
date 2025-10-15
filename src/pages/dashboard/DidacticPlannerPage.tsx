@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,19 +21,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 const DidacticPlannerPage = () => {
   const { activeEstablishment } = useEstablishment();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [planToDelete, setPlanToDelete] = useState<UnitPlan | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  const { data: unitPlans = [], isLoading: loading, refetch: loadPlans } = useQuery({
+  const { data: unitPlans = [], isLoading: loading } = useQuery({
     queryKey: ['unitPlans', user?.id, activeEstablishment?.id],
     queryFn: () => fetchUnitPlans(user!.id, activeEstablishment!.id),
     enabled: !!user && !!activeEstablishment,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteUnitPlan,
+    onSuccess: () => {
+      showSuccess("Plan de unidad eliminado.");
+      queryClient.invalidateQueries({ queryKey: ['unitPlans'] });
+    },
+    onError: (error: any) => {
+      showError(error.message);
+    },
+    onSettled: () => {
+      setIsAlertOpen(false);
+      setPlanToDelete(null);
+    }
   });
 
   const handleDeleteClick = (plan: UnitPlan) => {
@@ -42,17 +57,9 @@ const DidacticPlannerPage = () => {
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!planToDelete) return;
-    try {
-      await deleteUnitPlan(planToDelete.id);
-      showSuccess("Plan de unidad eliminado.");
-      loadPlans();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setIsAlertOpen(false);
-      setPlanToDelete(null);
+  const confirmDelete = () => {
+    if (planToDelete) {
+      deleteMutation.mutate(planToDelete.id);
     }
   };
 
