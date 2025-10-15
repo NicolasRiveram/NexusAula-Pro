@@ -14,8 +14,7 @@ import { DateRange } from 'react-day-picker';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { saveStage, ProjectStage } from '@/api/projectsApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { ProjectStage, StageData } from '@/api/projectsApi';
 
 const schema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
@@ -31,13 +30,14 @@ type FormData = z.infer<typeof schema>;
 interface StageEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSave: (data: StageData, stageId?: string) => void;
+  isSaving: boolean;
   projectId: string;
   stage?: ProjectStage | null;
 }
 
-const StageEditDialog: React.FC<StageEditDialogProps> = ({ isOpen, onClose, onSaved, projectId, stage }) => {
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+const StageEditDialog: React.FC<StageEditDialogProps> = ({ isOpen, onClose, onSave, isSaving, projectId, stage }) => {
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -53,27 +53,16 @@ const StageEditDialog: React.FC<StageEditDialogProps> = ({ isOpen, onClose, onSa
     }
   }, [stage, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    const toastId = showLoading("Guardando etapa...");
-    try {
-      await saveStage(
-        projectId,
-        {
-          nombre: data.nombre,
-          descripcion: data.descripcion,
-          fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
-          fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
-        },
-        stage?.id
-      );
-      dismissToast(toastId);
-      showSuccess("Etapa guardada exitosamente.");
-      onSaved();
-      onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-    }
+  const onSubmit = (data: FormData) => {
+    onSave(
+      {
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
+        fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
+      },
+      stage?.id
+    );
   };
 
   return (
@@ -117,7 +106,7 @@ const StageEditDialog: React.FC<StageEditDialogProps> = ({ isOpen, onClose, onSa
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar Etapa'}</Button>
+            <Button type="submit" disabled={isSaving}>{isSaving ? 'Guardando...' : 'Guardar Etapa'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

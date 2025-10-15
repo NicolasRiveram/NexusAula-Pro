@@ -4,75 +4,65 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2 } from 'lucide-react';
-import { fetchAllProjects, fetchStudentProjects, Project } from '@/api/projectsApi';
+import { fetchAllProjects, fetchStudentProjects, Project, createProject } from '@/api/projectsApi';
 import { fetchNiveles, fetchAsignaturas, Nivel, Asignatura } from '@/api/coursesApi';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import ProjectCard from '@/components/projects/ProjectCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardContext {
   profile: { rol: string } | null;
 }
 
 const ProjectsPage = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [niveles, setNiveles] = useState<Nivel[]>([]);
-  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
   const [selectedNivel, setSelectedNivel] = useState<string>('all');
   const [selectedAsignatura, setSelectedAsignatura] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const { activeEstablishment } = useEstablishment();
   const { profile } = useOutletContext<DashboardContext>();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   const isStudent = profile?.rol === 'estudiante';
 
-  const loadProjects = async () => {
-    if (!activeEstablishment || !profile) {
-      setProjects([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado.");
-
-      let data;
+  const { data: projects = [], isLoading: loadingProjects } = useQuery({
+    queryKey: ['projects', activeEstablishment?.id, selectedNivel, selectedAsignatura, profile?.rol],
+    queryFn: async () => {
+      if (!activeEstablishment || !user) return [];
       if (isStudent) {
-        data = await fetchStudentProjects(user.id, activeEstablishment.id);
+        return await fetchStudentProjects(user.id, activeEstablishment.id);
       } else {
         const nivelFilter = selectedNivel === 'all' ? undefined : selectedNivel;
         const asignaturaFilter = selectedAsignatura === 'all' ? undefined : selectedAsignatura;
-        data = await fetchAllProjects(activeEstablishment.id, nivelFilter, asignaturaFilter);
+        return await fetchAllProjects(activeEstablishment.id, nivelFilter, asignaturaFilter);
       }
-      setProjects(data);
-    } catch (err: any) {
-      showError(`Error al cargar proyectos: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    enabled: !!activeEstablishment && !!user,
+  });
 
-  useEffect(() => {
-    if (!isStudent) {
-      const loadFilters = async () => {
-        try {
-          const [nivelesData, asignaturasData] = await Promise.all([fetchNiveles(), fetchAsignaturas()]);
-          setNiveles(nivelesData);
-          setAsignaturas(asignaturasData);
-        } catch (err: any) {
-          showError(`Error al cargar filtros: ${err.message}`);
-        }
-      };
-      loadFilters();
-    }
-  }, [isStudent]);
+  const { data: { niveles = [], asignaturas = [] } = {}, isLoading: loadingFilters } = useQuery({
+    queryKey: ['projectFilters'],
+    queryFn: async () => {
+      const [nivelesData, asignaturasData] = await Promise.all([fetchNiveles(), fetchAsignaturas()]);
+      return { niveles: nivelesData, asignaturas: asignaturasData };
+    },
+    enabled: !isStudent,
+  });
 
-  useEffect(() => {
-    loadProjects();
-  }, [activeEstablishment, selectedNivel, selectedAsignatura, isStudent, profile]);
+  const createProjectMutation = useMutation({
+    mutationFn: createProject,
+    onSuccess: () => {
+      showSuccess("Proyecto creado exitosamente.");
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      setCreateDialogOpen(false);
+    },
+    onError: (error: any) => {
+      showError(`Error al crear el proyecto: ${error.message}`);
+    }
+  });
 
   if (!profile) {
     return (
@@ -94,14 +84,14 @@ const ProjectsPage = () => {
           </div>
           {!isStudent && (
             <div className="flex gap-2 w-full md:w-auto">
-              <Select value={selectedNivel} onValueChange={setSelectedNivel}>
+              <Select value={selectedNivel} onValueChange={setSelectedNivel} disabled={loadingFilters}>
                 <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por Nivel" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos los niveles</SelectItem>
                   {niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={selectedAsignatura} onValueChange={setSelectedAsignatura}>
+              <Select value={selectedAsignatura} onValueChange={setSelectedAsignatura} disabled={loadingFilters}>
                 <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por Asignatura" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas las asignaturas</SelectItem>
@@ -115,7 +105,7 @@ const ProjectsPage = () => {
           )}
         </div>
 
-        {loading ? (
+        {loadingProjects ? (
           <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : !activeEstablishment ? (
           <div className="text-center py-12 border-2 border-dashed rounded-lg">
@@ -141,7 +131,8 @@ const ProjectsPage = () => {
         <CreateProjectDialog
           isOpen={isCreateDialogOpen}
           onClose={() => setCreateDialogOpen(false)}
-          onProjectCreated={loadProjects}
+          onProjectCreate={(data) => createProjectMutation.mutate(data)}
+          isCreating={createProjectMutation.isPending}
         />
       )}
     </>

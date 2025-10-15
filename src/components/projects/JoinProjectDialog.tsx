@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
-import { linkCoursesToProject } from '@/api/projectsApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import { MultiSelect } from '@/components/MultiSelect';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const schema = z.object({
   cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos un curso para unirte."),
@@ -21,48 +21,36 @@ type FormData = z.infer<typeof schema>;
 interface JoinProjectDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onJoined: () => void;
+  onJoin: (cursoAsignaturaIds: string[]) => void;
+  isJoining: boolean;
   projectId: string;
   alreadyLinkedIds: string[];
 }
 
-const JoinProjectDialog: React.FC<JoinProjectDialogProps> = ({ isOpen, onClose, onJoined, projectId, alreadyLinkedIds }) => {
+const JoinProjectDialog: React.FC<JoinProjectDialogProps> = ({ isOpen, onClose, onJoin, isJoining, projectId, alreadyLinkedIds }) => {
   const { activeEstablishment } = useEstablishment();
-  const [availableCourses, setAvailableCourses] = useState<CursoAsignatura[]>([]);
-  const { control, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
+  const { user } = useAuth();
+  const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
-  useEffect(() => {
-    const loadCourses = async () => {
-      if (isOpen && activeEstablishment) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            const allCourses = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-            const unlinkedCourses = allCourses.filter(c => !alreadyLinkedIds.includes(c.id));
-            setAvailableCourses(unlinkedCourses);
-          } catch (err: any) {
-            showError(`Error al cargar tus cursos: ${err.message}`);
-          }
-        }
-      }
-    };
-    loadCourses();
-  }, [isOpen, activeEstablishment, alreadyLinkedIds]);
+  const { data: availableCourses = [] } = useQuery({
+    queryKey: ['availableCoursesForProject', user?.id, activeEstablishment?.id, projectId],
+    queryFn: async () => {
+      const allCourses = await fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id);
+      return allCourses.filter(c => !alreadyLinkedIds.includes(c.id));
+    },
+    enabled: isOpen && !!user && !!activeEstablishment,
+  });
 
-  const onSubmit = async (data: FormData) => {
-    const toastId = showLoading("Vinculando tus cursos...");
-    try {
-      await linkCoursesToProject(projectId, data.cursoAsignaturaIds);
-      dismissToast(toastId);
-      showSuccess("¡Te has unido al proyecto con tus cursos!");
-      onJoined();
-      onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
+  useEffect(() => {
+    if (!isOpen) {
+      reset({ cursoAsignaturaIds: [] });
     }
+  }, [isOpen, reset]);
+
+  const onSubmit = (data: FormData) => {
+    onJoin(data.cursoAsignaturaIds);
   };
 
   return (
@@ -94,8 +82,8 @@ const JoinProjectDialog: React.FC<JoinProjectDialogProps> = ({ isOpen, onClose, 
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting || availableCourses.length === 0}>
-              {isSubmitting ? 'Uniéndome...' : 'Unirme al Proyecto'}
+            <Button type="submit" disabled={isJoining || availableCourses.length === 0}>
+              {isJoining ? 'Uniéndome...' : 'Unirme al Proyecto'}
             </Button>
           </DialogFooter>
         </form>

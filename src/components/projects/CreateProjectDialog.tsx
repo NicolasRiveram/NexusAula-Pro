@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -17,9 +16,11 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
-import { createProject } from '@/api/projectsApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { CreateProjectData } from '@/api/projectsApi';
+import { showError } from '@/utils/toast';
 import { MultiSelect } from '@/components/MultiSelect';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const schema = z.object({
   cursoAsignaturaIds: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos un curso."),
@@ -37,35 +38,24 @@ type FormData = z.infer<typeof schema>;
 interface CreateProjectDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onProjectCreated: (newProject: { id: string; nombre: string }) => void;
+  onProjectCreate: (data: CreateProjectData) => void;
+  isCreating: boolean;
   initialData?: Partial<FormData>;
 }
 
-const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClose, onProjectCreated, initialData }) => {
+const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClose, onProjectCreate, isCreating, initialData }) => {
   const { activeEstablishment } = useEstablishment();
-  const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (isOpen && activeEstablishment) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-            setCursosAsignaturas(data);
-          } catch (err: any) {
-            showError(`Error al cargar cursos: ${err.message}`);
-          }
-        }
-      }
-    };
-    loadData();
-  }, [isOpen, activeEstablishment]);
+  const { data: cursosAsignaturas = [] } = useQuery({
+    queryKey: ['teacherCoursesForProject', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id),
+    enabled: isOpen && !!user && !!activeEstablishment,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -83,40 +73,22 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
     }
   }, [isOpen, initialData, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!activeEstablishment) {
-        showError("No hay un establecimiento activo seleccionado.");
-        return;
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        showError("No se pudo identificar al usuario.");
+  const onSubmit = (data: FormData) => {
+    if (!activeEstablishment || !user) {
+        showError("No hay un establecimiento activo o usuario identificado.");
         return;
     }
 
-    setIsSubmitting(true);
-    const toastId = showLoading("Creando proyecto...");
-    try {
-      const newProject = await createProject({
-        curso_asignatura_ids: data.cursoAsignaturaIds,
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
-        fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
-        producto_final: data.producto_final,
-        establecimiento_id: activeEstablishment.id,
-        creado_por: user.id,
-      });
-      dismissToast(toastId);
-      showSuccess("Proyecto creado exitosamente.");
-      onProjectCreated(newProject);
-      onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(`Error al crear el proyecto: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    onProjectCreate({
+      curso_asignatura_ids: data.cursoAsignaturaIds,
+      nombre: data.nombre,
+      descripcion: data.descripcion,
+      fecha_inicio: format(data.fechas.from, 'yyyy-MM-dd'),
+      fecha_fin: format(data.fechas.to, 'yyyy-MM-dd'),
+      producto_final: data.producto_final,
+      establecimiento_id: activeEstablishment.id,
+      creado_por: user.id,
+    });
   };
 
   return (
@@ -184,8 +156,8 @@ const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ isOpen, onClo
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creando...' : 'Crear Proyecto'}
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? 'Creando...' : 'Crear Proyecto'}
             </Button>
           </DialogFooter>
         </form>

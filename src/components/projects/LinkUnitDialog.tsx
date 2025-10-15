@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { fetchAvailableUnitsForProject, linkUnitsToProject } from '@/api/projectsApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { fetchAvailableUnitsForProject } from '@/api/projectsApi';
 import { MultiSelect } from '@/components/MultiSelect';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const schema = z.object({
   unidadIds: z.array(z.string().uuid()).min(1, "Debes seleccionar al menos una unidad."),
@@ -19,45 +19,31 @@ type FormData = z.infer<typeof schema>;
 interface LinkUnitDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onLinked: () => void;
+  onLink: (unidadIds: string[]) => void;
+  isLinking: boolean;
   projectId: string;
 }
 
-const LinkUnitDialog: React.FC<LinkUnitDialogProps> = ({ isOpen, onClose, onLinked, projectId }) => {
-  const [availableUnits, setAvailableUnits] = useState<any[]>([]);
-  const { control, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
+const LinkUnitDialog: React.FC<LinkUnitDialogProps> = ({ isOpen, onClose, onLink, isLinking, projectId }) => {
+  const { user } = useAuth();
+  const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
-  useEffect(() => {
-    const loadUnits = async () => {
-      if (isOpen) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            const units = await fetchAvailableUnitsForProject(projectId, user.id);
-            setAvailableUnits(units);
-          } catch (err: any) {
-            showError(`Error al cargar unidades: ${err.message}`);
-          }
-        }
-      }
-    };
-    loadUnits();
-  }, [isOpen, projectId]);
+  const { data: availableUnits = [] } = useQuery({
+    queryKey: ['availableUnitsForProject', projectId, user?.id],
+    queryFn: () => fetchAvailableUnitsForProject(projectId, user!.id),
+    enabled: isOpen && !!user,
+  });
 
-  const onSubmit = async (data: FormData) => {
-    const toastId = showLoading("Vinculando unidades...");
-    try {
-      await linkUnitsToProject(projectId, data.unidadIds);
-      dismissToast(toastId);
-      showSuccess("Unidades vinculadas al proyecto.");
-      onLinked();
-      onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
+  useEffect(() => {
+    if (!isOpen) {
+      reset({ unidadIds: [] });
     }
+  }, [isOpen, reset]);
+
+  const onSubmit = (data: FormData) => {
+    onLink(data.unidadIds);
   };
 
   return (
@@ -89,8 +75,8 @@ const LinkUnitDialog: React.FC<LinkUnitDialogProps> = ({ isOpen, onClose, onLink
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting || availableUnits.length === 0}>
-              {isSubmitting ? 'Vinculando...' : 'Vincular Unidades'}
+            <Button type="submit" disabled={isLinking || availableUnits.length === 0}>
+              {isLinking ? 'Vinculando...' : 'Vincular Unidades'}
             </Button>
           </DialogFooter>
         </form>

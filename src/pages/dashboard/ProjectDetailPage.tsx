@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Loader2, Book, Calendar, UserPlus, LogOut, Link2, Link2Off, PlusCircle, Edit, Trash2, Target } from 'lucide-react';
-import { fetchProjectDetails, ProjectDetail, unlinkCourseFromProject, unlinkUnitFromProject, deleteStage, updateStageStatus, ProjectStage } from '@/api/projectsApi';
-import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
+import { fetchProjectDetails, ProjectDetail, unlinkCourseFromProject, unlinkUnitFromProject, deleteStage, updateStageStatus, ProjectStage, linkCoursesToProject, linkUnitsToProject, saveStage } from '@/api/projectsApi';
+import { showError, showSuccess } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import JoinProjectDialog from '@/components/projects/JoinProjectDialog';
 import LinkUnitDialog from '@/components/projects/LinkUnitDialog';
 import StageEditDialog from '@/components/projects/StageEditDialog';
@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface DashboardContext {
   profile: { rol: string };
@@ -30,58 +31,48 @@ interface DashboardContext {
 
 const ProjectDetailPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { profile } = useOutletContext<DashboardContext>();
+  const { user } = useAuth();
+  const isStudent = profile.rol === 'estudiante';
+
   const [isJoinDialogOpen, setJoinDialogOpen] = useState(false);
   const [isLinkUnitDialogOpen, setLinkUnitDialogOpen] = useState(false);
   const [isStageDialogOpen, setStageDialogOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<ProjectStage | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const { profile } = useOutletContext<DashboardContext>();
-  const isStudent = profile.rol === 'estudiante';
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
 
-  useEffect(() => {
-    const getUserId = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        setCurrentUserId(user?.id || null);
-    };
-    getUserId();
-  }, []);
+  const { data: project, isLoading: loading } = useQuery({
+    queryKey: ['projectDetails', projectId],
+    queryFn: () => fetchProjectDetails(projectId!),
+    enabled: !!projectId,
+    onError: (err: any) => showError(`Error al cargar el proyecto: ${err.message}`),
+  });
 
-  const loadProject = useCallback(async () => {
-    if (projectId) {
-      setLoading(true);
-      fetchProjectDetails(projectId)
-        .then(setProject)
-        .catch(err => showError(`Error al cargar el proyecto: ${err.message}`))
-        .finally(() => setLoading(false));
-    }
-  }, [projectId]);
+  const createMutationOptions = (successMessage: string) => ({
+    onSuccess: () => {
+      showSuccess(successMessage);
+      queryClient.invalidateQueries({ queryKey: ['projectDetails', projectId] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
 
-  useEffect(() => {
-    loadProject();
-  }, [loadProject]);
+  const unlinkCourseMutation = useMutation({ mutationFn: (vars: { projectId: string, cursoAsignaturaId: string }) => unlinkCourseFromProject(vars.projectId, vars.cursoAsignaturaId), ...createMutationOptions("Curso desvinculado.") });
+  const unlinkUnitMutation = useMutation({ mutationFn: (vars: { projectId: string, unidadId: string }) => unlinkUnitFromProject(vars.projectId, vars.unidadId), ...createMutationOptions("Unidad desvinculada.") });
+  const deleteStageMutation = useMutation({ mutationFn: deleteStage, ...createMutationOptions("Etapa eliminada.") });
+  const updateStageStatusMutation = useMutation({ mutationFn: (vars: { stageId: string, completada: boolean }) => updateStageStatus(vars.stageId, vars.completada), ...createMutationOptions("Estado de la etapa actualizado.") });
+  const joinProjectMutation = useMutation({ mutationFn: (vars: { projectId: string, cursoAsignaturaIds: string[] }) => linkCoursesToProject(vars.projectId, vars.cursoAsignaturaIds), ...createMutationOptions("¡Te has unido al proyecto con tus cursos!") });
+  const linkUnitMutation = useMutation({ mutationFn: (vars: { projectId: string, unidadIds: string[] }) => linkUnitsToProject(vars.projectId, vars.unidadIds), ...createMutationOptions("Unidades vinculadas al proyecto.") });
+  const saveStageMutation = useMutation({ mutationFn: (vars: { projectId: string, stageData: any, stageId?: string }) => saveStage(vars.projectId, vars.stageData, vars.stageId), ...createMutationOptions("Etapa guardada exitosamente.") });
 
   const handleUnlinkCourse = (cursoAsignaturaId: string, cursoNombre: string) => {
     setAlertConfig({
       title: `¿Desvincular "${cursoNombre}"?`,
       description: "Esta acción desvinculará el curso de este proyecto, pero no eliminará el curso en sí.",
-      onConfirm: async () => {
-        if (!projectId) return;
-        const toastId = showLoading("Desvinculando curso...");
-        try {
-          await unlinkCourseFromProject(projectId, cursoAsignaturaId);
-          dismissToast(toastId);
-          showSuccess("Curso desvinculado.");
-          loadProject();
-        } catch (error: any) {
-          dismissToast(toastId);
-          showError(error.message);
-        } finally {
-          setAlertOpen(false);
-        }
+      onConfirm: () => {
+        if (projectId) unlinkCourseMutation.mutate({ projectId, cursoAsignaturaId });
+        setAlertOpen(false);
       }
     });
     setAlertOpen(true);
@@ -91,90 +82,46 @@ const ProjectDetailPage = () => {
     setAlertConfig({
       title: `¿Desvincular la unidad "${unidadNombre}"?`,
       description: "Esta acción desvinculará la unidad de este proyecto, pero no eliminará la unidad en sí.",
-      onConfirm: async () => {
-        if (!projectId) return;
-        const toastId = showLoading("Desvinculando unidad...");
-        try {
-          await unlinkUnitFromProject(projectId, unidadId);
-          dismissToast(toastId);
-          showSuccess("Unidad desvinculada.");
-          loadProject();
-        } catch (error: any) {
-          dismissToast(toastId);
-          showError(error.message);
-        } finally {
-          setAlertOpen(false);
-        }
+      onConfirm: () => {
+        if (projectId) unlinkUnitMutation.mutate({ projectId, unidadId });
+        setAlertOpen(false);
       }
     });
     setAlertOpen(true);
-  };
-
-  const handleAddStage = () => {
-    setSelectedStage(null);
-    setStageDialogOpen(true);
-  };
-
-  const handleEditStage = (stage: ProjectStage) => {
-    setSelectedStage(stage);
-    setStageDialogOpen(true);
   };
 
   const handleDeleteStage = (stage: ProjectStage) => {
     setAlertConfig({
       title: `¿Eliminar la etapa "${stage.nombre}"?`,
       description: "Esta acción no se puede deshacer y eliminará permanentemente la etapa del proyecto.",
-      onConfirm: async () => {
-        try {
-          await deleteStage(stage.id);
-          showSuccess("Etapa eliminada.");
-          loadProject();
-        } catch (error: any) {
-          showError(error.message);
-        } finally {
-          setAlertOpen(false);
-        }
+      onConfirm: () => {
+        deleteStageMutation.mutate(stage.id);
+        setAlertOpen(false);
       }
     });
     setAlertOpen(true);
   };
 
-  const handleToggleStageStatus = async (stage: ProjectStage) => {
-    try {
-      await updateStageStatus(stage.id, !stage.completada);
-      loadProject();
-    } catch (error: any) {
-      showError(error.message);
-    }
-  };
-
   if (loading) {
-    return (
-      <div className="container mx-auto flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="container mx-auto flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   if (!project) {
     return (
       <div className="container mx-auto text-center">
         <p>No se pudo encontrar el proyecto.</p>
-        <Link to="/dashboard/proyectos" className="text-primary hover:underline mt-4 inline-block">
-          Volver a Proyectos
-        </Link>
+        <Link to="/dashboard/proyectos" className="text-primary hover:underline mt-4 inline-block">Volver a Proyectos</Link>
       </div>
     );
   }
 
-  const isOwner = project.creado_por === currentUserId;
+  const isOwner = project.creado_por === user?.id;
 
   return (
     <>
       <div className="container mx-auto space-y-6">
         <Link to="/dashboard/proyectos" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a Proyectos
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Proyectos
         </Link>
 
         <Card>
@@ -182,15 +129,9 @@ const ProjectDetailPage = () => {
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-3xl">{project.nombre}</CardTitle>
-                <CardDescription>
-                  Creado por: {project.perfiles.nombre_completo}
-                </CardDescription>
+                <CardDescription>Creado por: {project.perfiles.nombre_completo}</CardDescription>
               </div>
-              {!isStudent && (
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setJoinDialogOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Unirse al Proyecto</Button>
-                </div>
-              )}
+              {!isStudent && <Button variant="outline" onClick={() => setJoinDialogOpen(true)}><UserPlus className="mr-2 h-4 w-4" /> Unirse al Proyecto</Button>}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -207,23 +148,17 @@ const ProjectDetailPage = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center"><Book className="mr-2 h-5 w-5" /> Cursos y Asignaturas</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-lg flex items-center"><Book className="mr-2 h-5 w-5" /> Cursos y Asignaturas</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {project.proyecto_curso_asignaturas.map(link => {
-                const isCourseOwner = link.curso_asignaturas.docente_id === currentUserId;
+                const isCourseOwner = link.curso_asignaturas.docente_id === user?.id;
                 return (
                   <div key={link.curso_asignaturas.id} className="flex justify-between items-center group p-1 rounded-md hover:bg-muted/50">
                     <div>
                       <p className="font-semibold text-sm">{link.curso_asignaturas.asignaturas.nombre}</p>
                       <p className="text-xs text-muted-foreground">{link.curso_asignaturas.cursos.niveles.nombre} {link.curso_asignaturas.cursos.nombre}</p>
                     </div>
-                    {isCourseOwner && !isStudent && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkCourse(link.curso_asignaturas.id, `${link.curso_asignaturas.cursos.niveles.nombre} ${link.curso_asignaturas.cursos.nombre}`)}>
-                            <LogOut className="h-4 w-4 text-destructive" />
-                        </Button>
-                    )}
+                    {isCourseOwner && !isStudent && <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={() => handleUnlinkCourse(link.curso_asignaturas.id, `${link.curso_asignaturas.cursos.niveles.nombre} ${link.curso_asignaturas.cursos.nombre}`)}><LogOut className="h-4 w-4 text-destructive" /></Button>}
                   </div>
                 );
               })}
@@ -232,22 +167,20 @@ const ProjectDetailPage = () => {
           <Card className="md:col-span-2">
             <CardHeader className="flex justify-between items-center">
               <CardTitle className="text-lg">Etapas del Proyecto</CardTitle>
-              {isOwner && !isStudent && <Button size="sm" onClick={handleAddStage}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Etapa</Button>}
+              {isOwner && !isStudent && <Button size="sm" onClick={() => { setSelectedStage(null); setStageDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Etapa</Button>}
             </CardHeader>
             <CardContent className="space-y-4">
               {project.proyecto_etapas.length > 0 ? project.proyecto_etapas.map(etapa => (
                 <div key={etapa.id} className="flex items-start gap-4 group">
-                  <Checkbox checked={etapa.completada} onCheckedChange={() => handleToggleStageStatus(etapa)} disabled={!isOwner || isStudent} className="mt-1" />
+                  <Checkbox checked={etapa.completada} onCheckedChange={() => updateStageStatusMutation.mutate({ stageId: etapa.id, completada: !etapa.completada })} disabled={!isOwner || isStudent} className="mt-1" />
                   <div className="flex-1">
                     <p className="font-semibold">{etapa.nombre}</p>
                     <p className="text-sm text-muted-foreground">{etapa.descripcion}</p>
-                    {etapa.fecha_inicio && etapa.fecha_fin && (
-                      <p className="text-xs text-muted-foreground mt-1">{format(parseISO(etapa.fecha_inicio), 'P', { locale: es })} - {format(parseISO(etapa.fecha_fin), 'P', { locale: es })}</p>
-                    )}
+                    {etapa.fecha_inicio && etapa.fecha_fin && <p className="text-xs text-muted-foreground mt-1">{format(parseISO(etapa.fecha_inicio), 'P', { locale: es })} - {format(parseISO(etapa.fecha_fin), 'P', { locale: es })}</p>}
                   </div>
                   {isOwner && !isStudent && (
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditStage(etapa)}><Edit className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedStage(etapa); setStageDialogOpen(true); }}><Edit className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteStage(etapa)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   )}
@@ -276,11 +209,7 @@ const ProjectDetailPage = () => {
                                             <p className="font-semibold">{link.unidades.nombre}</p>
                                             <p className="text-sm text-muted-foreground">{link.unidades.curso_asignaturas.cursos.niveles.nombre} {link.unidades.curso_asignaturas.cursos.nombre}</p>
                                         </div>
-                                        {isOwner && !isStudent && (
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleUnlinkUnit(link.unidades.id, link.unidades.nombre); }}>
-                                                <Link2Off className="h-4 w-4 text-destructive" />
-                                            </Button>
-                                        )}
+                                        {isOwner && !isStudent && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleUnlinkUnit(link.unidades.id, link.unidades.nombre); }}><Link2Off className="h-4 w-4 text-destructive" /></Button>}
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent>
@@ -300,34 +229,15 @@ const ProjectDetailPage = () => {
                             </AccordionItem>
                         ))}
                     </Accordion>
-                ) : (
-                    <p className="text-muted-foreground text-center py-4">Aún no hay unidades vinculadas a este proyecto.</p>
-                )}
+                ) : <p className="text-muted-foreground text-center py-4">Aún no hay unidades vinculadas a este proyecto.</p>}
             </CardContent>
         </Card>
       </div>
       {projectId && !isStudent && (
         <>
-          <JoinProjectDialog
-            isOpen={isJoinDialogOpen}
-            onClose={() => setJoinDialogOpen(false)}
-            onJoined={loadProject}
-            projectId={projectId}
-            alreadyLinkedIds={project.proyecto_curso_asignaturas.map(link => link.curso_asignaturas.id)}
-          />
-          <LinkUnitDialog
-            isOpen={isLinkUnitDialogOpen}
-            onClose={() => setLinkUnitDialogOpen(false)}
-            onLinked={loadProject}
-            projectId={projectId}
-          />
-          <StageEditDialog
-            isOpen={isStageDialogOpen}
-            onClose={() => setStageDialogOpen(false)}
-            onSaved={loadProject}
-            projectId={projectId}
-            stage={selectedStage}
-          />
+          <JoinProjectDialog isOpen={isJoinDialogOpen} onClose={() => setJoinDialogOpen(false)} onJoin={(ids) => joinProjectMutation.mutate({ projectId, cursoAsignaturaIds: ids })} isJoining={joinProjectMutation.isPending} projectId={projectId} alreadyLinkedIds={project.proyecto_curso_asignaturas.map(link => link.curso_asignaturas.id)} />
+          <LinkUnitDialog isOpen={isLinkUnitDialogOpen} onClose={() => setLinkUnitDialogOpen(false)} onLink={(ids) => linkUnitMutation.mutate({ projectId, unidadIds: ids })} isLinking={linkUnitMutation.isPending} projectId={projectId} />
+          <StageEditDialog isOpen={isStageDialogOpen} onClose={() => setStageDialogOpen(false)} onSave={(data, id) => saveStageMutation.mutate({ projectId, stageData: data, stageId: id })} isSaving={saveStageMutation.isPending} projectId={projectId} stage={selectedStage} />
         </>
       )}
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
