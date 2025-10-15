@@ -80,12 +80,13 @@ serve(async (req) => {
       {
         "enunciado_adaptado": "string",
         "alternativas_adaptadas": [
-          {"texto": "string", "es_correcta": boolean},
-          {"texto": "string", "es_correcta": boolean},
-          {"texto": "string", "es_correcta": boolean}
+          {"texto": "string", "es_correcta": boolean, "orden": 1},
+          {"texto": "string", "es_correcta": boolean, "orden": 2},
+          {"texto": "string", "es_correcta": boolean, "orden": 3}
         ]
       }
       \`\`\`
+      - El campo 'orden' es crucial y debe ser 1, 2 y 3 para las tres alternativas.
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
 
       Pregunta original:

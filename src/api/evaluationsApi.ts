@@ -57,7 +57,7 @@ export interface ItemAlternative {
 export interface PIEAdaptation {
   id: string;
   enunciado_adaptado: string;
-  alternativas_adaptadas: { texto: string; es_correcta: boolean }[];
+  alternativas_adaptadas: { texto: string; es_correcta: boolean, orden: number }[];
 }
 
 export interface EvaluationItem {
