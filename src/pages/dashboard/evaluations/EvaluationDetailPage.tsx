@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, Copy } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, MoreVertical } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -21,6 +21,13 @@ import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
 import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/printable/PrintAnswerSheetDialog';
 import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
 import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 const formatTeacherNameForPrint = (fullName: string | null): string => {
   if (!fullName || fullName.trim() === '') {
@@ -278,15 +285,39 @@ const EvaluationDetailPage = () => {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 justify-end">
-                <Button variant="outline" onClick={() => { setPrintMode('regular'); setPrintModalOpen(true); }}><Download className="mr-2 h-4 w-4" /> Descargar</Button>
-                <Button variant="outline" onClick={() => { setPrintMode('pie'); setPrintModalOpen(true); }}><Download className="mr-2 h-4 w-4" /> Descargar Versión PIE</Button>
                 <Button onClick={() => navigate(`/dashboard/evaluacion/editar/${evaluation.id}`)}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
                 <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}><BarChart className="mr-2 h-4 w-4" /> Ver Resultados</Button>
-                {hasScannableQuestions && (
-                  <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)} variant="secondary">
-                    <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
-                  </Button>
-                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/adaptar/${evaluation.id}`)}>
+                      <BrainCircuit className="mr-2 h-4 w-4" /> Adaptar para PIE
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => { setPrintMode('regular'); setPrintModalOpen(true); }}>
+                      <Download className="mr-2 h-4 w-4" /> Descargar Evaluación
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setPrintMode('pie'); setPrintModalOpen(true); }}>
+                      <Download className="mr-2 h-4 w-4" /> Descargar Versión PIE
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
+                      <FileText className="mr-2 h-4 w-4" /> Imprimir Hojas de Respuesta
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setAnswerKeyDialogOpen(true)}>
+                      <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta de Corrección
+                    </DropdownMenuItem>
+                    {hasScannableQuestions && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
+                          <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardHeader>
