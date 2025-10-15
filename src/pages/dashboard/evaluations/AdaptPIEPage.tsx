@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2, Sparkles, BrainCircuit, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, BrainCircuit, CheckCircle, Save } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, EvaluationItem, generatePIEAdaptation, savePIEAdaptation } from '@/api/evaluationsApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -12,11 +12,14 @@ import { Badge } from '@/components/ui/badge';
 
 const AdaptPIEPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
+  const navigate = useNavigate();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [adaptingItems, setAdaptingItems] = useState<string[]>([]);
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
+  const [modifiedItems, setModifiedItems] = useState<Record<string, any>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadEvaluation = useCallback(async () => {
     if (evaluationId) {
@@ -47,8 +50,7 @@ const AdaptPIEPage = () => {
     try {
       const adaptationPromises = itemsToAdapt.map(async (itemId) => {
         const adaptationDataFromAI = await generatePIEAdaptation(itemId);
-        const savedAdaptation = await savePIEAdaptation(itemId, adaptationDataFromAI);
-        return { itemId, savedAdaptation };
+        return { itemId, adaptationData: adaptationDataFromAI };
       });
 
       const results = await Promise.all(adaptationPromises);
@@ -56,28 +58,59 @@ const AdaptPIEPage = () => {
       setEvaluation(prevEval => {
         if (!prevEval) return null;
         const newEval = JSON.parse(JSON.stringify(prevEval));
-
-        results.forEach(({ itemId, savedAdaptation }) => {
+        results.forEach(({ itemId, adaptationData }) => {
           for (const block of newEval.evaluation_content_blocks) {
             const itemIndex = block.evaluacion_items.findIndex((i: EvaluationItem) => i.id === itemId);
             if (itemIndex !== -1) {
               block.evaluacion_items[itemIndex].tiene_adaptacion_pie = true;
-              block.evaluacion_items[itemIndex].adaptaciones_pie = [savedAdaptation];
-              break; 
+              block.evaluacion_items[itemIndex].adaptaciones_pie = [adaptationData];
+              break;
             }
           }
         });
         return newEval;
       });
 
+      const newModifications = results.reduce((acc, { itemId, adaptationData }) => {
+        acc[itemId] = adaptationData;
+        return acc;
+      }, {} as Record<string, any>);
+
+      setModifiedItems(prev => ({ ...prev, ...newModifications }));
+
       dismissToast(toastId);
-      showSuccess(`${itemsToAdapt.length} pregunta(s) adaptada(s) exitosamente.`);
+      showSuccess(`${itemsToAdapt.length} pregunta(s) adaptada(s) localmente. Guarda los cambios para finalizar.`);
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Error durante la adaptación: ${error.message}`);
-      await loadEvaluation(); // Recargar en caso de error para asegurar consistencia
     } finally {
       setAdaptingItems([]);
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    const itemsToSave = Object.keys(modifiedItems);
+    if (itemsToSave.length === 0) {
+      navigate(`/dashboard/evaluacion/${evaluationId}`);
+      return;
+    }
+
+    setIsSaving(true);
+    const toastId = showLoading(`Guardando ${itemsToSave.length} adaptación(es)...`);
+    try {
+      const savePromises = itemsToSave.map(itemId => 
+        savePIEAdaptation(itemId, modifiedItems[itemId])
+      );
+      await Promise.all(savePromises);
+      dismissToast(toastId);
+      showSuccess("Todas las adaptaciones han sido guardadas exitosamente.");
+      setModifiedItems({});
+      navigate(`/dashboard/evaluacion/${evaluationId}`);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error al guardar los cambios: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -96,12 +129,18 @@ const AdaptPIEPage = () => {
       <div className="flex justify-between items-center">
         <Link to={`/dashboard/evaluacion/${evaluationId}`} className="flex items-center text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a la Evaluación
+          Volver sin Guardar
         </Link>
-        <Button onClick={handleAdaptSelected} disabled={selectedItems.length === 0 || adaptingItems.length > 0}>
-          {adaptingItems.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-          Adaptar ({selectedItems.length}) Seleccionada(s)
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleAdaptSelected} disabled={selectedItems.length === 0 || adaptingItems.length > 0 || isSaving}>
+            {adaptingItems.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            Adaptar ({selectedItems.length}) Seleccionada(s)
+          </Button>
+          <Button onClick={handleSaveChanges} disabled={isSaving || adaptingItems.length > 0}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Guardar Cambios y Volver
+          </Button>
+        </div>
       </div>
 
       <Card>
