@@ -1,34 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BookOpen, UserPlus, School } from 'lucide-react';
-import { fetchEstablishmentStats, EstablishmentStats } from '@/api/adminApi';
+import { fetchEstablishmentStats } from '@/api/adminApi';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQuery } from '@tanstack/react-query';
 
 const AdminStats = () => {
   const { activeEstablishment } = useEstablishment();
-  const [stats, setStats] = useState<EstablishmentStats | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadStats = async () => {
-      if (activeEstablishment) {
-        setLoading(true);
-        try {
-          const data = await fetchEstablishmentStats(activeEstablishment.id);
-          setStats(data);
-        } catch (error) {
-          console.error(error);
-          setStats(null);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-    loadStats();
-  }, [activeEstablishment]);
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['establishmentStats', activeEstablishment?.id],
+    queryFn: () => fetchEstablishmentStats(activeEstablishment!.id),
+    enabled: !!activeEstablishment,
+  });
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Skeleton className="h-28" />

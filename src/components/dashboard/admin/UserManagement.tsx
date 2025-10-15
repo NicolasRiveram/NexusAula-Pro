@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,48 +8,63 @@ import { fetchEstablishmentUsers, removeUserFromEstablishment, EstablishmentUser
 import { showError, showSuccess } from '@/utils/toast';
 import { MoreHorizontal, Trash2, UserCog, Book, FileText, FileSignature } from 'lucide-react';
 import EditUserRoleDialog from './EditUserRoleDialog';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const UserManagement = () => {
   const { activeEstablishment } = useEstablishment();
-  const [users, setUsers] = useState<EstablishmentUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<EstablishmentUser | null>(null);
+  const [isAlertOpen, setAlertOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<EstablishmentUser | null>(null);
 
-  const loadUsers = async () => {
-    if (!activeEstablishment) {
-      setUsers([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await fetchEstablishmentUsers(activeEstablishment.id);
-      setUsers(data);
-    } catch (error: any) {
+  const { data: users = [], isLoading: loading } = useQuery({
+    queryKey: ['establishmentUsers', activeEstablishment?.id],
+    queryFn: () => fetchEstablishmentUsers(activeEstablishment!.id),
+    enabled: !!activeEstablishment,
+  });
+
+  const removeUserMutation = useMutation({
+    mutationFn: ({ perfilId, establecimientoId }: { perfilId: string, establecimientoId: string }) => removeUserFromEstablishment(perfilId, establecimientoId),
+    onSuccess: (_, variables) => {
+      const user = users.find(u => u.perfil_id === variables.perfilId);
+      showSuccess(`${user?.nombre_completo || 'Usuario'} ha sido eliminado del establecimiento.`);
+      queryClient.invalidateQueries({ queryKey: ['establishmentUsers', activeEstablishment?.id] });
+      queryClient.invalidateQueries({ queryKey: ['establishmentStats', activeEstablishment?.id] });
+    },
+    onError: (error: any) => {
       showError(error.message);
-    } finally {
-      setLoading(false);
+    },
+    onSettled: () => {
+      setAlertOpen(false);
+      setUserToDelete(null);
     }
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, [activeEstablishment]);
+  });
 
   const handleEdit = (user: EstablishmentUser) => {
     setSelectedUser(user);
     setEditDialogOpen(true);
   };
 
-  const handleRemove = async (user: EstablishmentUser) => {
-    if (!activeEstablishment || !window.confirm(`¿Estás seguro de que quieres eliminar a ${user.nombre_completo} del establecimiento?`)) return;
-    try {
-      await removeUserFromEstablishment(user.perfil_id, activeEstablishment.id);
-      showSuccess(`${user.nombre_completo} ha sido eliminado del establecimiento.`);
-      loadUsers();
-    } catch (error: any) {
-      showError(error.message);
+  const handleRemove = (user: EstablishmentUser) => {
+    setUserToDelete(user);
+    setAlertOpen(true);
+  };
+
+  const confirmRemove = () => {
+    if (userToDelete && activeEstablishment) {
+      removeUserMutation.mutate({ perfilId: userToDelete.perfil_id, establecimientoId: activeEstablishment.id });
     }
   };
 
@@ -124,8 +139,22 @@ const UserManagement = () => {
         isOpen={isEditDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         user={selectedUser}
-        onUserUpdated={loadUsers}
+        onUserUpdated={() => queryClient.invalidateQueries({ queryKey: ['establishmentUsers', activeEstablishment?.id] })}
       />
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Seguro que quieres eliminar a {userToDelete?.nombre_completo} del establecimiento?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemove}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

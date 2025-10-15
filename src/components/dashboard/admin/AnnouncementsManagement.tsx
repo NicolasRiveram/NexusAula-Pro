@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,36 +21,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const AnnouncementsManagement = () => {
   const { activeEstablishment } = useEstablishment();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [announcementToDelete, setAnnouncementToDelete] = useState<Announcement | null>(null);
 
-  const loadAnnouncements = async () => {
-    if (!activeEstablishment) {
-      setAnnouncements([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await fetchAnnouncements(activeEstablishment.id);
-      setAnnouncements(data);
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: announcements = [], isLoading: loading } = useQuery({
+    queryKey: ['announcements', activeEstablishment?.id],
+    queryFn: () => fetchAnnouncements(activeEstablishment!.id),
+    enabled: !!activeEstablishment,
+  });
 
-  useEffect(() => {
-    loadAnnouncements();
-  }, [activeEstablishment]);
+  const deleteMutation = useMutation({
+    mutationFn: deleteAnnouncement,
+    onSuccess: () => {
+      showSuccess("Anuncio eliminado.");
+      queryClient.invalidateQueries({ queryKey: ['announcements', activeEstablishment?.id] });
+    },
+    onError: (error: any) => {
+      showError(error.message);
+    },
+    onSettled: () => {
+      setAlertOpen(false);
+      setAnnouncementToDelete(null);
+    }
+  });
 
   const { active, scheduled, past } = useMemo(() => {
     const now = new Date();
@@ -78,17 +79,9 @@ const AnnouncementsManagement = () => {
     setAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (!announcementToDelete) return;
-    try {
-      await deleteAnnouncement(announcementToDelete.id);
-      showSuccess("Anuncio eliminado.");
-      loadAnnouncements();
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setAlertOpen(false);
-      setAnnouncementToDelete(null);
+  const confirmDelete = () => {
+    if (announcementToDelete) {
+      deleteMutation.mutate(announcementToDelete.id);
     }
   };
 
@@ -151,7 +144,7 @@ const AnnouncementsManagement = () => {
       <AnnouncementEditDialog
         isOpen={isDialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSaved={loadAnnouncements}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['announcements', activeEstablishment?.id] })}
         announcement={selectedAnnouncement}
       />
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
