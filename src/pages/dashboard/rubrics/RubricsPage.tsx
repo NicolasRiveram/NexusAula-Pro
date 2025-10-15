@@ -19,36 +19,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const RubricsPage = () => {
-  const [rubrics, setRubrics] = useState<Rubric[]>([]);
-  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
+  const { user } = useAuth();
   const [rubricToDelete, setRubricToDelete] = useState<Rubric | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  const loadRubrics = useCallback(async () => {
-    if (!activeEstablishment) {
-      setRubrics([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      try {
-        const data = await fetchRubrics(user.id, activeEstablishment.id);
-        setRubrics(data);
-      } catch (err: any) {
-        showError(`Error al cargar rúbricas: ${err.message}`);
-      }
-    }
-    setLoading(false);
-  }, [activeEstablishment]);
-
-  useEffect(() => {
-    loadRubrics();
-  }, [loadRubrics]);
+  const { data: rubrics = [], isLoading: loading, refetch: loadRubrics } = useQuery({
+    queryKey: ['rubrics', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchRubrics(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
 
   const handleDeleteClick = (rubric: Rubric) => {
     setRubricToDelete(rubric);

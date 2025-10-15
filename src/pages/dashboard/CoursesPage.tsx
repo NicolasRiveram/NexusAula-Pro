@@ -21,6 +21,8 @@ import EnrollStudentsDialog from '@/components/courses/EnrollStudentsDialog';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardContext {
   profile: { 
@@ -31,61 +33,43 @@ interface DashboardContext {
 
 const CoursesPage = () => {
   const { profile } = useOutletContext<DashboardContext>();
+  const { user } = useAuth();
   const isStudent = profile.rol === 'estudiante';
   const isTrial = profile.subscription_plan === 'prueba';
 
-  const [teacherCourses, setTeacherCourses] = useState<Record<string, CursoAsignatura[]>>({});
-  const [studentCourses, setStudentCourses] = useState<StudentCourse[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false);
   const [isEnrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<{ id: string; nombre: string } | null>(null);
   const { activeEstablishment } = useEstablishment();
 
+  const { data: coursesData, isLoading: loading, refetch: loadCourses } = useQuery({
+    queryKey: ['courses', user?.id, activeEstablishment?.id, isStudent],
+    queryFn: async () => {
+      if (!user || !activeEstablishment) return isStudent ? [] : {};
+      if (isStudent) {
+        return await fetchStudentCourses(user.id, activeEstablishment.id);
+      } else {
+        const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
+        return data.reduce((acc, curso) => {
+          const nivelNombre = curso.curso.nivel.nombre;
+          if (!acc[nivelNombre]) acc[nivelNombre] = [];
+          acc[nivelNombre].push(curso);
+          return acc;
+        }, {} as Record<string, CursoAsignatura[]>);
+      }
+    },
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  const teacherCourses = !isStudent ? (coursesData as Record<string, CursoAsignatura[]>) || {} : {};
+  const studentCourses = isStudent ? (coursesData as StudentCourse[]) || [] : [];
+
   const teacherCoursesCount = useMemo(() => {
     return Object.values(teacherCourses).flat().length;
   }, [teacherCourses]);
 
   const canCreateCourse = !isTrial || (isTrial && teacherCoursesCount < 2);
-
-  const loadCourses = async () => {
-    if (!activeEstablishment) {
-      setTeacherCourses({});
-      setStudentCourses([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      try {
-        if (isStudent) {
-          const data = await fetchStudentCourses(user.id, activeEstablishment.id);
-          setStudentCourses(data);
-        } else {
-          const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-          const groups = data.reduce((acc, curso) => {
-            const nivelNombre = curso.curso.nivel.nombre;
-            if (!acc[nivelNombre]) {
-              acc[nivelNombre] = [];
-            }
-            acc[nivelNombre].push(curso);
-            return acc;
-          }, {} as Record<string, CursoAsignatura[]>);
-          setTeacherCourses(groups);
-        }
-      } catch (error: any) {
-        showError(`Error al cargar cursos: ${error.message}`);
-      }
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadCourses();
-  }, [activeEstablishment, isStudent]);
 
   const handleEnrollClick = (curso: CursoAsignatura) => {
     setSelectedCourse({ id: curso.curso.id, nombre: `${curso.curso.nivel.nombre} ${curso.curso.nombre}` });

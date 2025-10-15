@@ -22,36 +22,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const DidacticPlannerPage = () => {
-  const [unitPlans, setUnitPlans] = useState<UnitPlan[]>([]);
-  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
+  const { user } = useAuth();
   const [planToDelete, setPlanToDelete] = useState<UnitPlan | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  const loadPlans = useCallback(async () => {
-    if (!activeEstablishment) {
-      setUnitPlans([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      try {
-        const allPlans = await fetchUnitPlans(user.id, activeEstablishment.id);
-        setUnitPlans(allPlans);
-      } catch (err: any) {
-        showError(err.message);
-      }
-    }
-    setLoading(false);
-  }, [activeEstablishment]);
-
-  useEffect(() => {
-    loadPlans();
-  }, [loadPlans]);
+  const { data: unitPlans = [], isLoading: loading, refetch: loadPlans } = useQuery({
+    queryKey: ['unitPlans', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchUnitPlans(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
 
   const handleDeleteClick = (plan: UnitPlan) => {
     setPlanToDelete(plan);
