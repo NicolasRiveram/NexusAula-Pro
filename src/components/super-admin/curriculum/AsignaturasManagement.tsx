@@ -7,6 +7,16 @@ import { Asignatura, deleteAsignatura } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import AsignaturaEditDialog from '../AsignaturaEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AsignaturasManagementProps {
   asignaturas: Asignatura[];
@@ -19,16 +29,25 @@ interface AsignaturasManagementProps {
 const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignaturas, onDataChange, selectedAsignaturas, setSelectedAsignaturas, openBulkDeleteDialog }) => {
   const [isAsignaturaDialogOpen, setAsignaturaDialogOpen] = useState(false);
   const [selectedAsignatura, setSelectedAsignatura] = useState<Asignatura | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [asignaturaToDelete, setAsignaturaToDelete] = useState<Asignatura | null>(null);
 
-  const handleDelete = async (item: Asignatura) => {
-    if (window.confirm(`¿Seguro que quieres eliminar "${item.nombre}"?`)) {
-      try {
-        await deleteAsignatura(item.id);
-        showSuccess('Asignatura eliminada.');
-        onDataChange();
-      } catch (error: any) {
-        showError(error.message);
-      }
+  const handleDeleteClick = (item: Asignatura) => {
+    setAsignaturaToDelete(item);
+    setIsAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!asignaturaToDelete) return;
+    try {
+      await deleteAsignatura(asignaturaToDelete.id);
+      showSuccess('Asignatura eliminada.');
+      onDataChange();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsAlertOpen(false);
+      setAsignaturaToDelete(null);
     }
   };
 
@@ -61,7 +80,7 @@ const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignatur
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedAsignatura(a); setAsignaturaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDelete(a)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDeleteClick(a)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -70,6 +89,20 @@ const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignatur
         </TableBody>
       </Table>
       <AsignaturaEditDialog isOpen={isAsignaturaDialogOpen} onClose={() => setAsignaturaDialogOpen(false)} onSaved={onDataChange} asignatura={selectedAsignatura} />
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la asignatura "{asignaturaToDelete?.nombre}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

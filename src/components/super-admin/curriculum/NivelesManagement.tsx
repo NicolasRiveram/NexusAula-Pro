@@ -7,6 +7,16 @@ import { Nivel, deleteNivel } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import NivelEditDialog from '../NivelEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface NivelesManagementProps {
   niveles: Nivel[];
@@ -19,16 +29,25 @@ interface NivelesManagementProps {
 const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, onDataChange, selectedNiveles, setSelectedNiveles, openBulkDeleteDialog }) => {
   const [isNivelDialogOpen, setNivelDialogOpen] = useState(false);
   const [selectedNivel, setSelectedNivel] = useState<Nivel | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [nivelToDelete, setNivelToDelete] = useState<Nivel | null>(null);
 
-  const handleDelete = async (item: Nivel) => {
-    if (window.confirm(`¿Seguro que quieres eliminar "${item.nombre}"?`)) {
-      try {
-        await deleteNivel(item.id);
-        showSuccess('Nivel eliminado.');
-        onDataChange();
-      } catch (error: any) {
-        showError(error.message);
-      }
+  const handleDeleteClick = (item: Nivel) => {
+    setNivelToDelete(item);
+    setIsAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!nivelToDelete) return;
+    try {
+      await deleteNivel(nivelToDelete.id);
+      showSuccess('Nivel eliminado.');
+      onDataChange();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsAlertOpen(false);
+      setNivelToDelete(null);
     }
   };
 
@@ -61,7 +80,7 @@ const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, onDataCh
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedNivel(n); setNivelDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDelete(n)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDeleteClick(n)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -70,6 +89,20 @@ const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, onDataCh
         </TableBody>
       </Table>
       <NivelEditDialog isOpen={isNivelDialogOpen} onClose={() => setNivelDialogOpen(false)} onSaved={onDataChange} nivel={selectedNivel} />
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el nivel "{nivelToDelete?.nombre}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

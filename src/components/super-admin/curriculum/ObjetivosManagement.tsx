@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ObjetivosManagementProps {
   oas: ObjetivoAprendizaje[];
@@ -35,6 +45,9 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
   const [bulkText, setBulkText] = useState('');
   const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [filteredBulkEjes, setFilteredBulkEjes] = useState<Eje[]>([]);
+
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [oaToDelete, setOaToDelete] = useState<ObjetivoAprendizaje | null>(null);
 
   useEffect(() => {
     if (selectedBulkAsignatura) {
@@ -74,15 +87,22 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
     }
   };
 
-  const handleDelete = async (item: ObjetivoAprendizaje) => {
-    if (window.confirm(`¿Seguro que quieres eliminar "${item.codigo}"?`)) {
-      try {
-        await deleteObjetivoAprendizaje(item.id);
-        showSuccess('OA eliminado.');
-        onDataChange();
-      } catch (error: any) {
-        showError(error.message);
-      }
+  const handleDeleteClick = (item: ObjetivoAprendizaje) => {
+    setOaToDelete(item);
+    setIsAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!oaToDelete) return;
+    try {
+      await deleteObjetivoAprendizaje(oaToDelete.id);
+      showSuccess('OA eliminado.');
+      onDataChange();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsAlertOpen(false);
+      setOaToDelete(null);
     }
   };
 
@@ -179,7 +199,7 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedOa(oa); setOaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDelete(oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDeleteClick(oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -188,6 +208,20 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
         </TableBody>
       </Table>
       <ObjetivoAprendizajeEditDialog isOpen={isOaDialogOpen} onClose={() => setOaDialogOpen(false)} onSaved={onDataChange} oa={selectedOa} niveles={niveles} asignaturas={asignaturas} ejes={ejes} />
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el OA "{oaToDelete?.codigo}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

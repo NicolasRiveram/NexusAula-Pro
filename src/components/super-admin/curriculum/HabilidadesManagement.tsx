@@ -7,6 +7,16 @@ import { Habilidad, deleteHabilidad } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import HabilidadEditDialog from '../HabilidadEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface HabilidadesManagementProps {
   habilidades: Habilidad[];
@@ -19,16 +29,25 @@ interface HabilidadesManagementProps {
 const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidades, onDataChange, selectedHabilidades, setSelectedHabilidades, openBulkDeleteDialog }) => {
   const [isHabilidadDialogOpen, setHabilidadDialogOpen] = useState(false);
   const [selectedHabilidad, setSelectedHabilidad] = useState<Habilidad | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [habilidadToDelete, setHabilidadToDelete] = useState<Habilidad | null>(null);
 
-  const handleDelete = async (item: Habilidad) => {
-    if (window.confirm(`¿Seguro que quieres eliminar "${item.nombre}"?`)) {
-      try {
-        await deleteHabilidad(item.id);
-        showSuccess('Habilidad eliminada.');
-        onDataChange();
-      } catch (error: any) {
-        showError(error.message);
-      }
+  const handleDeleteClick = (item: Habilidad) => {
+    setHabilidadToDelete(item);
+    setIsAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!habilidadToDelete) return;
+    try {
+      await deleteHabilidad(habilidadToDelete.id);
+      showSuccess('Habilidad eliminada.');
+      onDataChange();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsAlertOpen(false);
+      setHabilidadToDelete(null);
     }
   };
 
@@ -61,7 +80,7 @@ const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidad
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedHabilidad(h); setHabilidadDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDelete(h)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDeleteClick(h)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -70,6 +89,20 @@ const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidad
         </TableBody>
       </Table>
       <HabilidadEditDialog isOpen={isHabilidadDialogOpen} onClose={() => setHabilidadDialogOpen(false)} onSaved={onDataChange} habilidad={selectedHabilidad} />
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente la habilidad "{habilidadToDelete?.nombre}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

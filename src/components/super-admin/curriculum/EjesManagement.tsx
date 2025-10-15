@@ -8,6 +8,16 @@ import { showError, showSuccess } from '@/utils/toast';
 import EjeEditDialog from '../EjeEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EjesManagementProps {
   ejes: Eje[];
@@ -22,6 +32,8 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDa
   const [isEjeDialogOpen, setEjeDialogOpen] = useState(false);
   const [selectedEje, setSelectedEje] = useState<Eje | null>(null);
   const [ejeAsignaturaFilter, setEjeAsignaturaFilter] = useState<string>('all');
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [ejeToDelete, setEjeToDelete] = useState<Eje | null>(null);
 
   const filteredEjes = useMemo(() => {
     if (ejeAsignaturaFilter === 'all') {
@@ -30,15 +42,22 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDa
     return ejes.filter(eje => eje.asignatura_id === ejeAsignaturaFilter);
   }, [ejes, ejeAsignaturaFilter]);
 
-  const handleDelete = async (item: Eje) => {
-    if (window.confirm(`¿Seguro que quieres eliminar "${item.nombre}"?`)) {
-      try {
-        await deleteEje(item.id);
-        showSuccess('Eje eliminado.');
-        onDataChange();
-      } catch (error: any) {
-        showError(error.message);
-      }
+  const handleDeleteClick = (item: Eje) => {
+    setEjeToDelete(item);
+    setIsAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!ejeToDelete) return;
+    try {
+      await deleteEje(ejeToDelete.id);
+      showSuccess('Eje eliminado.');
+      onDataChange();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsAlertOpen(false);
+      setEjeToDelete(null);
     }
   };
 
@@ -80,7 +99,7 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDa
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedEje(e); setEjeDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDelete(e)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDeleteClick(e)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -89,6 +108,20 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, onDa
         </TableBody>
       </Table>
       <EjeEditDialog isOpen={isEjeDialogOpen} onClose={() => setEjeDialogOpen(false)} onSaved={onDataChange} eje={selectedEje} asignaturas={asignaturas} />
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el eje "{ejeToDelete?.nombre}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

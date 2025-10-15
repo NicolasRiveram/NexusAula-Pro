@@ -31,6 +31,7 @@ import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import UrlUploadForm from './curriculum/UrlUploadForm';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const CurriculumUploadForm = ({ niveles, asignaturas, onUploadSuccess }: { niveles: Nivel[], asignaturas: Asignatura[], onUploadSuccess: () => void }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -143,25 +144,11 @@ const CurriculumUploadForm = ({ niveles, asignaturas, onUploadSuccess }: { nivel
   );
 };
 
-const CurriculumJobsTable = ({ keyProp }: { keyProp: number }) => {
-  const [jobs, setJobs] = useState<CurriculumUploadJob[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadJobs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchCurriculumUploadJobs();
-      setJobs(data);
-    } catch (error: any) {
-      showError(`Error al cargar historial: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadJobs();
-  }, [loadJobs, keyProp]);
+const CurriculumJobsTable = () => {
+  const { data: jobs = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['curriculumUploadJobs'],
+    queryFn: fetchCurriculumUploadJobs,
+  });
 
   return (
     <Card>
@@ -171,7 +158,7 @@ const CurriculumJobsTable = ({ keyProp }: { keyProp: number }) => {
             <CardTitle>Historial de Cargas</CardTitle>
             <CardDescription>Estado de los archivos PDF y URLs procesados.</CardDescription>
           </div>
-          <Button variant="outline" size="icon" onClick={loadJobs} disabled={loading}>
+          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </Button>
         </div>
@@ -215,13 +202,15 @@ const CurriculumJobsTable = ({ keyProp }: { keyProp: number }) => {
 };
 
 const CurriculumManagement = () => {
-  const [niveles, setNiveles] = useState<Nivel[]>([]);
-  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
-  const [ejes, setEjes] = useState<Eje[]>([]);
-  const [habilidades, setHabilidades] = useState<Habilidad[]>([]);
-  const [oas, setOas] = useState<ObjetivoAprendizaje[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploadKey, setUploadKey] = useState(0);
+  const queryClient = useQueryClient();
+  
+  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({ queryKey: ['niveles'], queryFn: fetchAllNiveles });
+  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({ queryKey: ['asignaturas'], queryFn: fetchAllAsignaturas });
+  const { data: ejes = [], isLoading: isLoadingEjes } = useQuery({ queryKey: ['ejes'], queryFn: fetchAllEjes });
+  const { data: habilidades = [], isLoading: isLoadingHabilidades } = useQuery({ queryKey: ['habilidades'], queryFn: fetchAllHabilidades });
+  const { data: oas = [], isLoading: isLoadingOas } = useQuery({ queryKey: ['oas'], queryFn: fetchAllObjetivosAprendizaje });
+
+  const loading = isLoadingNiveles || isLoadingAsignaturas || isLoadingEjes || isLoadingHabilidades || isLoadingOas;
 
   const [selectedNiveles, setSelectedNiveles] = useState<string[]>([]);
   const [selectedAsignaturas, setSelectedAsignaturas] = useState<string[]>([]);
@@ -232,43 +221,18 @@ const CurriculumManagement = () => {
   const [isBulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleteConfig, setBulkDeleteConfig] = useState<{ type: string; count: number; onConfirm: () => void } | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [nivelesData, asignaturasData, ejesData, habilidadesData, oasData] = await Promise.all([
-        fetchAllNiveles(), 
-        fetchAllAsignaturas(),
-        fetchAllEjes(),
-        fetchAllHabilidades(),
-        fetchAllObjetivosAprendizaje(),
-      ]);
-      setNiveles(nivelesData);
-      setAsignaturas(asignaturasData);
-      setEjes(ejesData);
-      setHabilidades(habilidadesData);
-      setOas(oasData);
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const handleConfirmBulkDelete = async (
     type: string,
     deleteFn: (ids: string[]) => Promise<void>,
     idsToDelete: string[],
-    clearSelectionFn: React.Dispatch<React.SetStateAction<string[]>>
+    clearSelectionFn: React.Dispatch<React.SetStateAction<string[]>>,
+    queryKey: string
   ) => {
     try {
       await deleteFn(idsToDelete);
       showSuccess(`${idsToDelete.length} ${type}(s) eliminados.`);
       clearSelectionFn([]);
-      loadData();
+      queryClient.invalidateQueries({ queryKey: [queryKey] });
     } catch (error: any) {
       showError(error.message);
     } finally {
@@ -279,27 +243,33 @@ const CurriculumManagement = () => {
   const openBulkDeleteDialog = (type: 'nivel' | 'asignatura' | 'eje' | 'habilidad' | 'oa') => {
     let count = 0;
     let onConfirm: () => void;
+    let queryKey = '';
 
     switch (type) {
       case 'nivel':
         count = selectedNiveles.length;
-        onConfirm = () => handleConfirmBulkDelete('nivel', deleteMultipleNiveles, selectedNiveles, setSelectedNiveles);
+        queryKey = 'niveles';
+        onConfirm = () => handleConfirmBulkDelete('nivel', deleteMultipleNiveles, selectedNiveles, setSelectedNiveles, queryKey);
         break;
       case 'asignatura':
         count = selectedAsignaturas.length;
-        onConfirm = () => handleConfirmBulkDelete('asignatura', deleteMultipleAsignaturas, selectedAsignaturas, setSelectedAsignaturas);
+        queryKey = 'asignaturas';
+        onConfirm = () => handleConfirmBulkDelete('asignatura', deleteMultipleAsignaturas, selectedAsignaturas, setSelectedAsignaturas, queryKey);
         break;
       case 'eje':
         count = selectedEjes.length;
-        onConfirm = () => handleConfirmBulkDelete('eje', deleteMultipleEjes, selectedEjes, setSelectedEjes);
+        queryKey = 'ejes';
+        onConfirm = () => handleConfirmBulkDelete('eje', deleteMultipleEjes, selectedEjes, setSelectedEjes, queryKey);
         break;
       case 'habilidad':
         count = selectedHabilidades.length;
-        onConfirm = () => handleConfirmBulkDelete('habilidad', deleteMultipleHabilidades, selectedHabilidades, setSelectedHabilidades);
+        queryKey = 'habilidades';
+        onConfirm = () => handleConfirmBulkDelete('habilidad', deleteMultipleHabilidades, selectedHabilidades, setSelectedHabilidades, queryKey);
         break;
       case 'oa':
         count = selectedOas.length;
-        onConfirm = () => handleConfirmBulkDelete('objetivo de aprendizaje', deleteMultipleObjetivosAprendizaje, selectedOas, setSelectedOas);
+        queryKey = 'oas';
+        onConfirm = () => handleConfirmBulkDelete('objetivo de aprendizaje', deleteMultipleObjetivosAprendizaje, selectedOas, setSelectedOas, queryKey);
         break;
     }
 
@@ -317,9 +287,9 @@ const CurriculumManagement = () => {
         <AccordionItem value="upload">
           <AccordionTrigger className="text-lg font-semibold">Carga Masiva de Currículum</AccordionTrigger>
           <AccordionContent className="space-y-4">
-            <UrlUploadForm niveles={niveles} asignaturas={asignaturas} onUploadSuccess={loadData} />
-            <CurriculumUploadForm niveles={niveles} asignaturas={asignaturas} onUploadSuccess={() => setUploadKey(k => k + 1)} />
-            <CurriculumJobsTable keyProp={uploadKey} />
+            <UrlUploadForm niveles={niveles} asignaturas={asignaturas} onUploadSuccess={() => queryClient.invalidateQueries()} />
+            <CurriculumUploadForm niveles={niveles} asignaturas={asignaturas} onUploadSuccess={() => queryClient.invalidateQueries({ queryKey: ['curriculumUploadJobs'] })} />
+            <CurriculumJobsTable />
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="niveles">
@@ -327,7 +297,7 @@ const CurriculumManagement = () => {
           <AccordionContent>
             <NivelesManagement 
               niveles={niveles} 
-              onDataChange={loadData} 
+              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['niveles'] })} 
               selectedNiveles={selectedNiveles}
               setSelectedNiveles={setSelectedNiveles}
               openBulkDeleteDialog={() => openBulkDeleteDialog('nivel')}
@@ -339,7 +309,7 @@ const CurriculumManagement = () => {
           <AccordionContent>
             <AsignaturasManagement
               asignaturas={asignaturas}
-              onDataChange={loadData}
+              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['asignaturas'] })}
               selectedAsignaturas={selectedAsignaturas}
               setSelectedAsignaturas={setSelectedAsignaturas}
               openBulkDeleteDialog={() => openBulkDeleteDialog('asignatura')}
@@ -352,7 +322,7 @@ const CurriculumManagement = () => {
             <EjesManagement
               ejes={ejes}
               asignaturas={asignaturas}
-              onDataChange={loadData}
+              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['ejes'] })}
               selectedEjes={selectedEjes}
               setSelectedEjes={setSelectedEjes}
               openBulkDeleteDialog={() => openBulkDeleteDialog('eje')}
@@ -364,7 +334,7 @@ const CurriculumManagement = () => {
           <AccordionContent>
             <HabilidadesManagement
               habilidades={habilidades}
-              onDataChange={loadData}
+              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['habilidades'] })}
               selectedHabilidades={selectedHabilidades}
               setSelectedHabilidades={setSelectedHabilidades}
               openBulkDeleteDialog={() => openBulkDeleteDialog('habilidad')}
@@ -379,7 +349,7 @@ const CurriculumManagement = () => {
               niveles={niveles}
               asignaturas={asignaturas}
               ejes={ejes}
-              onDataChange={loadData}
+              onDataChange={() => queryClient.invalidateQueries({ queryKey: ['oas'] })}
               selectedOas={selectedOas}
               setSelectedOas={setSelectedOas}
               openBulkDeleteDialog={() => openBulkDeleteDialog('oa')}
