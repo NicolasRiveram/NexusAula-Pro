@@ -1,15 +1,16 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { completeDocenteProfile, completeCoordinatorProfile } from './profile-setup/api';
+import { completeDocenteProfile, completeCoordinatorProfile, fetchAsignaturas, fetchNiveles, fetchUserProfile } from './profile-setup/api';
 import { useProfileSetupForm } from './profile-setup/use-profile-setup-form';
-import { useProfileData } from './profile-setup/use-profile-data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 // Importar los componentes de los pasos
 import Step1UserProfile from './profile-setup/steps/Step1UserProfile';
@@ -44,57 +45,107 @@ const ProfileSetupSkeleton = () => (
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     currentStep,
     setCurrentStep,
-    isActionLoading,
-    setIsActionLoading,
     control,
     handleSubmit,
     watch,
     setValue,
     errors,
-    isSubmitting,
     handleNext,
     handleBack,
     getValues,
   }
   = useProfileSetupForm();
 
-  const { asignaturas, niveles, loadingData, profileComplete } = useProfileData(setValue);
+  const { data: user, isLoading: isLoadingUser } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/login');
+        return null;
+      }
+      return user;
+    },
+    staleTime: Infinity,
+  });
+
+  const { data: profile, isLoading: isLoadingProfile, isSuccess: isProfileSuccess } = useQuery({
+    queryKey: ['userProfile', user?.id],
+    queryFn: () => fetchUserProfile(user!.id),
+    enabled: !!user,
+  });
+
+  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({
+    queryKey: ['asignaturas'],
+    queryFn: fetchAsignaturas,
+  });
+
+  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({
+    queryKey: ['niveles'],
+    queryFn: fetchNiveles,
+  });
+
+  useEffect(() => {
+    if (isProfileSuccess && profile) {
+      if (profile.perfil_completo) {
+        showSuccess("Tu perfil ya está configurado. Redirigiendo al dashboard.");
+        navigate('/dashboard');
+      } else {
+        setValue('nombre_completo', profile.nombre_completo || user?.email?.split('@')[0] || '');
+        setValue('rol_seleccionado', profile.rol || undefined);
+      }
+    }
+  }, [profile, isProfileSuccess, navigate, setValue, user]);
+
+  const docenteMutation = useMutation({
+    mutationFn: completeDocenteProfile,
+    onSuccess: () => {
+      showSuccess("¡Configuración de perfil completada exitosamente!");
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id] });
+      navigate('/dashboard');
+    },
+    onError: (error: any) => {
+      showError("Error al completar la configuración del perfil: " + error.message);
+    },
+  });
+
+  const coordinatorMutation = useMutation({
+    mutationFn: completeCoordinatorProfile,
+    onSuccess: () => {
+      showSuccess("¡Configuración de perfil completada exitosamente!");
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id] });
+      navigate('/dashboard');
+    },
+    onError: (error: any) => {
+      showError("Error al completar la configuración del perfil: " + error.message);
+    },
+  });
 
   const selectedRol = watch('rol_seleccionado');
-
-  if (profileComplete === true) {
-    return null;
-  }
 
   const handleCompleteSetup = handleSubmit(async (data) => {
     const { nombre_completo, rol_seleccionado, asignatura_ids, nivel_ids } = data;
 
-    setIsActionLoading(true);
-    try {
-      if (rol_seleccionado === 'docente') {
-        await completeDocenteProfile({
-          p_nombre_completo: nombre_completo,
-          p_rol_seleccionado: rol_seleccionado,
-          p_asignatura_ids: asignatura_ids as string[],
-          p_nivel_ids: nivel_ids as string[],
-        });
-      } else if (rol_seleccionado === 'coordinador') {
-        await completeCoordinatorProfile({
-          p_nombre_completo: nombre_completo,
-        });
-      }
-      showSuccess("¡Configuración de perfil completada exitosamente!");
-      navigate('/dashboard');
-    } catch (error: any) {
-      console.error("Error al completar perfil:", error);
-      showError("Error al completar la configuración del perfil: " + error.message);
-    } finally {
-      setIsActionLoading(false);
+    if (rol_seleccionado === 'docente') {
+      docenteMutation.mutate({
+        p_nombre_completo: nombre_completo,
+        p_rol_seleccionado: rol_seleccionado,
+        p_asignatura_ids: asignatura_ids as string[],
+        p_nivel_ids: nivel_ids as string[],
+      });
+    } else if (rol_seleccionado === 'coordinador') {
+      coordinatorMutation.mutate({
+        p_nombre_completo: nombre_completo,
+      });
     }
   });
+
+  const loadingData = isLoadingUser || isLoadingProfile || isLoadingAsignaturas || isLoadingNiveles;
+  const finalSubmitting = docenteMutation.isPending || coordinatorMutation.isPending;
 
   if (loadingData) {
     return <ProfileSetupSkeleton />;
@@ -119,8 +170,6 @@ const ProfileSetup = () => {
               getValues={getValues}
               watch={watch}
               setCurrentStep={setCurrentStep}
-              isActionLoading={isActionLoading}
-              setIsActionLoading={setIsActionLoading}
             />
           )}
           {currentStep === 3 && (
@@ -138,18 +187,18 @@ const ProfileSetup = () => {
         </CardContent>
         <CardFooter className="flex justify-between">
           {currentStep > 1 && (
-            <Button variant="outline" onClick={handleBack} disabled={isActionLoading || isSubmitting}>
+            <Button variant="outline" onClick={handleBack} disabled={finalSubmitting}>
               <ChevronLeft className="mr-2 h-4 w-4" /> Anterior
             </Button>
           )}
           {currentStep < 5 && (
-            <Button onClick={handleNext} disabled={isActionLoading || isSubmitting} className={currentStep === 1 ? 'ml-auto' : ''}>
+            <Button onClick={handleNext} disabled={finalSubmitting} className={currentStep === 1 ? 'ml-auto' : ''}>
               Siguiente <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           )}
           {currentStep === 5 && (
-            <Button onClick={handleCompleteSetup} disabled={isActionLoading || isSubmitting} className="ml-auto">
-              {isSubmitting ? 'Completando...' : 'Completar Configuración'}
+            <Button onClick={handleCompleteSetup} disabled={finalSubmitting} className="ml-auto">
+              {finalSubmitting ? 'Completando...' : 'Completar Configuración'}
             </Button>
           )}
         </CardFooter>
