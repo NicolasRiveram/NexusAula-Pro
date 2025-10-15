@@ -838,8 +838,8 @@ export const generatePIEAdaptation = async (itemId: string) => {
     return data;
 };
 
-export const savePIEAdaptation = async (parentItemId: string, adaptationData: any) => {
-    const { error: upsertError } = await supabase
+export const savePIEAdaptation = async (parentItemId: string, adaptationData: any): Promise<PIEAdaptation> => {
+    const { data: upsertedData, error: upsertError } = await supabase
         .from('adaptaciones_pie')
         .upsert({
             parent_item_id: parentItemId,
@@ -847,7 +847,9 @@ export const savePIEAdaptation = async (parentItemId: string, adaptationData: an
             alternativas_adaptadas: adaptationData.alternativas_adaptadas,
         }, {
             onConflict: 'parent_item_id'
-        });
+        })
+        .select()
+        .single();
 
     if (upsertError) {
         throw new Error(`Error al guardar la adaptación PIE: ${upsertError.message}`);
@@ -859,9 +861,10 @@ export const savePIEAdaptation = async (parentItemId: string, adaptationData: an
         .eq('id', parentItemId);
 
     if (updateError) {
-        // No es necesario revertir el upsert, pero sí es bueno saber que el flag no se actualizó.
         throw new Error(`Error al actualizar el item, pero la adaptación se guardó: ${updateError.message}`);
     }
+    
+    return upsertedData;
 };
 
 export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; habilidad_evaluada: string | null; nivel_comprension: string | null; alternativas: any[] }) => {

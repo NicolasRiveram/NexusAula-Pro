@@ -20,8 +20,6 @@ const AdaptPIEPage = () => {
 
   const loadEvaluation = useCallback(async () => {
     if (evaluationId) {
-      // No mostramos el loader en recargas para una experiencia más fluida
-      // setLoading(true); 
       try {
         const data = await fetchEvaluationDetails(evaluationId);
         setEvaluation(data);
@@ -34,6 +32,7 @@ const AdaptPIEPage = () => {
   }, [evaluationId]);
 
   useEffect(() => {
+    setLoading(true);
     loadEvaluation();
   }, [loadEvaluation]);
 
@@ -47,17 +46,36 @@ const AdaptPIEPage = () => {
 
     try {
       const adaptationPromises = itemsToAdapt.map(async (itemId) => {
-        const adaptationData = await generatePIEAdaptation(itemId);
-        await savePIEAdaptation(itemId, adaptationData);
+        const adaptationDataFromAI = await generatePIEAdaptation(itemId);
+        const savedAdaptation = await savePIEAdaptation(itemId, adaptationDataFromAI);
+        return { itemId, savedAdaptation };
       });
 
-      await Promise.all(adaptationPromises);
+      const results = await Promise.all(adaptationPromises);
+
+      setEvaluation(prevEval => {
+        if (!prevEval) return null;
+        const newEval = JSON.parse(JSON.stringify(prevEval));
+
+        results.forEach(({ itemId, savedAdaptation }) => {
+          for (const block of newEval.evaluation_content_blocks) {
+            const itemIndex = block.evaluacion_items.findIndex((i: EvaluationItem) => i.id === itemId);
+            if (itemIndex !== -1) {
+              block.evaluacion_items[itemIndex].tiene_adaptacion_pie = true;
+              block.evaluacion_items[itemIndex].adaptaciones_pie = [savedAdaptation];
+              break; 
+            }
+          }
+        });
+        return newEval;
+      });
+
       dismissToast(toastId);
       showSuccess(`${itemsToAdapt.length} pregunta(s) adaptada(s) exitosamente.`);
-      await loadEvaluation(); // Recargar los datos para mostrar los cambios
     } catch (error: any) {
       dismissToast(toastId);
       showError(`Error durante la adaptación: ${error.message}`);
+      await loadEvaluation(); // Recargar en caso de error para asegurar consistencia
     } finally {
       setAdaptingItems([]);
     }
