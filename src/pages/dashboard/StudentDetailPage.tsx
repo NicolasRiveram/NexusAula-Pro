@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Mail, User, Hash, FileSignature } from 'lucide-react';
+import { ArrowLeft, Mail, User, Hash, FileSignature, Loader2 } from 'lucide-react';
 import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance } from '@/api/coursesApi';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
@@ -15,44 +15,52 @@ import { calculateGrade } from '@/utils/evaluationUtils';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
 
 const StudentDetailPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
-  const [student, setStudent] = useState<Estudiante | null>(null);
-  const [rubricEvaluations, setRubricEvaluations] = useState<StudentRubricEvaluation[]>([]);
-  const [evaluationHistory, setEvaluationHistory] = useState<StudentEvaluationHistory[]>([]);
-  const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
-  const [stats, setStats] = useState<StudentPerformanceStats | null>(null);
-  const [skillPerformance, setSkillPerformance] = useState<StudentSkillPerformance[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (studentId) {
-      setLoading(true);
-      Promise.all([
-        fetchStudentProfile(studentId),
-        fetchEvaluationsForStudent(studentId),
-        fetchStudentEnrollments(studentId),
-        fetchStudentEvaluationHistory(studentId),
-        fetchStudentPerformanceStats(studentId),
-        fetchStudentSkillPerformance(studentId)
-      ]).then(([studentData, rubricData, enrollmentsData, historyData, statsData, skillData]) => {
-        setStudent(studentData);
-        setRubricEvaluations(rubricData);
-        setEnrollments(enrollmentsData);
-        setEvaluationHistory(historyData);
-        setStats(statsData);
-        setSkillPerformance(skillData);
-      }).catch(err => {
-        showError(`Error al cargar datos del estudiante: ${err.message}`);
-      }).finally(() => {
-        setLoading(false);
-      });
-    }
-  }, [studentId]);
+  const { data: student, isLoading: isLoadingStudent } = useQuery({
+    queryKey: ['studentProfile', studentId],
+    queryFn: () => fetchStudentProfile(studentId!),
+    enabled: !!studentId,
+    onError: (err: any) => showError(`Error al cargar el perfil: ${err.message}`),
+  });
+
+  const { data: rubricEvaluations = [], isLoading: isLoadingRubrics } = useQuery({
+    queryKey: ['studentRubricEvaluations', studentId],
+    queryFn: () => fetchEvaluationsForStudent(studentId!),
+    enabled: !!studentId,
+  });
+
+  const { data: enrollments = [], isLoading: isLoadingEnrollments } = useQuery({
+    queryKey: ['studentEnrollments', studentId],
+    queryFn: () => fetchStudentEnrollments(studentId!),
+    enabled: !!studentId,
+  });
+
+  const { data: evaluationHistory = [], isLoading: isLoadingHistory } = useQuery({
+    queryKey: ['studentEvaluationHistory', studentId],
+    queryFn: () => fetchStudentEvaluationHistory(studentId!),
+    enabled: !!studentId,
+  });
+
+  const { data: stats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['studentPerformanceStats', studentId],
+    queryFn: () => fetchStudentPerformanceStats(studentId!),
+    enabled: !!studentId,
+  });
+
+  const { data: skillPerformance = [], isLoading: isLoadingSkills } = useQuery({
+    queryKey: ['studentSkillPerformance', studentId],
+    queryFn: () => fetchStudentSkillPerformance(studentId!),
+    enabled: !!studentId,
+  });
+
+  const loading = isLoadingStudent || isLoadingRubrics || isLoadingEnrollments || isLoadingHistory || isLoadingStats || isLoadingSkills;
 
   if (loading) {
-    return <div className="container mx-auto"><p>Cargando perfil del estudiante...</p></div>;
+    return <div className="container mx-auto flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   if (!student) {

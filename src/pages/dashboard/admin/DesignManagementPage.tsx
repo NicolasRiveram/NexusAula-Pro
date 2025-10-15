@@ -6,16 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Upload, Trash2 } from 'lucide-react';
 import { fetchDesignSettings, updateDesignSetting, uploadDesignAsset, getDesignAssetUrl, removeDesignAsset, DesignSetting } from '@/api/designApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface DesignZoneProps {
   setting: DesignSetting;
-  onUpdate: () => void;
 }
 
-const DesignZone: React.FC<DesignZoneProps> = ({ setting, onUpdate }) => {
+const DesignZone: React.FC<DesignZoneProps> = ({ setting }) => {
+  const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (setting.value) {
@@ -34,52 +34,45 @@ const DesignZone: React.FC<DesignZoneProps> = ({ setting, onUpdate }) => {
     }
   };
 
-  const handleSave = async () => {
-    if (!file) {
-      showError("Por favor, selecciona un archivo para subir.");
-      return;
-    }
-    setIsUploading(true);
-    const toastId = showLoading("Subiendo imagen...");
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error("Por favor, selecciona un archivo para subir.");
       if (setting.value) {
         await removeDesignAsset(setting.value);
       }
       const newPath = await uploadDesignAsset(file);
       await updateDesignSetting(setting.key, newPath);
-      dismissToast(toastId);
+    },
+    onSuccess: () => {
       showSuccess("Imagen actualizada correctamente.");
       setFile(null);
-      onUpdate();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-    } finally {
-      setIsUploading(false);
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: ['designSettings'] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
 
-  const handleRemove = async () => {
-    if (!setting.value) return;
-    if (!window.confirm("¿Estás seguro de que quieres eliminar esta imagen?")) return;
-    
-    setIsUploading(true);
-    const toastId = showLoading("Eliminando imagen...");
-    try {
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      if (!setting.value) return;
       await removeDesignAsset(setting.value);
       await updateDesignSetting(setting.key, null);
-      dismissToast(toastId);
+    },
+    onSuccess: () => {
       showSuccess("Imagen eliminada.");
       setFile(null);
       setPreview(null);
-      onUpdate();
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-    } finally {
-      setIsUploading(false);
+      queryClient.invalidateQueries({ queryKey: ['designSettings'] });
+    },
+    onError: (error: any) => showError(error.message),
+  });
+
+  const handleRemove = () => {
+    if (window.confirm("¿Estás seguro de que quieres eliminar esta imagen?")) {
+      removeMutation.mutate();
     }
   };
+
+  const isMutating = saveMutation.isPending || removeMutation.isPending;
 
   return (
     <Card>
@@ -101,13 +94,13 @@ const DesignZone: React.FC<DesignZoneProps> = ({ setting, onUpdate }) => {
         </div>
         <div className="flex justify-end gap-2">
           {setting.value && (
-            <Button variant="destructive" onClick={handleRemove} disabled={isUploading}>
-              {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            <Button variant="destructive" onClick={handleRemove} disabled={isMutating}>
+              {removeMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               Eliminar
             </Button>
           )}
-          <Button onClick={handleSave} disabled={!file || isUploading}>
-            {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+          <Button onClick={() => saveMutation.mutate()} disabled={!file || isMutating}>
+            {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
             Guardar
           </Button>
         </div>
@@ -117,24 +110,11 @@ const DesignZone: React.FC<DesignZoneProps> = ({ setting, onUpdate }) => {
 };
 
 const DesignManagementPage = () => {
-  const [settings, setSettings] = useState<DesignSetting[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadSettings = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchDesignSettings();
-      setSettings(data);
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
+  const { data: settings = [], isLoading: loading } = useQuery({
+    queryKey: ['designSettings'],
+    queryFn: fetchDesignSettings,
+    onError: (error: any) => showError(error.message),
+  });
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -148,7 +128,7 @@ const DesignManagementPage = () => {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {settings.map(setting => (
-          <DesignZone key={setting.key} setting={setting} onUpdate={loadSettings} />
+          <DesignZone key={setting.key} setting={setting} />
         ))}
       </div>
     </div>
