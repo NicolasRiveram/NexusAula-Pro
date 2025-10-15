@@ -418,7 +418,7 @@ export const createEvaluation = async (evalData: CreateEvaluationData & { objeti
   const { cursoAsignaturaIds, objetivos_aprendizaje_ids, habilidades, ...rest } = evalData;
   const { data, error } = await supabase
     .from('evaluaciones')
-    .insert({ ...rest, descripcion: habilidades?.join(', ') })
+    .insert({ ...rest })
     .select('id')
     .single();
 
@@ -473,7 +473,7 @@ export const updateEvaluation = async (evaluationId: string, evalData: CreateEva
   const { cursoAsignaturaIds, objetivos_aprendizaje_ids, habilidades, ...updateData } = evalData;
   const { error: updateError } = await supabase
     .from('evaluaciones')
-    .update({ ...updateData, descripcion: habilidades?.join(', ') })
+    .update({ ...updateData })
     .eq('id', evaluationId);
 
   if (updateError) throw new Error(`Error updating evaluation: ${updateError.message}`);
@@ -734,12 +734,13 @@ export const getPublicImageUrl = (path: string): string => {
     return data.publicUrl;
 };
 
-export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, questionCount: number) => {
+export const generateQuestionsFromBlock = async (block: EvaluationContentBlock, questionCount: number, evaluationContext?: string) => {
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: {
       block_content: block.content,
       block_type: block.block_type,
       questionCount: questionCount,
+      evaluation_context: evaluationContext,
     },
   });
   if (error instanceof FunctionsHttpError) {

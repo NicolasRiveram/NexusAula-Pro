@@ -60,7 +60,7 @@ serve(async (req) => {
       throw new Error("La clave de API de Gemini no está configurada.");
     }
 
-    const { block_content, block_type, questionCount } = await req.json();
+    const { block_content, block_type, questionCount, evaluation_context } = await req.json();
     const count = questionCount > 0 && questionCount <= 10 ? questionCount : 3;
     
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
@@ -79,6 +79,7 @@ serve(async (req) => {
     const prompt = `
       Eres un asistente experto en crear evaluaciones educativas para Chile.
       Basado en ${contentPrompt}, genera un array de exactamente ${count} preguntas de selección múltiple en formato JSON.
+      ${evaluation_context ? `Considera el siguiente contexto general para la evaluación al generar las preguntas: "${evaluation_context}"` : ''}
       La estructura de cada objeto en el array debe ser:
       \`\`\`json
       {

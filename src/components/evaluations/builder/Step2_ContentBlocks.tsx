@@ -27,6 +27,7 @@ interface Step2ContentBlocksProps {
   evaluationTitle: string;
   onNextStep: () => void;
   temario: string;
+  getEvaluationContext: () => string | undefined;
 }
 
 interface QuestionItemProps {
@@ -160,7 +161,7 @@ function SortableItem({ id, children }: { id: string, children: (props: any) => 
   return children({ ref: setNodeRef, style, attributes, listeners });
 }
 
-const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep, temario }) => {
+const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, evaluationTitle, onNextStep, temario, getEvaluationContext }) => {
   const [blocks, setBlocks] = useState<EvaluationContentBlock[]>([]);
   const [questionsByBlock, setQuestionsByBlock] = useState<Record<string, EvaluationItem[]>>({});
   const [loading, setLoading] = useState(true);
@@ -294,7 +295,8 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const handleGenerateQuestions = async (block: EvaluationContentBlock, count: number) => {
     setGeneratingForBlock(block.id);
     try {
-        const generatedQuestions = await generateQuestionsFromBlock(block, count);
+        const evaluationContext = getEvaluationContext();
+        const generatedQuestions = await generateQuestionsFromBlock(block, count, evaluationContext);
         await saveGeneratedQuestions(evaluationId, block.id, generatedQuestions);
         showSuccess(`Se generaron ${generatedQuestions.length} preguntas para el bloque.`);
         loadBlocksAndQuestions();

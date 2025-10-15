@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 
 export const schema = z.object({
   titulo: z.string().min(3, "El título es requerido."),
+  descripcion: z.string().optional(),
   tipo: z.string().min(1, "El tipo de evaluación es requerido."),
   momento_evaluativo: z.string().min(1, "El momento evaluativo es requerido."),
   habilidades: z.array(z.string()).min(1, "Debes agregar al menos una habilidad."),
@@ -148,12 +149,24 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
 
   return (
     <form onSubmit={onFormSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="titulo">Título de la Evaluación</Label>
+        <Controller name="titulo" control={control} render={({ field }) => <Input id="titulo" {...field} />} />
+        {errors.titulo && <p className="text-red-500 text-sm">{errors.titulo.message as string}</p>}
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="descripcion">Descripción y Contexto para la IA</Label>
+        <Controller name="descripcion" control={control} render={({ field }) => 
+          <Textarea 
+            id="descripcion" 
+            rows={4} 
+            placeholder="Describe el contexto de la evaluación, la unidad, los contenidos, o cualquier indicación especial para la IA (ej: 'generar la evaluación en inglés')."
+            {...field} 
+          />
+        } />
+        {errors.descripcion && <p className="text-red-500 text-sm">{errors.descripcion.message as string}</p>}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="titulo">Título de la Evaluación</Label>
-          <Controller name="titulo" control={control} render={({ field }) => <Input id="titulo" {...field} />} />
-          {errors.titulo && <p className="text-red-500 text-sm">{errors.titulo.message as string}</p>}
-        </div>
         <div className="space-y-2">
           <Label htmlFor="tipo">Tipo</Label>
           <Controller name="tipo" control={control} render={({ field }) => (
@@ -167,6 +180,20 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
             </Select>
           )} />
           {errors.tipo && <p className="text-red-500 text-sm">{errors.tipo.message as string}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="momento_evaluativo">Momento Evaluativo</Label>
+          <Controller name="momento_evaluativo" control={control} render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger><SelectValue placeholder="Selecciona un momento" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="diagnostica">Diagnóstica</SelectItem>
+                <SelectItem value="formativa">Formativa</SelectItem>
+                <SelectItem value="sumativa">Sumativa</SelectItem>
+              </SelectContent>
+            </Select>
+          )} />
+          {errors.momento_evaluativo && <p className="text-red-500 text-sm">{errors.momento_evaluativo.message as string}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -215,36 +242,20 @@ const Step1GeneralInfo: React.FC<Step1GeneralInfoProps> = ({ onFormSubmit, contr
         </div>
         {errors.habilidades && <p className="text-red-500 text-sm">{errors.habilidades.message as string}</p>}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="momento_evaluativo">Momento Evaluativo</Label>
-          <Controller name="momento_evaluativo" control={control} render={({ field }) => (
-            <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger><SelectValue placeholder="Selecciona un momento" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="diagnostica">Diagnóstica</SelectItem>
-                <SelectItem value="formativa">Formativa</SelectItem>
-                <SelectItem value="sumativa">Sumativa</SelectItem>
-              </SelectContent>
-            </Select>
-          )} />
-          {errors.momento_evaluativo && <p className="text-red-500 text-sm">{errors.momento_evaluativo.message as string}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="fecha_aplicacion">Fecha de Aplicación (Opcional)</Label>
-          <Controller name="fecha_aplicacion" control={control} render={({ field }) => (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} /></PopoverContent>
-            </Popover>
-          )} />
-          {errors.fecha_aplicacion && <p className="text-red-500 text-sm">{errors.fecha_aplicacion.message as string}</p>}
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="fecha_aplicacion">Fecha de Aplicación (Opcional)</Label>
+        <Controller name="fecha_aplicacion" control={control} render={({ field }) => (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} /></PopoverContent>
+          </Popover>
+        )} />
+        {errors.fecha_aplicacion && <p className="text-red-500 text-sm">{errors.fecha_aplicacion.message as string}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="cursoAsignaturaIds">Asignar a Cursos (Opcional)</Label>

@@ -37,6 +37,7 @@ const EvaluationBuilderPage = () => {
     resolver: zodResolver(evaluationBuilderSchema),
     defaultValues: {
       titulo: '',
+      descripcion: '',
       tipo: '',
       momento_evaluativo: '',
       habilidades: [],
@@ -62,6 +63,7 @@ const EvaluationBuilderPage = () => {
           setHabilidades(fetchedHabilidades);
           reset({
             titulo: data.titulo,
+            descripcion: data.descripcion || '',
             tipo: data.tipo,
             momento_evaluativo: data.momento_evaluativo,
             habilidades: fetchedHabilidades,
@@ -91,6 +93,7 @@ const EvaluationBuilderPage = () => {
       const payload: CreateEvaluationData & { objetivos_aprendizaje_ids: string[] } = {
         titulo: data.titulo,
         tipo: data.tipo,
+        descripcion: data.descripcion,
         momento_evaluativo: data.momento_evaluativo,
         habilidades: data.habilidades,
         fecha_aplicacion: data.fecha_aplicacion ? format(data.fecha_aplicacion, 'yyyy-MM-dd') : null,
@@ -159,6 +162,7 @@ const EvaluationBuilderPage = () => {
       await updateEvaluation(evaluationId, {
         titulo: formData.titulo,
         tipo: formData.tipo,
+        descripcion: formData.descripcion,
         momento_evaluativo: formData.momento_evaluativo,
         habilidades: formData.habilidades,
         fecha_aplicacion: formData.fecha_aplicacion ? format(formData.fecha_aplicacion, 'yyyy-MM-dd') : null,
@@ -239,6 +243,7 @@ const EvaluationBuilderPage = () => {
               evaluationTitle={getValues('titulo')}
               onNextStep={handleNextFromContent}
               temario={habilidades.join(', ')}
+              getEvaluationContext={() => getValues('descripcion')}
             />
           ) : step === 3 && evaluationDetails ? (
             <Step3FinalReview control={control} evaluation={evaluationDetails} />
