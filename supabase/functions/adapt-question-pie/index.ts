@@ -48,11 +48,11 @@ serve(async (req) => {
     const prompt = `
       Eres un asistente experto en adaptaciones curriculares para el Programa de Integración Escolar (PIE) de Chile.
       Tu tarea es adaptar una pregunta de selección múltiple para hacerla más accesible.
-      Aplica las siguientes reglas:
-      1. Simplifica el lenguaje del enunciado.
-      2. Resalta palabras clave en el enunciado usando markdown bold (**palabra**).
-      3. Reduce el número de alternativas de 4 a 3, eliminando el distractor menos plausible.
-      4. Simplifica el texto de las alternativas restantes.
+      Aplica las siguientes reglas estrictas:
+      1.  **Simplifica el lenguaje** del enunciado para que sea más directo y fácil de comprender.
+      2.  **Resalta palabras clave** en el enunciado usando markdown bold (**palabra**).
+      3.  **Reduce el número de alternativas de 4 a 3**, eliminando el distractor menos plausible o más confuso.
+      4.  **Simplifica el texto** de las 3 alternativas restantes.
       
       Devuelve un objeto JSON con la siguiente estructura:
       \`\`\`json
@@ -65,7 +65,7 @@ serve(async (req) => {
         ]
       }
       \`\`\`
-      - Asegúrate de que la alternativa correcta original siga siendo la correcta.
+      - Asegúrate de que la alternativa correcta original siga siendo la correcta entre las 3 restantes.
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
 
       Pregunta original:
