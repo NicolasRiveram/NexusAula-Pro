@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,39 +9,25 @@ import { fetchReports, Report } from '@/api/reportsApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardContext {
   profile: { rol: string };
 }
 
 const ReportsPage = () => {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
   const { profile } = useOutletContext<DashboardContext>();
+  const { user } = useAuth();
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
 
-  useEffect(() => {
-    const loadReports = async () => {
-      if (!activeEstablishment) {
-        setReports([]);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          const data = await fetchReports(user.id, activeEstablishment.id, isAdmin);
-          setReports(data);
-        } catch (err: any) {
-          showError(`Error al cargar informes: ${err.message}`);
-        }
-      }
-      setLoading(false);
-    };
-    loadReports();
-  }, [activeEstablishment, isAdmin]);
+  const { data: reports = [], isLoading: loading } = useQuery({
+    queryKey: ['reports', user?.id, activeEstablishment?.id, isAdmin],
+    queryFn: () => fetchReports(user!.id, activeEstablishment!.id, isAdmin),
+    enabled: !!user && !!activeEstablishment,
+    onError: (err: any) => showError(`Error al cargar informes: ${err.message}`),
+  });
 
   const groupedReports = reports.reduce((acc, report) => {
     const levelName = report.cursos?.niveles?.nombre || 'Sin Nivel Asignado';
@@ -52,6 +37,8 @@ const ReportsPage = () => {
     acc[levelName].push(report);
     return acc;
   }, {} as Record<string, Report[]>);
+
+  const sortedLevels = Object.keys(groupedReports).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="container mx-auto space-y-6">
@@ -76,14 +63,14 @@ const ReportsPage = () => {
         </div>
       ) : reports.length > 0 ? (
         <Accordion type="multiple" className="w-full space-y-4">
-          {Object.entries(groupedReports).sort(([levelA], [levelB]) => levelA.localeCompare(levelB)).map(([levelName, reportsInLevel]) => (
+          {sortedLevels.map((levelName) => (
             <AccordionItem key={levelName} value={levelName}>
               <AccordionTrigger className="text-xl font-semibold bg-muted/50 px-4 rounded-md">
                 {levelName}
               </AccordionTrigger>
               <AccordionContent className="pt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {reportsInLevel.map(report => (
+                  {groupedReports[levelName].map(report => (
                     <Link to={`/dashboard/informes/${report.id}`} key={report.id}>
                       <Card className="h-full hover:shadow-lg transition-shadow">
                         <CardHeader>

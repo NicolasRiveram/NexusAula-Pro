@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Download } from 'lucide-react';
 import { fetchReportById, Report } from '@/api/reportsApi';
@@ -8,21 +8,17 @@ import { showError } from '@/utils/toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { printComponent } from '@/utils/printUtils';
 import PrintableReport from '@/components/reports/PrintableReport';
+import { useQuery } from '@tanstack/react-query';
 
 const ViewReportPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
-  const [report, setReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (reportId) {
-      setLoading(true);
-      fetchReportById(reportId)
-        .then(setReport)
-        .catch(err => showError(err.message))
-        .finally(() => setLoading(false));
-    }
-  }, [reportId]);
+  const { data: report, isLoading: loading } = useQuery({
+    queryKey: ['report', reportId],
+    queryFn: () => fetchReportById(reportId!),
+    enabled: !!reportId,
+    onError: (err: any) => showError(err.message),
+  });
 
   const handlePrint = () => {
     if (report) {
