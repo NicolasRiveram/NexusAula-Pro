@@ -10,6 +10,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import { MultiSelect } from '@/components/MultiSelect';
 import { ALL_QUICK_ACTIONS } from '@/config/quickActions';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   selectedActions: z.array(z.string()).min(1, "Debes seleccionar al menos un acceso directo.").max(6, "Puedes seleccionar un máximo de 6 accesos directos."),
@@ -24,21 +25,28 @@ interface QuickActionsSettingsProps {
 }
 
 const QuickActionsSettings: React.FC<QuickActionsSettingsProps> = ({ userId, currentPrefs, onUpdate }) => {
-  const { control, handleSubmit, formState: { isSubmitting, errors } } = useForm<FormData>({
+  const queryClient = useQueryClient();
+  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       selectedActions: currentPrefs,
     },
   });
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      await updateQuickActionsPrefs(userId, data.selectedActions);
+  const mutation = useMutation({
+    mutationFn: (prefs: string[]) => updateQuickActionsPrefs(userId, prefs),
+    onSuccess: () => {
       showSuccess("Accesos directos actualizados.");
+      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
       onUpdate();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
-    }
+    },
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data.selectedActions);
   };
 
   const options = ALL_QUICK_ACTIONS.map(action => ({
@@ -71,8 +79,8 @@ const QuickActionsSettings: React.FC<QuickActionsSettingsProps> = ({ userId, cur
             {errors.selectedActions && <p className="text-red-500 text-sm mt-1">{errors.selectedActions.message}</p>}
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar Preferencias
             </Button>
           </div>

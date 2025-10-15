@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { UserProfile, updateUserProfile } from '@/api/settingsApi';
 import { showSuccess, showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   nombre_completo: z.string().min(3, "El nombre es requerido."),
@@ -24,7 +25,8 @@ interface ProfileSettingsFormProps {
 }
 
 const ProfileSettingsForm: React.FC<ProfileSettingsFormProps> = ({ profile, userId, onProfileUpdate }) => {
-  const { control, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<FormData>({
+  const queryClient = useQueryClient();
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -32,14 +34,20 @@ const ProfileSettingsForm: React.FC<ProfileSettingsFormProps> = ({ profile, user
     reset(profile);
   }, [profile, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      await updateUserProfile(userId, data.nombre_completo);
+  const mutation = useMutation({
+    mutationFn: (newName: string) => updateUserProfile(userId, newName),
+    onSuccess: () => {
       showSuccess("Perfil actualizado exitosamente.");
+      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
       onProfileUpdate();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
-    }
+    },
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data.nombre_completo);
   };
 
   return (
@@ -61,8 +69,8 @@ const ProfileSettingsForm: React.FC<ProfileSettingsFormProps> = ({ profile, user
             <p className="text-xs text-muted-foreground mt-1">El correo electrónico no se puede cambiar.</p>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar Cambios
             </Button>
           </div>

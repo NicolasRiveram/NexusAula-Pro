@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchUserProfile, fetchUserPedagogicalProfile, UserProfile, UserPedagogicalProfile } from '@/api/settingsApi';
 import { showError } from '@/utils/toast';
@@ -11,49 +10,37 @@ import EstablishmentSettingsForm from '@/components/settings/EstablishmentSettin
 import SubscriptionManager from '@/components/settings/SubscriptionSettingsCard';
 import QuickActionsSettings from '@/components/settings/QuickActionsSettings';
 import DashboardWidgetsSettings from '@/components/settings/DashboardWidgetsSettings';
-
-interface DashboardContext {
-  profile: { rol: string };
-}
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const SettingsPage = () => {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [pedagogicalProfile, setPedagogicalProfile] = useState<UserPedagogicalProfile | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { profile: userRoleProfile } = useOutletContext<DashboardContext>();
+  const { user, profile: authProfile } = useAuth();
+  const queryClient = useQueryClient();
 
-  const loadData = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-      try {
-        const profileData = await fetchUserProfile(user.id);
-        setProfile(profileData);
+  const { data: profile, isLoading: isLoadingProfile } = useQuery({
+    queryKey: ['userProfile', user?.id],
+    queryFn: () => fetchUserProfile(user!.id),
+    enabled: !!user,
+    onError: (error: any) => showError(error.message),
+  });
 
-        if (userRoleProfile?.rol !== 'estudiante') {
-          const pedagogicalData = await fetchUserPedagogicalProfile(user.id);
-          setPedagogicalProfile(pedagogicalData);
-        }
-      } catch (error: any) {
-        showError(error.message);
-      }
-    }
-    setLoading(false);
+  const { data: pedagogicalProfile, isLoading: isLoadingPedagogical } = useQuery({
+    queryKey: ['pedagogicalProfile', user?.id],
+    queryFn: () => fetchUserPedagogicalProfile(user!.id),
+    enabled: !!user && authProfile?.rol !== 'estudiante',
+    onError: (error: any) => showError(error.message),
+  });
+
+  const handleUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['pedagogicalProfile', user?.id] });
   };
 
-  useEffect(() => {
-    if (userRoleProfile) {
-      loadData();
-    }
-  }, [userRoleProfile]);
+  const isAdmin = authProfile?.rol === 'administrador_establecimiento' || authProfile?.rol === 'coordinador';
+  const isStudent = authProfile?.rol === 'estudiante';
+  const canManageEstablishment = isAdmin || authProfile?.rol === 'docente';
 
-  const isAdmin = userRoleProfile?.rol === 'administrador_establecimiento' || userRoleProfile?.rol === 'coordinador';
-  const isStudent = userRoleProfile?.rol === 'estudiante';
-  const canManageEstablishment = isAdmin || userRoleProfile?.rol === 'docente';
-
-  if (loading) {
+  if (isLoadingProfile || (authProfile?.rol !== 'estudiante' && isLoadingPedagogical)) {
     return (
       <div className="container mx-auto flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -61,7 +48,7 @@ const SettingsPage = () => {
     );
   }
 
-  if (!profile || !userId) {
+  if (!profile || !user) {
     return <div className="container mx-auto"><p>No se pudo cargar la información del perfil.</p></div>;
   }
 
@@ -77,20 +64,20 @@ const SettingsPage = () => {
           <TabsTrigger value="subscription">Suscripción</TabsTrigger>
         </TabsList>
         <TabsContent value="profile" className="mt-6">
-          <ProfileSettingsForm profile={profile} userId={userId} onProfileUpdate={loadData} />
+          <ProfileSettingsForm profile={profile} userId={user.id} onProfileUpdate={handleUpdate} />
         </TabsContent>
         {!isStudent && (
           <TabsContent value="pedagogical" className="mt-6">
             {pedagogicalProfile && (
-              <SubjectsAndLevelsForm pedagogicalProfile={pedagogicalProfile} userId={userId} />
+              <SubjectsAndLevelsForm pedagogicalProfile={pedagogicalProfile} userId={user.id} />
             )}
           </TabsContent>
         )}
         {!isStudent && (
           <TabsContent value="customization" className="mt-6">
             <div className="space-y-6">
-              <QuickActionsSettings userId={userId} currentPrefs={profile.quick_actions_prefs || []} onUpdate={loadData} />
-              <DashboardWidgetsSettings userId={userId} currentPrefs={profile.dashboard_widgets_prefs} onUpdate={loadData} />
+              <QuickActionsSettings userId={user.id} currentPrefs={profile.quick_actions_prefs || []} onUpdate={handleUpdate} />
+              <DashboardWidgetsSettings userId={user.id} currentPrefs={profile.dashboard_widgets_prefs} onUpdate={handleUpdate} />
             </div>
           </TabsContent>
         )}
@@ -100,7 +87,7 @@ const SettingsPage = () => {
           </TabsContent>
         )}
         <TabsContent value="subscription" className="mt-6">
-          <SubscriptionManager userId={userId} />
+          <SubscriptionManager userId={user.id} />
         </TabsContent>
       </Tabs>
     </div>
