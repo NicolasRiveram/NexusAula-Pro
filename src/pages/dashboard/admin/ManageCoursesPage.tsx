@@ -11,6 +11,16 @@ import { MoreHorizontal, Trash2, Edit, PlusCircle, ArrowLeft } from 'lucide-reac
 import CourseEditDialog from '@/components/dashboard/admin/CourseEditDialog';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type CursoConNivelId = CursoBase & { nivel: { id: string, nombre: string } };
 
@@ -20,6 +30,8 @@ const ManageCoursesPage = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<CursoConNivelId | null>(null);
+  const [isAlertOpen, setAlertOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<CursoConNivelId | null>(null);
 
   const loadCourses = async () => {
     if (!activeEstablishment) {
@@ -67,14 +79,22 @@ const ManageCoursesPage = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (course: CursoConNivelId) => {
-    if (!window.confirm(`¿Seguro que quieres eliminar el curso ${course.nivel.nombre} ${course.nombre}? Esta acción no se puede deshacer.`)) return;
+  const handleDelete = (course: CursoConNivelId) => {
+    setCourseToDelete(course);
+    setAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!courseToDelete) return;
     try {
-      await deleteCourse(course.id);
+      await deleteCourse(courseToDelete.id);
       showSuccess("Curso eliminado.");
       loadCourses();
     } catch (error: any) {
       showError(error.message);
+    } finally {
+      setAlertOpen(false);
+      setCourseToDelete(null);
     }
   };
 
@@ -132,6 +152,20 @@ const ManageCoursesPage = () => {
         onSaved={loadCourses}
         course={selectedCourse || undefined}
       />
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará permanentemente el curso {courseToDelete?.nivel.nombre} {courseToDelete?.nombre}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

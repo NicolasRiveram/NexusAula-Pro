@@ -9,6 +9,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { completeDocenteProfile, completeCoordinatorProfile } from './profile-setup/api';
 import { useProfileSetupForm } from './profile-setup/use-profile-setup-form';
 import { useProfileData } from './profile-setup/use-profile-data';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Importar los componentes de los pasos
 import Step1UserProfile from './profile-setup/steps/Step1UserProfile';
@@ -16,6 +17,30 @@ import Step2Establishment from './profile-setup/steps/Step2Establishment';
 import Step3PedagogicalSetup from './profile-setup/steps/Step3PedagogicalSetup';
 import Step4Membership from './profile-setup/steps/Step4Membership';
 import Step5Finalization from './profile-setup/steps/Step5Finalization';
+
+const ProfileSetupSkeleton = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <Card className="w-full max-w-2xl">
+      <CardHeader>
+        <Skeleton className="h-8 w-3/4 mx-auto" />
+        <Skeleton className="h-4 w-1/2 mx-auto mt-2" />
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-1/4" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-1/4" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </CardContent>
+      <CardFooter className="flex justify-end">
+        <Skeleton className="h-10 w-24" />
+      </CardFooter>
+    </Card>
+  </div>
+);
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
@@ -40,12 +65,10 @@ const ProfileSetup = () => {
 
   const selectedRol = watch('rol_seleccionado');
 
-  // Redireccionar si el perfil ya está completo
   if (profileComplete === true) {
-    return null; // El hook useProfileData ya maneja la navegación
+    return null;
   }
 
-  // Esta función ahora se activa solo si la validación completa del formulario es exitosa.
   const handleCompleteSetup = handleSubmit(async (data) => {
     const { nombre_completo, rol_seleccionado, asignatura_ids, nivel_ids } = data;
 
@@ -74,11 +97,7 @@ const ProfileSetup = () => {
   });
 
   if (loadingData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-xl text-gray-600">Cargando datos de configuración...</p>
-      </div>
-    );
+    return <ProfileSetupSkeleton />;
   }
 
   return (
