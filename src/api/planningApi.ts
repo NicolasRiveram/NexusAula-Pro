@@ -290,6 +290,7 @@ export const fetchClassesForMonth = async (docenteId: string, establecimientoId:
 export const fetchUnitPlans = async (docenteId: string, establecimientoId: string): Promise<UnitPlan[]> => {
   if (!establecimientoId) return [];
 
+  // Fetch all plans created by the teacher, regardless of establishment
   const { data, error } = await supabase
     .from('unidades_maestras')
     .select(`
@@ -298,6 +299,7 @@ export const fetchUnitPlans = async (docenteId: string, establecimientoId: strin
       fecha_inicio,
       fecha_fin,
       descripcion_contenidos,
+      establecimiento_id,
       unidad_maestra_curso_asignatura_link (
         curso_asignaturas (
           cursos!inner ( establecimiento_id, nombre, niveles ( nombre ) ),
@@ -306,19 +308,42 @@ export const fetchUnitPlans = async (docenteId: string, establecimientoId: strin
       )
     `)
     .eq('docente_id', docenteId)
-    .eq('establecimiento_id', establecimientoId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(`Error al cargar los planes de unidad: ${error.message}`);
-  
-  const plans = (data || []).map(plan => ({
-    ...plan,
-    unidad_maestra_curso_asignatura_link: plan.unidad_maestra_curso_asignatura_link.filter(
-      (link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
-    )
-  }));
+  if (!data) return [];
 
-  return plans as any;
+  // Filter and process the plans on the client side
+  const relevantPlans = data.filter(plan => {
+    // A plan is relevant if:
+    // 1. It was created in the current establishment.
+    if (plan.establecimiento_id === establecimientoId) {
+      return true;
+    }
+    // 2. It is linked to at least one course in the current establishment.
+    const isLinkedToCurrentEst = plan.unidad_maestra_curso_asignatura_link.some(
+      (link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
+    );
+    if (isLinkedToCurrentEst) {
+      return true;
+    }
+    // 3. It's a generic template (no establishment ID and no links to any course at all).
+    if (!plan.establecimiento_id && plan.unidad_maestra_curso_asignatura_link.length === 0) {
+      return true;
+    }
+    return false;
+  }).map(plan => {
+    // For the relevant plans, filter their links to only show those for the active establishment
+    const relevantLinks = plan.unidad_maestra_curso_asignatura_link.filter(
+      (link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId
+    );
+    return {
+      ...plan,
+      unidad_maestra_curso_asignatura_link: relevantLinks,
+    };
+  });
+
+  return relevantPlans as any;
 };
 
 export const fetchUnitPlanDetails = async (planId: string): Promise<UnitPlanDetail> => {
