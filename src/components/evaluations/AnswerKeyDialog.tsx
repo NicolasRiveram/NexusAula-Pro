@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { seededShuffle } from '@/utils/shuffleUtils';
+import { Switch } from '@/components/ui/switch';
 
 const schema = z.object({
   rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(5, "Máximo 5 filas."),
@@ -37,6 +38,7 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [answerKey, setAnswerKey] = useState<AnswerKey | null>(null);
+  const [usePieVersion, setUsePieVersion] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -53,6 +55,7 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
     } else {
       setEvaluation(null);
       setAnswerKey(null);
+      setUsePieVersion(false);
     }
   }, [isOpen, evaluationId]);
 
@@ -67,14 +70,17 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
       newKey[rowLabel] = {};
 
       allItems.forEach(item => {
+        const adaptation = usePieVersion && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
+        const alternativesToUse = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+
         if (item.tipo_item === 'seleccion_multiple') {
-          const shuffledAlts = seededShuffle(item.item_alternativas, `${data.seed}-${rowLabel}-${item.id}`);
+          const shuffledAlts = seededShuffle(alternativesToUse, `${data.seed}-${rowLabel}-${item.id}`);
           const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
           if (correctIndex !== -1) {
             newKey[rowLabel][item.orden] = String.fromCharCode(65 + correctIndex);
           }
         } else if (item.tipo_item === 'verdadero_falso') {
-            const correctAnswer = item.item_alternativas.find(alt => alt.es_correcta)?.texto;
+            const correctAnswer = alternativesToUse.find(alt => alt.es_correcta)?.texto;
             newKey[rowLabel][item.orden] = correctAnswer === 'Verdadero' ? 'V' : 'F';
         } else {
             newKey[rowLabel][item.orden] = 'Abierta';
@@ -131,6 +137,10 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
                   </p>
                   {errors.seed && <p className="text-red-500 text-sm mt-1">{errors.seed.message}</p>}
                 </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch id="pie-version" checked={usePieVersion} onCheckedChange={setUsePieVersion} />
+                <Label htmlFor="pie-version">Generar pauta para la versión PIE</Label>
               </div>
               <div className="flex justify-end">
                 <Button type="submit">Generar Pauta</Button>
