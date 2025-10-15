@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import ReadingEvaluationModule from '@/components/rubrics/ReadingEvaluationModule';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const calcularNota = (puntajeObtenido: number, puntajeMaximo: number): number => {
   if (puntajeMaximo <= 0) return 1.0;
@@ -33,28 +35,21 @@ const EvaluateRubricPage = () => {
   const { rubricId: initialRubricId } = useParams<{ rubricId?: string }>();
   const navigate = useNavigate();
   const { activeEstablishment } = useEstablishment();
-  
-  const [cursos, setCursos] = useState<CursoAsignatura[]>([]);
-  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
-  const [rubricas, setRubricas] = useState<Rubric[]>([]);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   const [selectedCursoId, setSelectedCursoId] = useState<string>('');
   const [selectedEstudianteId, setSelectedEstudianteId] = useState<string>('');
   const [selectedRubricId, setSelectedRubricId] = useState<string>(initialRubricId || '');
-  const [selectedRubric, setSelectedRubric] = useState<Rubric | null>(null);
-
+  
   const [evaluation, setEvaluation] = useState<Record<number, number>>({});
   const [comentarios, setComentarios] = useState('');
   
-  const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-
   const [isReadingModuleActive, setIsReadingModuleActive] = useState(false);
   const [isDictationEnabled, setIsDictationEnabled] = useState(false);
   const [originalText, setOriginalText] = useState('');
   const [readingData, setReadingData] = useState({ seconds: 0, ppm: 0, errors: [] as number[], transcript: '' });
 
-  // --- Timer State and Logic ---
   const [seconds, setSeconds] = useState(0);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -64,6 +59,40 @@ const EvaluateRubricPage = () => {
     selectedRubricId && selectedEstudianteId ? `rubric-draft-${selectedRubricId}-${selectedEstudianteId}` : null,
     [selectedRubricId, selectedEstudianteId]
   );
+
+  const { data: cursos = [], isLoading: isLoadingCursos } = useQuery({
+    queryKey: ['teacherCourses', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  const { data: rubricas = [], isLoading: isLoadingRubricas } = useQuery({
+    queryKey: ['rubrics', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchRubrics(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+  });
+
+  const selectedCursoAsignatura = useMemo(() => cursos.find(c => c.id === selectedCursoId), [cursos, selectedCursoId]);
+
+  const { data: estudiantes = [], isLoading: isLoadingEstudiantes } = useQuery({
+    queryKey: ['studentsInCourse', selectedCursoAsignatura?.curso.id],
+    queryFn: () => fetchEstudiantesPorCurso(selectedCursoAsignatura!.curso.id),
+    enabled: !!selectedCursoAsignatura,
+  });
+
+  const selectedRubric = useMemo(() => rubricas.find(r => r.id === selectedRubricId), [rubricas, selectedRubricId]);
+
+  const saveMutation = useMutation({
+    mutationFn: saveRubricEvaluation,
+    onSuccess: () => {
+      showSuccess("Evaluación guardada.");
+      if (storageKey) localStorage.removeItem(storageKey);
+      setSelectedEstudianteId('');
+    },
+    onError: (error: any) => {
+      showError(error.message);
+    }
+  });
 
   useEffect(() => {
     if (isTimerActive) {
@@ -84,54 +113,6 @@ const EvaluateRubricPage = () => {
     setIsTimerActive(false);
     setSeconds(0);
   };
-  // --- End Timer Logic ---
-
-  useEffect(() => {
-    const loadInitialData = async () => {
-      if (!activeEstablishment) return;
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          const [cursosData, rubricasData] = await Promise.all([
-            fetchCursosAsignaturasDocente(user.id, activeEstablishment.id),
-            fetchRubrics(user.id, activeEstablishment.id),
-          ]);
-          setCursos(cursosData);
-          setRubricas(rubricasData);
-        } catch (err: any) { showError(err.message); }
-      }
-      setLoading(false);
-    };
-    loadInitialData();
-  }, [activeEstablishment]);
-
-  useEffect(() => {
-    const loadEstudiantes = async () => {
-      if (selectedCursoId) {
-        const cursoAsignatura = cursos.find(c => c.id === selectedCursoId);
-        if (cursoAsignatura) {
-          try {
-            const studentData = await fetchEstudiantesPorCurso(cursoAsignatura.curso.id);
-            setEstudiantes(studentData);
-          } catch (err: any) { showError(err.message); }
-        }
-      } else {
-        setEstudiantes([]);
-      }
-      setSelectedEstudianteId('');
-    };
-    loadEstudiantes();
-  }, [selectedCursoId, cursos]);
-
-  useEffect(() => {
-    if (selectedRubricId) {
-      const rubric = rubricas.find(r => r.id === selectedRubricId);
-      setSelectedRubric(rubric || null);
-    } else {
-      setSelectedRubric(null);
-    }
-  }, [selectedRubricId, rubricas]);
 
   useEffect(() => {
     if (storageKey) {
@@ -145,8 +126,6 @@ const EvaluateRubricPage = () => {
           setIsDictationEnabled(draft.isDictationEnabled || false);
           setOriginalText(draft.originalText || '');
           setReadingData(draft.readingData || { seconds: 0, ppm: 0, errors: [], transcript: '' });
-          
-          // Timer state restoration
           setSeconds(draft.timer?.seconds || 0);
           if (draft.timer?.isActive) {
             timerStartTimeRef.current = draft.timer.startTime;
@@ -154,12 +133,8 @@ const EvaluateRubricPage = () => {
           } else {
             setIsTimerActive(false);
           }
-
-        } catch (e) {
-          console.error("Failed to parse rubric draft from localStorage", e);
-        }
+        } catch (e) { console.error("Failed to parse rubric draft", e); }
       } else {
-        // Reset all state when changing student/rubric
         setEvaluation({}); setComentarios(''); setIsReadingModuleActive(false); setIsDictationEnabled(false); setOriginalText('');
         setReadingData({ seconds: 0, ppm: 0, errors: [], transcript: '' });
         setSeconds(0); setIsTimerActive(false);
@@ -170,17 +145,8 @@ const EvaluateRubricPage = () => {
   useEffect(() => {
     if (storageKey) {
       const draft = { 
-        evaluation, 
-        comentarios, 
-        isReadingModuleActive, 
-        isDictationEnabled, 
-        originalText, 
-        readingData,
-        timer: {
-          seconds,
-          isActive: isTimerActive,
-          startTime: isTimerActive ? timerStartTimeRef.current : Date.now() - (seconds * 1000)
-        }
+        evaluation, comentarios, isReadingModuleActive, isDictationEnabled, originalText, readingData,
+        timer: { seconds, isActive: isTimerActive, startTime: isTimerActive ? timerStartTimeRef.current : Date.now() - (seconds * 1000) }
       };
       localStorage.setItem(storageKey, JSON.stringify(draft));
     }
@@ -196,45 +162,32 @@ const EvaluateRubricPage = () => {
 
   const calificacionFinal = useMemo(() => calcularNota(puntajeTotal, puntajeMaximo), [puntajeTotal, puntajeMaximo]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!selectedRubricId || !selectedEstudianteId || !selectedCursoId) {
       showError("Debes seleccionar curso, estudiante y rúbrica.");
       return;
     }
-    setIsSaving(true);
-    const toastId = showLoading("Guardando evaluación...");
-    try {
-      const payload: RubricEvaluationResult = {
-        rubrica_id: selectedRubricId,
-        estudiante_perfil_id: selectedEstudianteId,
-        curso_asignatura_id: selectedCursoId,
-        puntaje_obtenido: puntajeTotal,
-        puntaje_maximo: puntajeMaximo,
-        calificacion_final: calificacionFinal,
-        comentarios,
-        resultados_json: evaluation,
-      };
-      if (isReadingModuleActive) {
-        payload.tiempo_lectura_segundos = readingData.seconds;
-        payload.palabras_por_minuto = readingData.ppm;
-        if (isDictationEnabled) {
-          payload.resultados_lectura_json = { originalText, transcript: readingData.transcript, markedErrors: readingData.errors };
-        }
+    const payload: RubricEvaluationResult = {
+      rubrica_id: selectedRubricId,
+      estudiante_perfil_id: selectedEstudianteId,
+      curso_asignatura_id: selectedCursoId,
+      puntaje_obtenido: puntajeTotal,
+      puntaje_maximo: puntajeMaximo,
+      calificacion_final: calificacionFinal,
+      comentarios,
+      resultados_json: evaluation,
+    };
+    if (isReadingModuleActive) {
+      payload.tiempo_lectura_segundos = readingData.seconds;
+      payload.palabras_por_minuto = readingData.ppm;
+      if (isDictationEnabled) {
+        payload.resultados_lectura_json = { originalText, transcript: readingData.transcript, markedErrors: readingData.errors };
       }
-      await saveRubricEvaluation(payload);
-      dismissToast(toastId);
-      showSuccess("Evaluación guardada.");
-      if (storageKey) localStorage.removeItem(storageKey);
-      setSelectedEstudianteId('');
-    } catch (err: any) {
-      dismissToast(toastId);
-      showError(err.message);
-    } finally {
-      setIsSaving(false);
     }
+    saveMutation.mutate(payload);
   };
 
-  if (loading) return <div className="container mx-auto"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isLoadingCursos || isLoadingRubricas) return <div className="container mx-auto"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   const criterios = selectedRubric?.contenido_json?.criterios;
   const hasCriterios = Array.isArray(criterios) && criterios.length > 0;
@@ -255,8 +208,8 @@ const EvaluateRubricPage = () => {
             <SelectTrigger><SelectValue placeholder="1. Selecciona un curso..." /></SelectTrigger>
             <SelectContent>{cursos.map(c => <SelectItem key={c.id} value={c.id}>{c.curso.nivel.nombre} {c.curso.nombre} - {c.asignatura.nombre}</SelectItem>)}</SelectContent>
           </Select>
-          <Select onValueChange={setSelectedEstudianteId} value={selectedEstudianteId} disabled={!selectedCursoId}>
-            <SelectTrigger><SelectValue placeholder="2. Selecciona un estudiante..." /></SelectTrigger>
+          <Select onValueChange={setSelectedEstudianteId} value={selectedEstudianteId} disabled={!selectedCursoId || isLoadingEstudiantes}>
+            <SelectTrigger><SelectValue placeholder={isLoadingEstudiantes ? "Cargando..." : "2. Selecciona un estudiante..."} /></SelectTrigger>
             <SelectContent>{estudiantes.map(e => <SelectItem key={e.id} value={e.id}>{e.nombre_completo}</SelectItem>)}</SelectContent>
           </Select>
           <Select onValueChange={setSelectedRubricId} value={selectedRubricId} disabled={!selectedEstudianteId}>
@@ -349,8 +302,8 @@ const EvaluateRubricPage = () => {
                     <p className="font-semibold">Puntaje Total: {puntajeTotal} / {puntajeMaximo}</p>
                     <p className="font-semibold">Calificación (60%): <span className={cn("text-xl", calificacionFinal < 4.0 ? "text-destructive" : "text-green-600")}>{calificacionFinal.toFixed(1)}</span></p>
                   </div>
-                  <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  <Button onClick={handleSave} disabled={saveMutation.isPending}>
+                    {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Guardar Evaluación
                   </Button>
                 </div>

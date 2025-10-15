@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate, Link, useParams } from 'react-router-dom';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
-import { fetchRubricById, updateRubric, RubricContent } from '@/api/rubricsApi';
+import { fetchRubricById, updateRubric } from '@/api/rubricsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const rubricSchema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
@@ -37,43 +38,49 @@ type RubricFormData = z.infer<typeof rubricSchema>;
 const EditRubricPage = () => {
   const navigate = useNavigate();
   const { rubricId } = useParams<{ rubricId: string }>();
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<RubricFormData>({
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<RubricFormData>({
     resolver: zodResolver(rubricSchema),
   });
   const { fields } = useFieldArray({ control, name: "contenido_json.criterios" });
 
-  useEffect(() => {
-    if (rubricId) {
-      setIsLoading(true);
-      fetchRubricById(rubricId)
-        .then(data => {
-          reset({
-            nombre: data.nombre,
-            actividad_a_evaluar: data.actividad_a_evaluar,
-            descripcion: data.descripcion,
-            categoria: data.categoria || '',
-            contenido_json: data.contenido_json || { criterios: [] },
-          });
-        })
-        .catch(err => showError(err.message))
-        .finally(() => setIsLoading(false));
+  const { isLoading: isLoadingRubric } = useQuery({
+    queryKey: ['rubric', rubricId],
+    queryFn: () => fetchRubricById(rubricId!),
+    enabled: !!rubricId,
+    onSuccess: (data) => {
+      reset({
+        nombre: data.nombre,
+        actividad_a_evaluar: data.actividad_a_evaluar,
+        descripcion: data.descripcion,
+        categoria: data.categoria || '',
+        contenido_json: data.contenido_json || { criterios: [] },
+      });
+    },
+    onError: (err: any) => {
+      showError(err.message);
     }
-  }, [rubricId, reset]);
+  });
 
-  const onSubmit = async (data: RubricFormData) => {
-    if (!rubricId) return;
-    try {
-      await updateRubric(rubricId, data as any);
+  const updateMutation = useMutation({
+    mutationFn: (data: RubricFormData) => updateRubric(rubricId!, data as any),
+    onSuccess: () => {
       showSuccess("Rúbrica actualizada exitosamente.");
+      queryClient.invalidateQueries({ queryKey: ['rubric', rubricId] });
+      queryClient.invalidateQueries({ queryKey: ['rubrics'] });
       navigate(`/dashboard/rubricas/${rubricId}`);
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
     }
+  });
+
+  const onSubmit = (data: RubricFormData) => {
+    updateMutation.mutate(data);
   };
 
-  if (isLoading) {
+  if (isLoadingRubric) {
     return <div className="container mx-auto flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
@@ -153,8 +160,8 @@ const EditRubricPage = () => {
           </CardContent>
         </Card>
         <div className="flex justify-end mt-6">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          <Button type="submit" disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Guardar Cambios
           </Button>
         </div>

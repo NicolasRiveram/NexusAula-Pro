@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,40 +20,42 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const RubricDetailPage = () => {
   const { rubricId } = useParams<{ rubricId: string }>();
   const navigate = useNavigate();
-  const [rubric, setRubric] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  useEffect(() => {
-    const loadRubric = async () => {
-      if (!rubricId) return;
-      setLoading(true);
-      try {
-        const data = await fetchRubricById(rubricId);
-        setRubric(data);
-      } catch (err: any) {
-        showError(err.message);
-        navigate('/dashboard/rubricas');
-      }
-      setLoading(false);
-    };
-    loadRubric();
-  }, [rubricId, navigate]);
-
-  const handleDelete = async () => {
-    if (!rubricId) return;
-    try {
-      await deleteRubric(rubricId);
-      showSuccess("Rúbrica eliminada.");
+  const { data: rubric, isLoading: loading } = useQuery({
+    queryKey: ['rubric', rubricId],
+    queryFn: () => fetchRubricById(rubricId!),
+    enabled: !!rubricId,
+    onError: (err: any) => {
+      showError(err.message);
       navigate('/dashboard/rubricas');
-    } catch (error: any) {
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteRubric,
+    onSuccess: () => {
+      showSuccess("Rúbrica eliminada.");
+      queryClient.invalidateQueries({ queryKey: ['rubrics'] });
+      navigate('/dashboard/rubricas');
+    },
+    onError: (error: any) => {
       showError(error.message);
-    } finally {
+    },
+    onSettled: () => {
       setIsAlertOpen(false);
+    }
+  });
+
+  const handleDelete = () => {
+    if (rubricId) {
+      deleteMutation.mutate(rubricId);
     }
   };
 
