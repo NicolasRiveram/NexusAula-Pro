@@ -82,7 +82,9 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
               {(block.evaluacion_items || []).map(item => {
                 const adaptation = usePieAdaptations && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
                 const enunciado = adaptation ? adaptation.enunciado_adaptado : item.enunciado;
-                const alternativas = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+                const alternativas = adaptation 
+                  ? adaptation.alternativas_adaptadas 
+                  : (item.item_alternativas || []).sort((a, b) => a.orden - b.orden);
 
                 return (
                   <div key={item.id} className="question-item">

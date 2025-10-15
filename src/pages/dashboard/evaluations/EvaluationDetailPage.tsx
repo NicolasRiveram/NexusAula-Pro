@@ -379,7 +379,9 @@ const EvaluationDetailPage = () => {
                   {block.evaluacion_items.map(item => {
                     const adaptation = showPieVersion && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
                     const enunciado = adaptation ? adaptation.enunciado_adaptado : item.enunciado;
-                    const alternativas = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+                    const alternativas = adaptation 
+                      ? adaptation.alternativas_adaptadas 
+                      : (item.item_alternativas || []).sort((a, b) => a.orden - b.orden);
 
                     return (
                       <div key={item.id}>
@@ -389,7 +391,7 @@ const EvaluationDetailPage = () => {
                         </div>
                         {item.tipo_item === 'seleccion_multiple' && (
                           <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-                            {(alternativas || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
+                            {(alternativas || []).map((alt, index) => (
                               <li key={alt.id || index} className={cn("flex items-center", alt.es_correcta && "font-bold text-primary")}>
                                 <span className="mr-2">{String.fromCharCode(97 + index)})</span>
                                 <span>{alt.texto || ''}</span>

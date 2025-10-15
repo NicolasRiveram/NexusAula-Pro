@@ -156,7 +156,9 @@ const AdaptPIEPage = () => {
             const isShowingOriginal = showOriginal[item.id];
 
             const enunciadoToShow = isAdapted && !isShowingOriginal ? adaptation.enunciado_adaptado : item.enunciado;
-            const alternativesToShow = isAdapted && !isShowingOriginal ? adaptation.alternativas_adaptadas : item.item_alternativas;
+            const alternativesToShow = isAdapted && !isShowingOriginal 
+              ? adaptation.alternativas_adaptadas 
+              : (item.item_alternativas || []).sort((a, b) => a.orden - b.orden);
 
             return (
               <div key={item.id} className="p-4 border rounded-md">
@@ -180,9 +182,10 @@ const AdaptPIEPage = () => {
                       )}
                     </Label>
                     <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {(alternativesToShow || []).sort((a, b) => a.orden - b.orden).map((alt, index) => (
-                        <li key={alt.id || index} className={cn(alt.es_correcta && "font-bold text-primary")}>
-                          {String.fromCharCode(97 + index)}) {alt.texto || ''}
+                      {(alternativesToShow || []).map((alt, index) => (
+                        <li key={alt.id || index} className={cn("flex items-center", alt.es_correcta && "font-bold text-primary")}>
+                          <span className="mr-2">{String.fromCharCode(97 + index)})</span>
+                          <span>{alt.texto || ''}</span>
                         </li>
                       ))}
                     </ul>
