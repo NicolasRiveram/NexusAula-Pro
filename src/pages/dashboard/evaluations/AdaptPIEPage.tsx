@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2, Sparkles, BrainCircuit } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, EvaluationItem, generatePIEAdaptation, savePIEAdaptation } from '@/api/evaluationsApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
