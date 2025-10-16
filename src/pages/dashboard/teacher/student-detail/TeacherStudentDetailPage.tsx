@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Mail, User, Hash, FileSignature, Loader2 } from 'lucide-react';
 import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance } from '@/api/student';
-import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
+import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubrics';
 import { showError } from '@/utils/toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { format, parseISO } from 'date-fns';

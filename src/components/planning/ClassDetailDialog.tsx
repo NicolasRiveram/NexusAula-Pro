@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { ScheduledClass } from '@/api/planningApi';
+import { ScheduledClass } from '@/api/planning';
 import { showSuccess } from '@/utils/toast';
 import { CheckCircle, Copy, Edit, XCircle } from 'lucide-react';
 

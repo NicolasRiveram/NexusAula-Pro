@@ -13,7 +13,7 @@ import {
   fetchEstablishmentSkillPerformance,
   StudentPerformance, 
   SkillPerformance 
-} from '@/api/analyticsApi';
+} from '@/api/analytics';
 import { showError } from '@/utils/toast';
 import PerformanceSummaryCard from '@/components/analytics/PerformanceSummaryCard';
 import { useAuth } from '@/contexts/AuthContext';

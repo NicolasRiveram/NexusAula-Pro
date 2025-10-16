@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import Step1UnitConfig, { UnitPlanFormData } from './Step1_UnitConfig';
 import Step2ReviewSuggestions, { AISuggestions } from './Step2_ReviewSuggestions';
 import Step3ClassSequence, { ClassPlan } from './Step3_ClassSequence';
-import { createUnitPlan, updateUnitPlanSuggestions, saveMasterPlanClasses } from '@/api/planningApi';
+import { createUnitPlan, updateUnitPlanSuggestions, saveMasterPlanClasses } from '@/api/planning';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { FunctionsHttpError } from '@supabase/supabase-js';

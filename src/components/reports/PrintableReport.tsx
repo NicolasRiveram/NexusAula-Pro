@@ -1,5 +1,5 @@
 import React from 'react';
-import { Report } from '@/api/reportsApi';
+import { Report } from '@/api/reports';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 

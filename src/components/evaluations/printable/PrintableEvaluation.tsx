@@ -1,8 +1,8 @@
 import React from 'react';
-import { EvaluationDetail } from '@/api/evaluationsApi';
+import { EvaluationDetail } from '@/api/evaluations';
 import { Establishment } from '@/contexts/EstablishmentContext';
-import { getPublicImageUrl } from '@/api/evaluationsApi';
-import { getLogoPublicUrl } from '@/api/settingsApi';
+import { getPublicImageUrl } from '@/api/evaluations';
+import { getLogoPublicUrl } from '@/api/settings';
 
 interface PrintableEvaluationProps {
   evaluation: EvaluationDetail;

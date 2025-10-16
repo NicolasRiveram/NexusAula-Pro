@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
-import { fetchAllEstablishments, deleteEstablishment, Establishment } from '@/api/superAdminApi';
+import { fetchAllEstablishments, deleteEstablishment, Establishment } from '@/api/super-admin';
 import { showError, showSuccess } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';

@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { updateClassLog } from '@/api/planningApi';
+import { updateClassLog } from '@/api/planning';
 import { showSuccess, showError } from '@/utils/toast';
-import { AgendaClase } from '@/api/dashboardApi';
+import { AgendaClase } from '@/api/dashboard';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
