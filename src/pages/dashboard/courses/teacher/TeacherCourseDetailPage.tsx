@@ -104,6 +104,10 @@ const TeacherCourseDetailPage = () => {
 
   return (
     <div className="container mx-auto space-y-6">
+      <Link to="/dashboard/cursos" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Volver a Mis Cursos
+      </Link>
       <div>
         <h1 className="text-3xl font-bold">{cursoInfo.curso.nivel.nombre} {cursoInfo.curso.nombre}</h1>
         <p className="text-xl text-muted-foreground">{cursoInfo.asignatura.nombre} - {cursoInfo.curso.anio}</p>

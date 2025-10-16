@@ -105,6 +105,21 @@ const TeacherCoursesPage = () => {
     }
   };
 
+  if (loading) {
+    return <p>Cargando cursos...</p>;
+  }
+
+  if (!activeEstablishment) {
+    return (
+      <div className="text-center py-12 border-2 border-dashed rounded-lg">
+        <h3 className="text-xl font-semibold">Selecciona un establecimiento</h3>
+        <p className="text-muted-foreground mt-2">
+          Por favor, elige un establecimiento en la cabecera para ver tus cursos.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="flex justify-between items-center">
