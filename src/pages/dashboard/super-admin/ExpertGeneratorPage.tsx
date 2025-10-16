@@ -12,6 +12,7 @@ import { showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import GeneratorResultsComponent from '@/components/super-admin/expert-generator/GeneratorResultsComponent';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import AIStatusCheck from '@/components/super-admin/AIStatusCheck';
 
 const schema = z.object({
   nivelId: z.string().uuid("Debes seleccionar un nivel."),
@@ -69,6 +70,7 @@ const ExpertGeneratorPage = () => {
 
   return (
     <div className="container mx-auto space-y-6">
+      <AIStatusCheck />
       <Card>
         <CardHeader>
           <CardTitle>Generador Experto: Simulador Curricular</CardTitle>
