@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { fetchClassesWithoutLog } from '@/api/planningApi';
 import { Loader2, BookOpen } from 'lucide-react';
@@ -9,13 +7,15 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ClassLogDialog from './ClassLogDialog';
 import { AgendaClase } from '@/api/dashboardApi';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PendingLogsWidget = () => {
   const { activeEstablishment } = useEstablishment();
   const [isLogDialogOpen, setLogDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<AgendaClase | null>(null);
 
-  const { data: user } = useQuery({ queryKey: ['user'], queryFn: async () => (await supabase.auth.getUser()).data.user });
+  const { user } = useAuth();
 
   const { data: classes, isLoading, refetch } = useQuery({
     queryKey: ['pendingLogs', user?.id, activeEstablishment?.id],

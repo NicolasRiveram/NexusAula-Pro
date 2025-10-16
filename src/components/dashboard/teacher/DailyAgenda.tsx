@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Clock, FileText, Megaphone, Loader2, BookOpen } from 'lucide-react';
@@ -9,6 +8,7 @@ import { Establishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import ClassLogDialog from './ClassLogDialog';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DailyAgendaProps {
   selectedDate: Date;
@@ -19,13 +19,7 @@ const DailyAgenda: React.FC<DailyAgendaProps> = ({ selectedDate, activeEstablish
   const [isLogDialogOpen, setLogDialogOpen] = useState(false);
   const [selectedClassForLog, setSelectedClassForLog] = useState<AgendaClase | null>(null);
 
-  const { data: user } = useQuery({
-    queryKey: ['user'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
-    }
-  });
+  const { user } = useAuth();
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dailyAgenda', user?.id, activeEstablishment?.id, selectedDate.toDateString()],

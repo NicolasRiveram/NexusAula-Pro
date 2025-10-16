@@ -1,22 +1,15 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { fetchSkillStatistics, SkillStatistic } from '@/api/statisticsApi';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StatisticsWidget = () => {
   const { activeEstablishment } = useEstablishment();
-
-  const { data: user } = useQuery({
-    queryKey: ['user'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
-    }
-  });
+  const { user } = useAuth();
 
   const { data: stats = [], isLoading } = useQuery({
     queryKey: ['skillStats', user?.id, activeEstablishment?.id],

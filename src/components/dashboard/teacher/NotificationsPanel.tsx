@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Bell, FileWarning, Loader2 } from 'lucide-react';
 import { fetchProactiveNotifications, ProactiveNotification } from '@/api/dashboardApi';
@@ -7,17 +6,11 @@ import { showError } from '@/utils/toast';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const NotificationsPanel = () => {
   const { activeEstablishment } = useEstablishment();
-
-  const { data: user } = useQuery({
-    queryKey: ['user'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
-    }
-  });
+  const { user } = useAuth();
 
   const { data: notifications = [], isLoading, isError, error } = useQuery({
     queryKey: ['notifications', user?.id, activeEstablishment?.id],

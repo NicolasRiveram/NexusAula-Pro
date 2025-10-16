@@ -6,11 +6,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { completeDocenteProfile, completeCoordinatorProfile, fetchAsignaturas, fetchNiveles, fetchUserProfile } from './profile-setup/api';
+import { completeDocenteProfile, completeCoordinatorProfile, fetchAsignaturas, fetchNiveles } from './profile-setup/api';
 import { useProfileSetupForm } from './profile-setup/use-profile-setup-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Importar los componentes de los pasos
 import Step1UserProfile from './profile-setup/steps/Step1UserProfile';
@@ -60,24 +60,7 @@ const ProfileSetup = () => {
   }
   = useProfileSetupForm();
 
-  const { data: user, isLoading: isLoadingUser } = useQuery({
-    queryKey: ['user'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return null;
-      }
-      return user;
-    },
-    staleTime: Infinity,
-  });
-
-  const { data: profile, isLoading: isLoadingProfile, isSuccess: isProfileSuccess } = useQuery({
-    queryKey: ['userProfile', user?.id],
-    queryFn: () => fetchUserProfile(user!.id),
-    enabled: !!user,
-  });
+  const { user, profile, loading: authLoading } = useAuth();
 
   const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({
     queryKey: ['asignaturas'],
@@ -90,7 +73,7 @@ const ProfileSetup = () => {
   });
 
   useEffect(() => {
-    if (isProfileSuccess && profile) {
+    if (!authLoading && profile) {
       if (profile.perfil_completo) {
         showSuccess("Tu perfil ya está configurado. Redirigiendo al dashboard.");
         navigate('/dashboard');
@@ -98,8 +81,10 @@ const ProfileSetup = () => {
         setValue('nombre_completo', profile.nombre_completo || user?.email?.split('@')[0] || '');
         setValue('rol_seleccionado', profile.rol || undefined);
       }
+    } else if (!authLoading && !user) {
+      navigate('/login');
     }
-  }, [profile, isProfileSuccess, navigate, setValue, user]);
+  }, [profile, authLoading, navigate, setValue, user]);
 
   const docenteMutation = useMutation({
     mutationFn: completeDocenteProfile,
@@ -144,7 +129,7 @@ const ProfileSetup = () => {
     }
   });
 
-  const loadingData = isLoadingUser || isLoadingProfile || isLoadingAsignaturas || isLoadingNiveles;
+  const loadingData = authLoading || isLoadingAsignaturas || isLoadingNiveles;
   const finalSubmitting = docenteMutation.isPending || coordinatorMutation.isPending;
 
   if (loadingData) {

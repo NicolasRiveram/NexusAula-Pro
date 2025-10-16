@@ -1,6 +1,4 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { fetchEvaluations } from '@/api/evaluationsApi';
 import { Loader2, BarChart } from 'lucide-react';
@@ -8,10 +6,12 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const RecentEvaluationsWidget = () => {
   const { activeEstablishment } = useEstablishment();
-  const { data: user } = useQuery({ queryKey: ['user'], queryFn: async () => (await supabase.auth.getUser()).data.user });
+  const { user } = useAuth();
 
   const { data: evaluations, isLoading } = useQuery({
     queryKey: ['recentEvaluations', user?.id, activeEstablishment?.id],

@@ -1,23 +1,16 @@
 import React from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { fetchStudentDashboardData, fetchStudentCourses } from '@/api/studentApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, FileText, Megaphone, Book, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import RecentPerformance from '@/components/dashboard/student/RecentPerformance';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StudentDashboard = () => {
   const { activeEstablishment } = useEstablishment();
-  
-  const { data: user, isLoading: isLoadingUser } = useQuery({
-    queryKey: ['user'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
-    }
-  });
+  const { user, loading: isLoadingUser } = useAuth();
 
   const { data: dashboardData, isLoading: isLoadingDashboard } = useQuery({
     queryKey: ['studentDashboard', user?.id, activeEstablishment?.id, new Date().toDateString()],

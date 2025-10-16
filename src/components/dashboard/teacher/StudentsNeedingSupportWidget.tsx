@@ -1,15 +1,15 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { fetchStudentPerformance } from '@/api/analyticsApi';
 import { Loader2, TrendingDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/contexts/AuthContext';
 
 const StudentsNeedingSupportWidget = () => {
   const { activeEstablishment } = useEstablishment();
-  const { data: user } = useQuery({ queryKey: ['user'], queryFn: async () => (await supabase.auth.getUser()).data.user });
+  const { user } = useAuth();
 
   const { data: students, isLoading } = useQuery({
     queryKey: ['studentsNeedingSupport', user?.id, activeEstablishment?.id],
