@@ -13,12 +13,12 @@ const NewUnitPlan = lazy(() => import("../pages/dashboard/planning/NewUnitPlan")
 const EditUnitPlanPage = lazy(() => import("../pages/dashboard/planning/EditUnitPlanPage"));
 const UnitPlanDetailPage = lazy(() => import("../pages/dashboard/planning/UnitPlanDetailPage"));
 const EvaluationPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationPage"));
-const EvaluationBuilderPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationBuilderPage"));
-const EvaluationDetailPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationDetailPage"));
-const EvaluationResultsPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationResultsPage"));
-const EvaluationTakerPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationTakerPage"));
-const EvaluationScannerPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationScannerPage"));
-const AdaptPIEPage = lazy(() => import("../pages/dashboard/evaluations/AdaptPIEPage"));
+const EvaluationBuilderPage = lazy(() => import("../pages/dashboard/evaluations/teacher/EvaluationBuilderPage"));
+const EvaluationDetailPage = lazy(() => import("../pages/dashboard/evaluations/teacher/EvaluationDetailPage"));
+const EvaluationResultsPage = lazy(() => import("../pages/dashboard/evaluations/teacher/EvaluationResultsPage"));
+const EvaluationTakerPage = lazy(() => import("../pages/dashboard/evaluations/student/EvaluationTakerPage"));
+const EvaluationScannerPage = lazy(() => import("../pages/dashboard/evaluations/teacher/EvaluationScannerPage"));
+const AdaptPIEPage = lazy(() => import("../pages/dashboard/evaluations/teacher/AdaptPIEPage"));
 const ProjectsPage = lazy(() => import("../pages/dashboard/projects/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("../pages/dashboard/projects/ProjectDetailPage"));
 const SettingsPage = lazy(() => import("../pages/dashboard/SettingsPage"));
@@ -33,7 +33,7 @@ const EditRubricPage = lazy(() => import("../pages/dashboard/rubrics/EditRubricP
 const RubricDetailPage = lazy(() => import("../pages/dashboard/rubrics/RubricDetailPage"));
 const EvaluateRubricPage = lazy(() => import("../pages/dashboard/rubrics/EvaluateRubricPage"));
 const AnalyticsPage = lazy(() => import("../pages/dashboard/AnalyticsPage"));
-const StudentResponseDetailPage = lazy(() => import("../pages/dashboard/evaluations/StudentResponseDetailPage"));
+const StudentResponseDetailPage = lazy(() => import("../pages/dashboard/evaluations/teacher/StudentResponseDetailPage"));
 const DashboardIndex = lazy(() => import("../pages/dashboard/DashboardIndex"));
 const ManageCoursesPage = lazy(() => import("../pages/dashboard/admin/ManageCoursesPage"));
 const ManageCalendarPage = lazy(() => import("../pages/dashboard/admin/ManageCalendarPage"));
