@@ -44,7 +44,6 @@ const EvaluationPage = () => {
 
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [evaluationToPrint, setEvaluationToPrint] = useState<string | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
   const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
   const [evaluationForAnswerSheet, setEvaluationForAnswerSheet] = useState<string | null>(null);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -97,153 +96,89 @@ const EvaluationPage = () => {
     }
   });
 
-  const handleSelectionChange = (evaluationId: string, isSelected: boolean) => {
-    setSelectedEvaluations(prev => 
-      isSelected ? [...prev, evaluationId] : prev.filter(id => id !== evaluationId)
-    );
-  };
-
-  const handlePrintClick = (evaluationId: string) => {
-    setEvaluationToPrint(evaluationId);
-    setPrintModalOpen(true);
-  };
-
-  const handleConfirmPrint = async (formData: PrintFormData) => {
-    if (!evaluationToPrint || !activeEstablishment) return;
-
-    setIsPrinting(true);
-    const toastId = showLoading("Preparando evaluación para imprimir...");
-    try {
+  const printMutation = useMutation({
+    mutationFn: async (formData: PrintFormData) => {
+      if (!evaluationToPrint || !activeEstablishment) throw new Error("Datos de evaluación incompletos.");
+      
       const evaluationDetails = await queryClient.fetchQuery({
         queryKey: ['evaluationDetails', evaluationToPrint],
         queryFn: () => fetchEvaluationDetails(evaluationToPrint),
       });
 
       if (!evaluationDetails.aspectos_a_evaluar_ia) {
-        showError("Falta el resumen 'Aspectos a Evaluar'. Por favor, edita y finaliza la evaluación para generarlo.");
-        dismissToast(toastId);
-        setPrintModalOpen(false);
-        setIsPrinting(false);
-        return;
+        throw new Error("Falta el resumen 'Aspectos a Evaluar'. Por favor, edita y finaliza la evaluación para generarlo.");
       }
 
       let teacherName = 'Docente no especificado';
       if (evaluationDetails.creado_por) {
-        const { data: profileData } = await supabase
-          .from('perfiles')
-          .select('nombre_completo')
-          .eq('id', evaluationDetails.creado_por)
-          .single();
-        if (profileData && profileData.nombre_completo) {
-          teacherName = profileData.nombre_completo;
-        }
+        const { data: profileData } = await supabase.from('perfiles').select('nombre_completo').eq('id', evaluationDetails.creado_por).single();
+        if (profileData?.nombre_completo) teacherName = profileData.nombre_completo;
       }
 
-      const totalScore = (evaluationDetails.evaluation_content_blocks || []).reduce((total, block) => {
-        const blockTotal = (block.evaluacion_items || []).reduce((subTotal, item) => subTotal + (item.puntaje || 0), 0);
-        return total + blockTotal;
-      }, 0);
+      const totalScore = (evaluationDetails.evaluation_content_blocks || []).reduce((total, block) => 
+        total + (block.evaluacion_items || []).reduce((subTotal, item) => subTotal + (item.puntaje || 0), 0), 0);
 
       const formatTeacherNameForPrint = (fullName: string | null): string => {
-        if (!fullName || fullName.trim() === '') return '';
+        if (!fullName) return '';
         const parts = fullName.trim().split(/\s+/);
-        if (parts.length <= 1) return fullName;
-        if (parts.length === 2) return fullName;
-        const firstName = parts[0];
-        const paternalLastName = parts[parts.length - 2];
-        return `${firstName} ${paternalLastName}`;
+        if (parts.length <= 2) return fullName;
+        return `${parts[0]} ${parts[parts.length - 2]}`;
       };
       const formattedTeacherName = formatTeacherNameForPrint(teacherName);
       
       const printableComponents: React.ReactElement[] = [];
-
       for (let i = 0; i < formData.rows; i++) {
         const rowLabel = String.fromCharCode(65 + i);
-        const evaluationCopy = JSON.parse(JSON.stringify(evaluationDetails)); // Deep copy
+        const evaluationCopy = JSON.parse(JSON.stringify(evaluationDetails));
 
         if (evaluationCopy.randomizar_preguntas) {
-          const allItems = evaluationCopy.evaluation_content_blocks.flatMap((block: any) => block.evaluacion_items);
+          const allItems = evaluationCopy.evaluation_content_blocks.flatMap((b: any) => b.evaluacion_items);
           const shuffledItems = seededShuffle(allItems, `${formData.seed}-${rowLabel}`);
+          shuffledItems.forEach((item: any, index: number) => item.orden = index + 1);
           
-          shuffledItems.forEach((item: any, index: number) => {
-            item.orden = index + 1;
-          });
-
-          let firstBlockWithItemsIndex = evaluationCopy.evaluation_content_blocks.findIndex((block: any) => block.evaluacion_items.length > 0);
-          if (firstBlockWithItemsIndex === -1 && shuffledItems.length > 0) {
-              firstBlockWithItemsIndex = 0;
-          }
-
-          if (firstBlockWithItemsIndex !== -1) {
-              evaluationCopy.evaluation_content_blocks[firstBlockWithItemsIndex].evaluacion_items = shuffledItems;
-              for (let j = 0; j < evaluationCopy.evaluation_content_blocks.length; j++) {
-                  if (j !== firstBlockWithItemsIndex) {
-                      evaluationCopy.evaluation_content_blocks[j].evaluacion_items = [];
-                  }
-              }
+          let firstBlockIdx = evaluationCopy.evaluation_content_blocks.findIndex((b: any) => b.evaluacion_items.length > 0);
+          if (firstBlockIdx === -1 && shuffledItems.length > 0) firstBlockIdx = 0;
+          if (firstBlockIdx !== -1) {
+            evaluationCopy.evaluation_content_blocks.forEach((b: any, idx: number) => {
+              b.evaluacion_items = idx === firstBlockIdx ? shuffledItems : [];
+            });
           }
         }
 
         if (evaluationCopy.randomizar_alternativas) {
-          evaluationCopy.evaluation_content_blocks.forEach((block: any) => {
-            block.evaluacion_items.forEach((item: any) => {
-              if (item.tipo_item === 'seleccion_multiple' && item.item_alternativas) {
-                item.item_alternativas = seededShuffle(item.item_alternativas, `${formData.seed}-${rowLabel}-${item.id}`);
-              }
-            });
-          });
+          evaluationCopy.evaluation_content_blocks.forEach((b: any) => b.evaluacion_items.forEach((item: any) => {
+            if (item.tipo_item === 'seleccion_multiple' && item.item_alternativas) {
+              item.item_alternativas = seededShuffle(item.item_alternativas, `${formData.seed}-${rowLabel}-${item.id}`);
+            }
+          }));
         }
 
         printableComponents.push(
-          <PrintableEvaluation 
-            key={rowLabel}
-            evaluation={evaluationCopy} 
-            establishment={activeEstablishment}
-            fontSize={formData.fontSize}
-            teacherName={formattedTeacherName}
-            totalScore={totalScore}
-            rowLabel={formData.rows > 1 ? rowLabel : undefined}
-          />
+          <PrintableEvaluation key={rowLabel} evaluation={evaluationCopy} establishment={activeEstablishment} fontSize={formData.fontSize}
+            teacherName={formattedTeacherName} totalScore={totalScore} rowLabel={formData.rows > 1 ? rowLabel : undefined} />
         );
       }
-
-      printComponent(
-        <div>{printableComponents}</div>,
-        `Evaluación: ${evaluationDetails.titulo}`,
-        'portrait'
-      );
-
-      dismissToast(toastId);
-    } catch (error: any) {
+      printComponent(<div>{printableComponents}</div>, `Evaluación: ${evaluationDetails.titulo}`);
+    },
+    onMutate: () => showLoading("Preparando evaluación para imprimir..."),
+    onSuccess: (_, __, toastId) => dismissToast(toastId),
+    onError: (error: any, _, toastId) => {
       dismissToast(toastId);
       showError(`Error al preparar la impresión: ${error.message}`);
-    } finally {
-      setIsPrinting(false);
+    },
+    onSettled: () => {
       setPrintModalOpen(false);
       setEvaluationToPrint(null);
     }
-  };
+  });
 
-  const handleAnswerSheetClick = (evaluationId: string) => {
-    setEvaluationForAnswerSheet(evaluationId);
-    setAnswerSheetModalOpen(true);
-  };
-
-  const handleConfirmPrintAnswerSheets = async (formData: AnswerSheetFormData) => {
-    if (!evaluationForAnswerSheet || !activeEstablishment) return;
-    setIsPrinting(true);
-    const toastId = showLoading("Generando hojas de respuesta y pautas...");
-
-    try {
+  const answerSheetMutation = useMutation({
+    mutationFn: async (formData: AnswerSheetFormData) => {
+      if (!evaluationForAnswerSheet || !activeEstablishment) throw new Error("Datos de evaluación incompletos.");
+      
       const [evaluation, students] = await Promise.all([
-        queryClient.fetchQuery({
-          queryKey: ['evaluationDetails', evaluationForAnswerSheet],
-          queryFn: () => fetchEvaluationDetails(evaluationForAnswerSheet),
-        }),
-        queryClient.fetchQuery({
-          queryKey: ['studentsForEvaluation', evaluationForAnswerSheet],
-          queryFn: () => fetchStudentsForEvaluation(evaluationForAnswerSheet),
-        })
+        queryClient.fetchQuery({ queryKey: ['evaluationDetails', evaluationForAnswerSheet], queryFn: () => fetchEvaluationDetails(evaluationForAnswerSheet) }),
+        queryClient.fetchQuery({ queryKey: ['studentsForEvaluation', evaluationForAnswerSheet], queryFn: () => fetchStudentsForEvaluation(evaluationForAnswerSheet) })
       ]);
 
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
@@ -253,7 +188,6 @@ const EvaluationPage = () => {
       for (let i = 0; i < formData.rows; i++) {
         const rowLabel = String.fromCharCode(65 + i);
         answerKey[rowLabel] = {};
-
         allQuestions.forEach(q => {
           if (q.tipo_item === 'seleccion_multiple') {
             const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
@@ -261,42 +195,39 @@ const EvaluationPage = () => {
             answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
           }
         });
-
-        for (const student of students) {
-          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
+        students.forEach(student => {
           printableComponents.push(
-            <PrintableAnswerSheet
-              key={`${student.id}-${rowLabel}`}
-              evaluationTitle={evaluation.titulo}
-              establishmentName={activeEstablishment.nombre}
-              logoUrl={activeEstablishment.logo_url}
-              studentName={student.nombre_completo}
-              courseName={student.curso_nombre}
-              rowLabel={rowLabel}
-              qrCodeData={qrCodeData}
-              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
-            />
+            <PrintableAnswerSheet key={`${student.id}-${rowLabel}`} evaluationTitle={evaluation.titulo} establishmentName={activeEstablishment.nombre}
+              logoUrl={activeEstablishment.logo_url} studentName={student.nombre_completo} courseName={student.curso_nombre}
+              rowLabel={rowLabel} qrCodeData={`${evaluation.id}|${student.id}|${rowLabel}`}
+              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))} />
           );
-        }
+        });
       }
-
-      printableComponents.push(
-        <PrintableAnswerKey
-          key="answer-key"
-          evaluationTitle={evaluation.titulo}
-          answerKey={answerKey}
-        />
-      );
-
-      printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`, 'portrait');
-      dismissToast(toastId);
-    } catch (error: any) {
+      printableComponents.push(<PrintableAnswerKey key="answer-key" evaluationTitle={evaluation.titulo} answerKey={answerKey} />);
+      printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`);
+    },
+    onMutate: () => showLoading("Generando hojas de respuesta y pautas..."),
+    onSuccess: (_, __, toastId) => dismissToast(toastId),
+    onError: (error: any, _, toastId) => {
       dismissToast(toastId);
       showError(`Error al generar las hojas: ${error.message}`);
-    } finally {
-      setIsPrinting(false);
-      setAnswerSheetModalOpen(false);
-    }
+    },
+    onSettled: () => setAnswerSheetModalOpen(false),
+  });
+
+  const handleSelectionChange = (evaluationId: string, isSelected: boolean) => {
+    setSelectedEvaluations(prev => isSelected ? [...prev, evaluationId] : prev.filter(id => id !== evaluationId));
+  };
+
+  const handlePrintClick = (evaluationId: string) => {
+    setEvaluationToPrint(evaluationId);
+    setPrintModalOpen(true);
+  };
+
+  const handleAnswerSheetClick = (evaluationId: string) => {
+    setEvaluationForAnswerSheet(evaluationId);
+    setAnswerSheetModalOpen(true);
   };
 
   const handleDeleteClick = (evaluation: Evaluation) => {
@@ -568,15 +499,15 @@ const EvaluationPage = () => {
       <PrintEvaluationDialog
         isOpen={isPrintModalOpen}
         onClose={() => setPrintModalOpen(false)}
-        onConfirm={handleConfirmPrint}
-        isPrinting={isPrinting}
+        onConfirm={(data) => printMutation.mutate(data)}
+        isPrinting={printMutation.isPending}
       />
 
       <PrintAnswerSheetDialog
         isOpen={isAnswerSheetModalOpen}
         onClose={() => setAnswerSheetModalOpen(false)}
-        onConfirm={handleConfirmPrintAnswerSheets}
-        isPrinting={isPrinting}
+        onConfirm={(data) => answerSheetMutation.mutate(data)}
+        isPrinting={answerSheetMutation.isPending}
       />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

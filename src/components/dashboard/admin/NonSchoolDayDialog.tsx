@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { saveNonSchoolDay, NonSchoolDay } from '@/api/adminApi';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { showError, showSuccess } from '@/utils/toast';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   fecha: z.date({ required_error: "La fecha es requerida." }),
@@ -34,7 +35,8 @@ interface NonSchoolDayDialogProps {
 
 const NonSchoolDayDialog: React.FC<NonSchoolDayDialogProps> = ({ isOpen, onClose, onSaved, day }) => {
   const { activeEstablishment } = useEstablishment();
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const queryClient = useQueryClient();
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -50,20 +52,28 @@ const NonSchoolDayDialog: React.FC<NonSchoolDayDialogProps> = ({ isOpen, onClose
     }
   }, [day, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!activeEstablishment) return;
-    try {
-      await saveNonSchoolDay({
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => {
+      if (!activeEstablishment) throw new Error("No hay un establecimiento activo.");
+      return saveNonSchoolDay({
         fecha: format(data.fecha, 'yyyy-MM-dd'),
         descripcion: data.descripcion,
         tipo: data.tipo,
       }, activeEstablishment.id, day?.id);
+    },
+    onSuccess: () => {
       showSuccess("Día no lectivo guardado.");
+      queryClient.invalidateQueries({ queryKey: ['nonSchoolDays', activeEstablishment?.id] });
       onSaved();
       onClose();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -111,7 +121,7 @@ const NonSchoolDayDialog: React.FC<NonSchoolDayDialogProps> = ({ isOpen, onClose
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar'}</Button>
+            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Guardando...' : 'Guardar'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
