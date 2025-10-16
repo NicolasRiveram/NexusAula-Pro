@@ -1,6 +1,41 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays } from 'date-fns';
 
+export interface Estudiante {
+  id: string;
+  nombre_completo: string;
+  rut: string;
+  email: string;
+  apoyo_pie: boolean;
+}
+
+export interface StudentEnrollment {
+  curso_asignatura_id: string;
+  curso_nombre: string;
+  anio: number;
+  nivel_nombre: string;
+  asignatura_nombre: string;
+}
+
+export interface StudentEvaluationHistory {
+  evaluation_id: string;
+  evaluation_title: string;
+  response_date: string;
+  score_obtained: number;
+  max_score: number;
+}
+
+export interface StudentPerformanceStats {
+  average_score: number | null;
+  completed_evaluations: number | null;
+  total_evaluations: number | null;
+}
+
+export interface StudentSkillPerformance {
+  habilidad_nombre: string;
+  promedio_logro: number;
+}
+
 export interface StudentCourse {
   id: string; // curso_asignatura_id
   curso_nombre: string;
@@ -218,4 +253,65 @@ export const fetchStudentWeeklySchedule = async (studentId: string, establecimie
     nivel_nombre: item.curso_asignaturas.cursos.niveles.nombre,
     asignatura_nombre: item.curso_asignaturas.asignaturas.nombre,
   }));
+};
+
+export const fetchStudentProfile = async (studentId: string): Promise<Estudiante> => {
+    const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, nombre_completo, rut, email, apoyo_pie')
+        .eq('id', studentId)
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+};
+
+export const fetchStudentEnrollments = async (studentId: string): Promise<StudentEnrollment[]> => {
+    const { data, error } = await supabase.rpc('get_student_enrollments', {
+        p_student_id: studentId,
+    });
+
+    if (error) {
+        throw new Error(`Error fetching student enrollments: ${error.message}`);
+    }
+
+    const enrollments: StudentEnrollment[] = (data as any) || [];
+    
+    const uniqueEnrollments = Array.from(new Map(enrollments.map(e => [e.curso_asignatura_id, e])).values());
+    
+    return uniqueEnrollments.sort((a, b) => b.anio - a.anio || a.nivel_nombre.localeCompare(b.nivel_nombre));
+};
+
+export const fetchStudentEvaluationHistory = async (studentId: string): Promise<StudentEvaluationHistory[]> => {
+    const { data, error } = await supabase.rpc('get_student_evaluation_history', {
+        p_student_id: studentId,
+    });
+
+    if (error) {
+        throw new Error(`Error fetching student evaluation history: ${error.message}`);
+    }
+    return data || [];
+};
+
+export const fetchStudentPerformanceStats = async (studentId: string): Promise<StudentPerformanceStats> => {
+    const { data, error } = await supabase.rpc('get_student_performance_details', {
+        p_student_id: studentId,
+    });
+    if (error) throw new Error(`Error fetching student performance stats: ${error.message}`);
+    return data?.[0] || { average_score: 0, completed_evaluations: 0, total_evaluations: 0 };
+};
+
+export const fetchStudentSkillPerformance = async (studentId: string): Promise<StudentSkillPerformance[]> => {
+    const { data, error } = await supabase.rpc('get_student_skill_performance', {
+        p_student_id: studentId,
+    });
+    if (error) throw new Error(`Error fetching student skill performance: ${error.message}`);
+    return data || [];
+};
+
+export const updateStudentProfile = async (studentId: string, profileData: Partial<Estudiante>) => {
+    const { error } = await supabase
+        .from('perfiles')
+        .update(profileData)
+        .eq('id', studentId);
+    if (error) throw new Error(error.message);
 };
