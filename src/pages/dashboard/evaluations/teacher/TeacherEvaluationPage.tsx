@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations } from '@/api/evaluationsApi';
+import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations } from '@/api/evaluations';
 import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -163,7 +163,7 @@ const EvaluationPage = () => {
     onMutate: () => showLoading("Preparando evaluación para imprimir..."),
     onSuccess: (_, __, toastId) => dismissToast(toastId),
     onError: (error: any, _, toastId) => {
-      dismissToast(toastId);
+      if (toastId) dismissToast(toastId);
       showError(`Error al preparar la impresión: ${error.message}`);
     },
     onSettled: () => {
@@ -210,7 +210,7 @@ const EvaluationPage = () => {
     onMutate: () => showLoading("Generando hojas de respuesta y pautas..."),
     onSuccess: (_, __, toastId) => dismissToast(toastId),
     onError: (error: any, _, toastId) => {
-      dismissToast(toastId);
+      if (toastId) dismissToast(toastId);
       showError(`Error al generar las hojas: ${error.message}`);
     },
     onSettled: () => setAnswerSheetModalOpen(false),
@@ -248,36 +248,6 @@ const EvaluationPage = () => {
   };
 
   const renderTeacherView = () => {
-    const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
-      const groups: Record<string, Evaluation[]> = {};
-      evals.forEach(evaluation => {
-        const levels = new Set<string>();
-        if (evaluation.curso_asignaturas && evaluation.curso_asignaturas.length > 0) {
-          evaluation.curso_asignaturas.forEach(ca => {
-            if (ca.curso?.nivel?.nombre) {
-              levels.add(ca.curso.nivel.nombre);
-            }
-          });
-        }
-
-        if (levels.size === 0) {
-          const key = 'Sin Asignar';
-          if (!groups[key]) groups[key] = [];
-          if (!groups[key].some(e => e.id === evaluation.id)) {
-            groups[key].push(evaluation);
-          }
-        } else {
-          levels.forEach(levelName => {
-            if (!groups[levelName]) groups[levelName] = [];
-            if (!groups[levelName].some(e => e.id === evaluation.id)) {
-              groups[levelName].push(evaluation);
-            }
-          });
-        }
-      });
-      return groups;
-    };
-
     const renderEvaluations = (filterType?: string) => {
       const filtered = filterType ? teacherEvaluations.filter(e => e.tipo === filterType) : teacherEvaluations;
       
@@ -290,91 +260,19 @@ const EvaluationPage = () => {
         );
       }
 
-      const grouped = groupEvaluationsByLevel(filtered);
-      const sortedLevels = Object.keys(grouped).sort();
-
       return (
-        <div className="space-y-8 mt-4">
-          {sortedLevels.map(levelName => (
-            <div key={levelName}>
-              <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{levelName}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {grouped[levelName].map(evaluation => (
-                  <div key={evaluation.id} className="relative">
-                    <div className="absolute top-2 left-2 z-10">
-                      <Checkbox
-                        checked={selectedEvaluations.includes(evaluation.id)}
-                        onCheckedChange={(checked) => handleSelectionChange(evaluation.id, !!checked)}
-                        className="bg-white"
-                      />
-                    </div>
-                    <Card className="flex flex-col h-full">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 pr-8">
-                            <CardTitle>{evaluation.titulo}</CardTitle>
-                            <CardDescription>
-                              Aplicación: {evaluation.fecha_aplicacion ? format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es }) : 'Sin fecha definida'}
-                            </CardDescription>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
-                                <Eye className="mr-2 h-4 w-4" /> Ver / Editar Contenido
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
-                                <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setEvaluationForAnswerKey(evaluation.id); setAnswerKeyDialogOpen(true); }}>
-                                <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
-                                <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
-                                <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
-                            {evaluation.momento_evaluativo && <Badge variant="outline" className="capitalize">{evaluation.momento_evaluativo}</Badge>}
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {evaluation.curso_asignaturas.map((ca, index) => (
-                              <Badge key={index} variant="outline">
-                                {ca.curso.nivel.nombre} {ca.curso.nombre}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter>
-                        <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)} variant="secondary" className="w-full">
-                          <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <EvaluationList
+          evaluations={filtered}
+          selectedEvaluations={selectedEvaluations}
+          onSelectionChange={handleSelectionChange}
+          onViewDetails={(id) => navigate(`/dashboard/evaluacion/${id}`)}
+          onViewResults={(id) => navigate(`/dashboard/evaluacion/${id}/resultados`)}
+          onShowAnswerKey={(id) => { setEvaluationForAnswerKey(id); setAnswerKeyDialogOpen(true); }}
+          onPrint={handlePrintClick}
+          onPrintAnswerSheet={handleAnswerSheetClick}
+          onDelete={handleDeleteClick}
+          onCorrectWithCamera={(id) => navigate(`/dashboard/evaluacion/${id}/corregir`)}
+        />
       );
     };
 

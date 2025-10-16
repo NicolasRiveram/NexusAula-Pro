@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { ItemAnalysisResult } from '@/api/evaluationsApi';
+import { ItemAnalysisResult } from '@/api/evaluations';
 
 interface ItemAnalysisProps {
   analysis: ItemAnalysisResult[];

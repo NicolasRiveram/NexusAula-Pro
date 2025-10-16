@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchEvaluationDetails, submitEvaluationResponse, fetchStudentResponseForEvaluation, getPublicImageUrl } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, submitEvaluationResponse, fetchStudentResponseForEvaluation, getPublicImageUrl } from '@/api/evaluations';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';

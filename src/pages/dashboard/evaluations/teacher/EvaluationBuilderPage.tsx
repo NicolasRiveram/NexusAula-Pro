@@ -9,7 +9,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import Step1GeneralInfo, { EvaluationStep1Data, schema as step1Schema } from '@/components/evaluations/builder/Step1_GeneralInfo';
 import Step2ContentBlocks from '@/components/evaluations/builder/Step2_ContentBlocks';
 import Step3FinalReview from '@/components/evaluations/builder/Step3_FinalReview';
-import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData, EvaluationDetail } from '@/api/evaluationsApi';
+import { createEvaluation, fetchEvaluationDetails, updateEvaluation, CreateEvaluationData, EvaluationDetail } from '@/api/evaluations';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';

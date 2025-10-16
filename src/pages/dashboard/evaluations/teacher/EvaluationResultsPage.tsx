@@ -9,7 +9,7 @@ import {
   fetchEvaluationStatistics, 
   fetchItemAnalysis, 
   fetchSkillAnalysisForEvaluation
-} from '@/api/evaluationsApi';
+} from '@/api/evaluations';
 import { showError } from '@/utils/toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';

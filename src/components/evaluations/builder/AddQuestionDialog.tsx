@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Trash2 } from 'lucide-react';
-import { saveManualQuestion, ManualQuestionData } from '@/api/evaluationsApi';
+import { saveManualQuestion, ManualQuestionData } from '@/api/evaluations';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const alternativeSchema = z.object({
