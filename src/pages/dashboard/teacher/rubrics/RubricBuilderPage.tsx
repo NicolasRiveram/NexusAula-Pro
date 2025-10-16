@@ -13,7 +13,7 @@ import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { createRubric, generateRubricWithAI, saveGeneratedRubricContent, RubricContent } from '@/api/rubricsApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
-import { fetchNiveles, fetchDocenteAsignaturas, Nivel, Asignatura } from '@/api/coursesApi';
+import { fetchNiveles, fetchDocenteAsignaturas, Nivel, Asignatura } from '@/api/courses';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';

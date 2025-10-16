@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { fetchNiveles, crearCurso, inscribirYCrearEstudiantes, Nivel } from '@/api/coursesApi';
+import { fetchNiveles, crearCurso, inscribirYCrearEstudiantes, Nivel } from '@/api/courses';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
