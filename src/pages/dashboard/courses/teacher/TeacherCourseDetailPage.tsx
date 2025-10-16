@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, updateStudentProfile, Estudiante } from '@/api/coursesApi';
+import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, Estudiante } from '@/api/coursesApi';
+import { updateStudentProfile } from '@/api/studentApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Pencil, Download } from 'lucide-react';
+import { Pencil, Download, ArrowLeft } from 'lucide-react';
 import { showError } from '@/utils/toast';
 import EditStudentDialog from '@/components/courses/EditStudentDialog';
 import CourseScheduleManager from '@/components/courses/CourseScheduleManager';
