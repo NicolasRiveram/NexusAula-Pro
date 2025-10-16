@@ -355,7 +355,7 @@ export const fetchEvaluations = async (docenteId: string, establecimientoId: str
     randomizar_preguntas: e.randomizar_preguntas,
     randomizar_alternativas: e.randomizar_alternativas,
     curso_asignaturas: (e.evaluacion_curso_asignaturas || [])
-      .filter((link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId)
+      .filter((link: any) => link.curso_asignaturas?.cursos?.establecimiento_id === establecimientoId && link.curso_asignaturas.cursos.niveles && link.curso_asignaturas.asignaturas)
       .map((link: any) => ({
         id: link.curso_asignatura_id,
         curso: {
@@ -621,20 +621,22 @@ export const fetchEvaluationDetails = async (evaluationId: string): Promise<Eval
 
   const formattedData = {
     ...data,
-    curso_asignaturas: data.evaluacion_curso_asignaturas.map((link: any) => ({
-      id: link.curso_asignatura_id,
-      curso: {
-        nombre: link.curso_asignaturas.cursos.nombre,
-        nivel: { 
-          id: link.curso_asignaturas.cursos.niveles.id,
-          nombre: link.curso_asignaturas.cursos.niveles.nombre 
+    curso_asignaturas: (data.evaluacion_curso_asignaturas || [])
+      .filter((link: any) => link.curso_asignaturas && link.curso_asignaturas.cursos && link.curso_asignaturas.asignaturas && link.curso_asignaturas.cursos.niveles)
+      .map((link: any) => ({
+        id: link.curso_asignatura_id,
+        curso: {
+          nombre: link.curso_asignaturas.cursos.nombre,
+          nivel: { 
+            id: link.curso_asignaturas.cursos.niveles.id,
+            nombre: link.curso_asignaturas.cursos.niveles.nombre 
+          }
+        },
+        asignatura: { 
+          id: link.curso_asignaturas.asignaturas.id,
+          nombre: link.curso_asignaturas.asignaturas.nombre 
         }
-      },
-      asignatura: { 
-        id: link.curso_asignaturas.asignaturas.id,
-        nombre: link.curso_asignaturas.asignaturas.nombre 
-      }
-    }))
+      }))
   };
 
   return formattedData as EvaluationDetail;
