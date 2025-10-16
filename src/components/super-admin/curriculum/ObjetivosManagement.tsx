@@ -44,7 +44,6 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
   const [selectedBulkAsignatura, setSelectedBulkAsignatura] = useState('');
   const [selectedBulkEje, setSelectedBulkEje] = useState('');
   const [bulkText, setBulkText] = useState('');
-  const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [filteredBulkEjes, setFilteredBulkEjes] = useState<Eje[]>([]);
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
