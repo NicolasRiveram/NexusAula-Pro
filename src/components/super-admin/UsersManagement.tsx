@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Edit, Star } from 'lucide-react';
-import { fetchAllUsers, GlobalUser, fetchAllEstablishments, Establishment } from '@/api/superAdminApi';
+import { fetchAllUsers, GlobalUser, fetchAllEstablishments, Establishment } from '@/api/super-admin';
 import { showError } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import UserEditDialog from './UserEditDialog';
