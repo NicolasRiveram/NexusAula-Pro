@@ -16,26 +16,14 @@ import {
 } from '@/api/analyticsApi';
 import { showError } from '@/utils/toast';
 import PerformanceSummaryCard from '@/components/analytics/PerformanceSummaryCard';
-import { useOutletContext } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-
-interface DashboardContext {
-  profile: { rol: string };
-}
 
 const AnalyticsPage = () => {
   const { activeEstablishment } = useEstablishment();
-  const { profile } = useOutletContext<DashboardContext>();
-  const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
+  const { profile, user } = useAuth();
+  const isAdmin = profile?.rol === 'administrador_establecimiento' || profile?.rol === 'coordinador';
   const [selectedCursoId, setSelectedCursoId] = useState<string>('todos');
-
-  const { data: user } = useQuery({
-    queryKey: ['user'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
-    }
-  });
 
   const { data: cursos = [] } = useQuery({
     queryKey: ['analyticsCourses', user?.id, activeEstablishment?.id, isAdmin],

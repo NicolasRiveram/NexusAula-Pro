@@ -38,7 +38,7 @@ const Dashboard = () => {
           <Header profile={profile} />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-8" data-tour="main-content">
             {isTrial && <TrialBanner trialEndsAt={profile.trial_ends_at || null} />}
-            <Outlet context={{ profile }} />
+            <Outlet />
           </main>
         </div>
       </div>

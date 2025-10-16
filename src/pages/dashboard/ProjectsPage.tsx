@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
@@ -13,17 +12,12 @@ import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface DashboardContext {
-  profile: { rol: string } | null;
-}
-
 const ProjectsPage = () => {
   const [selectedNivel, setSelectedNivel] = useState<string>('all');
   const [selectedAsignatura, setSelectedAsignatura] = useState<string>('all');
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const { activeEstablishment } = useEstablishment();
-  const { profile } = useOutletContext<DashboardContext>();
-  const { user } = useAuth();
+  const { profile, user } = useAuth();
   const queryClient = useQueryClient();
   
   const isStudent = profile?.rol === 'estudiante';

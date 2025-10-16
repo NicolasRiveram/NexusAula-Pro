@@ -1,15 +1,11 @@
 import React from 'react';
-import { useOutletContext } from 'react-router-dom';
 import TeacherCourseDetailPage from './courses/TeacherCourseDetailPage';
 import StudentCourseDetailPage from './courses/StudentCourseDetailPage';
 import { Loader2 } from 'lucide-react';
-
-interface DashboardContext {
-  profile: { rol: string };
-}
+import { useAuth } from '@/contexts/AuthContext';
 
 const CourseDetailPage = () => {
-  const { profile } = useOutletContext<DashboardContext>();
+  const { profile } = useAuth();
 
   if (!profile) {
     return (

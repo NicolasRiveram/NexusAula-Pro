@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,15 +12,10 @@ import { es } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface DashboardContext {
-  profile: { rol: string };
-}
-
 const ReportsPage = () => {
   const { activeEstablishment } = useEstablishment();
-  const { profile } = useOutletContext<DashboardContext>();
-  const { user } = useAuth();
-  const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
+  const { profile, user } = useAuth();
+  const isAdmin = profile?.rol === 'administrador_establecimiento' || profile?.rol === 'coordinador';
 
   const { data: reports = [], isLoading: loading } = useQuery({
     queryKey: ['reports', user?.id, activeEstablishment?.id, isAdmin],
