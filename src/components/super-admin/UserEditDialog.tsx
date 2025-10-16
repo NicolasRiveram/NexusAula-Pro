@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateUserGlobalRole, GlobalUser } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
+import { useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   rol: z.string().min(1, "Debes seleccionar un rol."),
@@ -23,7 +24,7 @@ interface UserEditDialogProps {
 }
 
 const UserEditDialog: React.FC<UserEditDialogProps> = ({ isOpen, onClose, user, onSaved }) => {
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -33,16 +34,23 @@ const UserEditDialog: React.FC<UserEditDialogProps> = ({ isOpen, onClose, user, 
     }
   }, [user, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!user) return;
-    try {
-      await updateUserGlobalRole(user.id, data.rol);
-      showSuccess(`El rol de ${user.nombre_completo} ha sido actualizado.`);
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => {
+      if (!user) throw new Error("No user selected.");
+      return updateUserGlobalRole(user.id, data.rol);
+    },
+    onSuccess: () => {
+      showSuccess(`El rol de ${user?.nombre_completo} ha sido actualizado.`);
       onSaved();
       onClose();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -76,8 +84,8 @@ const UserEditDialog: React.FC<UserEditDialogProps> = ({ isOpen, onClose, user, 
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </DialogFooter>
         </form>

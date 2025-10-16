@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateUserSubscriptionPlan, GlobalUser } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
+import { useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   subscription_plan: z.string().min(1, "Debes seleccionar un plan."),
@@ -23,7 +24,7 @@ interface SubscriptionEditDialogProps {
 }
 
 const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen, onClose, user, onSaved }) => {
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -33,16 +34,23 @@ const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen,
     }
   }, [user, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!user) return;
-    try {
-      await updateUserSubscriptionPlan(user.id, data.subscription_plan);
-      showSuccess(`La suscripción de ${user.nombre_completo} ha sido actualizada.`);
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => {
+      if (!user) throw new Error("No user selected.");
+      return updateUserSubscriptionPlan(user.id, data.subscription_plan);
+    },
+    onSuccess: () => {
+      showSuccess(`La suscripción de ${user?.nombre_completo} ha sido actualizada.`);
       onSaved();
       onClose();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       showError(error.message);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -74,8 +82,8 @@ const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen,
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </DialogFooter>
         </form>
