@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2, Sparkles, BrainCircuit, CheckCircle, Save } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, EvaluationItem, generatePIEAdaptation, savePIEAdaptation } from '@/api/evaluationsApi';
-import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,7 +20,7 @@ const AdaptPIEPage = () => {
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
   const [modifiedItems, setModifiedItems] = useState<Record<string, any>>({});
 
-  const { data: evaluation, isLoading: loading, refetch } = useQuery({
+  const { data: evaluation, isLoading: loading } = useQuery({
     queryKey: ['evaluationDetailsForPIE', evaluationId],
     queryFn: () => fetchEvaluationDetails(evaluationId!),
     enabled: !!evaluationId,
@@ -42,7 +42,6 @@ const AdaptPIEPage = () => {
       }, {} as Record<string, any>);
       setModifiedItems(prev => ({ ...prev, ...newModifications }));
       
-      // Optimistically update the UI
       queryClient.setQueryData(['evaluationDetailsForPIE', evaluationId], (oldData: EvaluationDetail | undefined) => {
         if (!oldData) return oldData;
         const newEval = JSON.parse(JSON.stringify(oldData));
@@ -101,6 +100,8 @@ const AdaptPIEPage = () => {
   };
 
   const allItems = evaluation?.evaluation_content_blocks.flatMap(b => b.evaluacion_items || []) || [];
+  const totalQuestions = allItems.length;
+  const adaptedQuestions = allItems.filter(item => item.tiene_adaptacion_pie).length;
 
   if (loading) {
     return <div className="container mx-auto flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -132,7 +133,11 @@ const AdaptPIEPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Adaptación para PIE: {evaluation.titulo}</CardTitle>
-          <CardDescription>Selecciona las preguntas que deseas adaptar. La IA simplificará el enunciado y las alternativas.</CardDescription>
+          <CardDescription>
+            Selecciona las preguntas que deseas adaptar. La IA simplificará el enunciado y las alternativas.
+            <br />
+            <span className="font-semibold">{adaptedQuestions} de {totalQuestions} preguntas ya han sido adaptadas.</span>
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {allItems.map(item => {
