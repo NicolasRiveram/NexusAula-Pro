@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Outlet } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { useTeacherTour } from '@/hooks/useTeacherTour';
@@ -9,21 +9,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import FullPageLoader from '@/components/layout/FullPageLoader';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const { session, profile, loading } = useAuth();
+  const { profile } = useAuth();
   const { runTour, handleTourEnd } = useTeacherTour(profile?.rol || '');
 
-  useEffect(() => {
-    if (!loading) {
-      if (!session) {
-        navigate('/login');
-      } else if (profile && !profile.perfil_completo) {
-        navigate('/configurar-perfil');
-      }
-    }
-  }, [session, profile, loading, navigate]);
-
-  if (loading || !profile) {
+  if (!profile) {
     return <FullPageLoader />;
   }
 
