@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ArrowLeft, Mail, User, Hash, FileSignature, Loader2 } from 'lucide-react';
-import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance } from '@/api/studentApi';
+import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance } from '@/api/student';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';

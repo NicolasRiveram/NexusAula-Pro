@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, User, Clock, FileText, Send, CheckCircle, BookOpen } from 'lucide-react';
-import { fetchStudentCourseDetails, fetchStudentEvaluationsForCourse, fetchClassesForStudentCourse } from '@/api/studentApi';
+import { fetchStudentCourseDetails, fetchStudentEvaluationsForCourse, fetchClassesForStudentCourse } from '@/api/student';
 import { fetchScheduleForCourse } from '@/api/scheduleApi';
 import { showError } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
