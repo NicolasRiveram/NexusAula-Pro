@@ -18,7 +18,9 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import { createEvaluation } from '@/api/evaluationsApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const schema = z.object({
   cursoAsignaturaId: z.string().uuid("Debes seleccionar un curso."),
@@ -39,53 +41,46 @@ interface CreateEvaluationDialogProps {
 
 const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen, onClose, onEvaluationCreated }) => {
   const { activeEstablishment } = useEstablishment();
-  const [cursosAsignaturas, setCursosAsignaturas] = useState<CursoAsignatura[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (isOpen && activeEstablishment) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          try {
-            const data = await fetchCursosAsignaturasDocente(user.id, activeEstablishment.id);
-            setCursosAsignaturas(data);
-          } catch (err: any) {
-            showError(`Error al cargar cursos: ${err.message}`);
-          }
-        }
-      }
-    };
-    loadData();
-  }, [isOpen, activeEstablishment]);
+  const { data: cursosAsignaturas = [], isLoading: isLoadingCourses } = useQuery({
+    queryKey: ['teacherCoursesForEvalCreation', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id),
+    enabled: isOpen && !!user && !!activeEstablishment,
+  });
 
-  const onSubmit = async (data: FormData) => {
-    setIsSubmitting(true);
-    const toastId = showLoading("Creando evaluación...");
-    try {
-      const newEvaluationId = await createEvaluation({
-        titulo: data.titulo,
-        tipo: data.tipo,
-        momento_evaluativo: data.momento_evaluativo,
-        descripcion: data.descripcion || '',
-        fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
-        cursoAsignaturaIds: [data.cursoAsignaturaId],
-        objetivos_aprendizaje_ids: [],
-      });
-      dismissToast(toastId);
+  useEffect(() => {
+    if (!isOpen) {
+      reset();
+    }
+  }, [isOpen, reset]);
+
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => createEvaluation({
+      titulo: data.titulo,
+      tipo: data.tipo,
+      momento_evaluativo: data.momento_evaluativo,
+      descripcion: data.descripcion || '',
+      fecha_aplicacion: format(data.fecha_aplicacion, 'yyyy-MM-dd'),
+      cursoAsignaturaIds: [data.cursoAsignaturaId],
+      objetivos_aprendizaje_ids: [],
+    }),
+    onSuccess: (newEvaluationId) => {
       showSuccess("Evaluación creada. Ahora puedes añadirle preguntas.");
       onEvaluationCreated(newEvaluationId);
       onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
+    },
+    onError: (error: any) => {
       showError(`Error al crear la evaluación: ${error.message}`);
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   return (
@@ -102,7 +97,7 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
             <Label htmlFor="cursoAsignaturaId">Curso</Label>
             <Controller name="cursoAsignaturaId" control={control} render={({ field }) => (
               <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger><SelectValue placeholder="Selecciona un curso" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={isLoadingCourses ? "Cargando..." : "Selecciona un curso"} /></SelectTrigger>
                 <SelectContent>{cursosAsignaturas.map(ca => (<SelectItem key={ca.id} value={ca.id}>{ca.curso.nivel.nombre} {ca.curso.nombre} - {ca.asignatura.nombre}</SelectItem>))}</SelectContent>
               </Select>
             )} />
@@ -164,7 +159,7 @@ const CreateEvaluationDialog: React.FC<CreateEvaluationDialogProps> = ({ isOpen,
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Creando...' : 'Crear y Continuar'}</Button>
+            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Creando...' : 'Crear y Continuar'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

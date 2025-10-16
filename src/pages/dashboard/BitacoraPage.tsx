@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useMemo } from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,40 +7,27 @@ import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi
 import { showError } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BitacoraPage = () => {
-  const [logs, setLogs] = useState<ClassLogEntry[]>([]);
-  const [cursos, setCursos] = useState<CursoAsignatura[]>([]);
   const [selectedCurso, setSelectedCurso] = useState<string>('todos');
-  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
+  const { user } = useAuth();
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!activeEstablishment) {
-        setLogs([]);
-        setCursos([]);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          const [logsData, cursosData] = await Promise.all([
-            fetchClassLogsForTeacher(user.id, activeEstablishment.id),
-            fetchCursosAsignaturasDocente(user.id, activeEstablishment.id),
-          ]);
-          setLogs(logsData);
-          setCursos(cursosData);
-        } catch (error: any) {
-          showError(`Error al cargar los datos: ${error.message}`);
-        }
-      }
-      setLoading(false);
-    };
-    loadData();
-  }, [activeEstablishment]);
+  const { data: logs = [], isLoading: isLoadingLogs } = useQuery({
+    queryKey: ['classLogs', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchClassLogsForTeacher(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+    onError: (error: any) => showError(`Error al cargar las bitácoras: ${error.message}`),
+  });
+
+  const { data: cursos = [], isLoading: isLoadingCursos } = useQuery({
+    queryKey: ['teacherCoursesForBitacora', user?.id, activeEstablishment?.id],
+    queryFn: () => fetchCursosAsignaturasDocente(user!.id, activeEstablishment!.id),
+    enabled: !!user && !!activeEstablishment,
+    onError: (error: any) => showError(`Error al cargar los cursos: ${error.message}`),
+  });
 
   const filteredLogs = useMemo(() => {
     if (selectedCurso === 'todos') {
@@ -49,6 +35,8 @@ const BitacoraPage = () => {
     }
     return logs.filter(log => log.curso_asignatura_id === selectedCurso);
   }, [logs, selectedCurso]);
+
+  const loading = isLoadingLogs || isLoadingCursos;
 
   return (
     <div className="container mx-auto space-y-6">

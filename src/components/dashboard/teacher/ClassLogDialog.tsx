@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { updateClassLog } from '@/api/planningApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 import { AgendaClase } from '@/api/dashboardApi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   contenido: z.string().min(1, "Debes describir el contenido cubierto."),
@@ -24,6 +25,7 @@ interface ClassLogDialogProps {
 }
 
 const ClassLogDialog: React.FC<ClassLogDialogProps> = ({ isOpen, onClose, clase }) => {
+  const queryClient = useQueryClient();
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -34,18 +36,24 @@ const ClassLogDialog: React.FC<ClassLogDialogProps> = ({ isOpen, onClose, clase 
     }
   }, [isOpen, reset]);
 
-  const onSubmit = async (data: FormData) => {
-    if (!clase) return;
-    const toastId = showLoading("Guardando bitácora...");
-    try {
-      await updateClassLog(clase.id, data.contenido, data.observaciones || '');
-      dismissToast(toastId);
+  const mutation = useMutation({
+    mutationFn: (data: FormData) => {
+      if (!clase) throw new Error("No class selected for logging.");
+      return updateClassLog(clase.id, data.contenido, data.observaciones || '');
+    },
+    onSuccess: () => {
       showSuccess("Bitácora guardada exitosamente.");
+      queryClient.invalidateQueries({ queryKey: ['dailyAgenda'] });
+      queryClient.invalidateQueries({ queryKey: ['pendingLogs'] });
       onClose();
-    } catch (error: any) {
-      dismissToast(toastId);
+    },
+    onError: (error: any) => {
       showError(`Error al guardar: ${error.message}`);
     }
+  });
+
+  const onSubmit = (data: FormData) => {
+    mutation.mutate(data);
   };
 
   if (!clase) return null;
@@ -79,7 +87,9 @@ const ClassLogDialog: React.FC<ClassLogDialogProps> = ({ isOpen, onClose, clase 
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit">Guardar Bitácora</Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Guardando...' : 'Guardar Bitácora'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
