@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useSearchParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,17 +13,12 @@ import { showError } from '@/utils/toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface DashboardContext {
-  profile: { rol: string };
-}
-
 const GenerateReportPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { activeEstablishment } = useEstablishment();
-  const { profile } = useOutletContext<DashboardContext>();
-  const { user } = useAuth();
-  const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
+  const { profile, user } = useAuth();
+  const isAdmin = profile?.rol === 'administrador_establecimiento' || profile?.rol === 'coordinador';
   
   const [selectedCursoId, setSelectedCursoId] = useState<string>('');
   const [selectedEstudianteId, setSelectedEstudianteId] = useState(searchParams.get('studentId') || '');

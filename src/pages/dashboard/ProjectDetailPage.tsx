@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useOutletContext } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,16 +25,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-interface DashboardContext {
-  profile: { rol: string };
-}
-
 const ProjectDetailPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const queryClient = useQueryClient();
-  const { profile } = useOutletContext<DashboardContext>();
-  const { user } = useAuth();
-  const isStudent = profile.rol === 'estudiante';
+  const { profile, user } = useAuth();
+  const isStudent = profile?.rol === 'estudiante';
 
   const [isJoinDialogOpen, setJoinDialogOpen] = useState(false);
   const [isLinkUnitDialogOpen, setLinkUnitDialogOpen] = useState(false);

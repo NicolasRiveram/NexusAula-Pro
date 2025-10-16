@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useOutletContext } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
@@ -35,17 +35,12 @@ import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface DashboardContext {
-  profile: { rol: string };
-}
-
 const EvaluationPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeEstablishment } = useEstablishment();
-  const { profile } = useOutletContext<DashboardContext>();
-  const { user } = useAuth();
-  const isStudent = profile.rol === 'estudiante';
+  const { profile, user } = useAuth();
+  const isStudent = profile?.rol === 'estudiante';
 
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [evaluationToPrint, setEvaluationToPrint] = useState<string | null>(null);
@@ -62,10 +57,11 @@ const EvaluationPage = () => {
   const { data: evaluationsData, isLoading: loading } = useQuery({
     queryKey: ['evaluations', user?.id, activeEstablishment?.id, isStudent],
     queryFn: async () => {
+      if (!user || !activeEstablishment) return isStudent ? [] : {};
       if (isStudent) {
-        return await fetchStudentEvaluations(user!.id, activeEstablishment!.id);
+        return await fetchStudentEvaluations(user.id, activeEstablishment.id);
       } else {
-        return await fetchEvaluations(user!.id, activeEstablishment!.id);
+        return await fetchEvaluations(user.id, activeEstablishment.id);
       }
     },
     enabled: !!user && !!activeEstablishment,
@@ -612,7 +608,7 @@ const EvaluationPage = () => {
       <AnswerKeyDialog
         isOpen={isAnswerKeyDialogOpen}
         onClose={() => setAnswerKeyDialogOpen(false)}
-        evaluationId={evaluationForAnswerKey}
+        evaluationId={evaluationId || null}
       />
     </div>
   );

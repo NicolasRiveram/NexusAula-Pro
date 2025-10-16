@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,19 +23,11 @@ import autoTable from 'jspdf-autotable';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface DashboardContext {
-  profile: { 
-    rol: string;
-    subscription_plan?: string;
-  };
-}
-
 const CoursesPage = () => {
-  const { profile } = useOutletContext<DashboardContext>();
-  const { user } = useAuth();
+  const { profile, user } = useAuth();
   const queryClient = useQueryClient();
-  const isStudent = profile.rol === 'estudiante';
-  const isTrial = profile.subscription_plan === 'prueba';
+  const isStudent = profile?.rol === 'estudiante';
+  const isTrial = profile?.subscription_plan === 'prueba';
 
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const [isAssignDialogOpen, setAssignDialogOpen] = useState(false);
