@@ -52,35 +52,36 @@ const CreateCourseDialog: React.FC<CreateCourseDialogProps> = ({ isOpen, onClose
     mutationFn: async (data: FormData) => {
       if (!activeEstablishment) throw new Error("No hay un establecimiento activo seleccionado.");
       
-      const toastId = showLoading("Creando curso...");
-      try {
-        const nuevoCursoId = await crearCurso(data.nombre, data.nivelId, data.anio, activeEstablishment.id);
-        dismissToast(toastId);
-        showSuccess(`Curso "${data.nombre}" creado exitosamente.`);
+      const nuevoCursoId = await crearCurso(data.nombre, data.nivelId, data.anio, activeEstablishment.id);
+      
+      let studentEnrollmentResult = null;
+      if (data.estudiantesTexto && data.estudiantesTexto.trim().length > 0) {
+        const estudiantes = data.estudiantesTexto.trim().split('\n').map(line => {
+          const parts = line.split(',').map(s => s.trim());
+          return { nombre_completo: parts[0] || null, rut: parts[1] || null, email: parts[2] || null };
+        }).filter(e => e.nombre_completo);
 
-        if (data.estudiantesTexto && data.estudiantesTexto.trim().length > 0) {
-          const estudiantes = data.estudiantesTexto.trim().split('\n').map(line => {
-            const parts = line.split(',').map(s => s.trim());
-            return { nombre_completo: parts[0] || null, rut: parts[1] || null, email: parts[2] || null };
-          }).filter(e => e.nombre_completo);
-
-          if (estudiantes.length > 0) {
-            const studentToastId = showLoading(`Inscribiendo ${estudiantes.length} estudiantes...`);
-            await inscribirYCrearEstudiantes(nuevoCursoId, estudiantes);
-            dismissToast(studentToastId);
-            showSuccess("Proceso de inscripción completado. Puedes descargar las credenciales desde la página de detalles del curso.");
-          }
+        if (estudiantes.length > 0) {
+          studentEnrollmentResult = await inscribirYCrearEstudiantes(nuevoCursoId, estudiantes);
         }
-      } catch (error) {
-        dismissToast(toastId);
-        throw error;
       }
+      return { courseName: data.nombre, studentEnrollmentResult };
     },
-    onSuccess: () => {
+    onMutate: () => {
+      return showLoading("Creando curso y procesando estudiantes...");
+    },
+    onSuccess: ({ courseName, studentEnrollmentResult }, _, toastId) => {
+      if (toastId) dismissToast(toastId);
+      let successMessage = `Curso "${courseName}" creado exitosamente.`;
+      if (studentEnrollmentResult) {
+        successMessage += "\nProceso de inscripción completado.";
+      }
+      showSuccess(successMessage, { duration: 5000 });
       onCourseCreated();
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: any, _, toastId) => {
+      if (toastId) dismissToast(toastId);
       showError(`Error al crear el curso: ${error.message}`);
     }
   });
