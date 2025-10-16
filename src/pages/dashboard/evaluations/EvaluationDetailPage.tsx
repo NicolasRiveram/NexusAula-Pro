@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, MoreVertical } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -15,12 +15,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { printComponent } from '@/utils/printUtils';
 import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
-import PrintEvaluationDialog, { PrintFormData } from '@/components/evaluations/printable/PrintEvaluationDialog';
-import { seededShuffle } from '@/utils/shuffleUtils';
-import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
 import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/printable/PrintAnswerSheetDialog';
 import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
 import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
+import { seededShuffle } from '@/utils/shuffleUtils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const formatTeacherNameForPrint = (fullName: string | null): string => {
   if (!fullName || fullName.trim() === '') {
@@ -52,6 +50,7 @@ const EvaluationDetailPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const navigate = useNavigate();
   const { activeEstablishment } = useEstablishment();
+  const queryClient = useQueryClient();
   const [isPrintModalOpen, setPrintModalOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
@@ -89,12 +88,17 @@ const EvaluationDetailPage = () => {
   }, 0);
 
   const handleConfirmPrint = async (formData: PrintFormData) => {
-    if (!evaluation || !activeEstablishment) return;
+    if (!evaluationId || !activeEstablishment) return;
 
     setIsPrinting(true);
     const toastId = showLoading("Preparando evaluación para imprimir...");
     try {
-      if (!evaluation.aspectos_a_evaluar_ia) {
+      const evaluationDetails = await queryClient.fetchQuery({
+        queryKey: ['evaluationDetails', evaluationId],
+        queryFn: () => fetchEvaluationDetails(evaluationId),
+      });
+
+      if (!evaluationDetails.aspectos_a_evaluar_ia) {
         showError("Falta el resumen 'Aspectos a Evaluar'. Por favor, edita y finaliza la evaluación para generarlo.");
         dismissToast(toastId);
         setPrintModalOpen(false);
@@ -107,7 +111,7 @@ const EvaluationDetailPage = () => {
 
       for (let i = 0; i < formData.rows; i++) {
         const rowLabel = String.fromCharCode(65 + i);
-        const evaluationCopy = JSON.parse(JSON.stringify(evaluation)); // Deep copy
+        const evaluationCopy = JSON.parse(JSON.stringify(evaluationDetails)); // Deep copy
 
         if (evaluationCopy.randomizar_preguntas) {
           const allItems = evaluationCopy.evaluation_content_blocks.flatMap((block: any) => block.evaluacion_items);
@@ -165,7 +169,7 @@ const EvaluationDetailPage = () => {
 
       printComponent(
         <div>{printableComponents}</div>,
-        `Evaluación: ${evaluation.titulo}`,
+        `Evaluación: ${evaluationDetails.titulo}`,
         'portrait'
       );
 
@@ -185,14 +189,20 @@ const EvaluationDetailPage = () => {
   };
 
   const handleConfirmPrintAnswerSheets = async (formData: AnswerSheetFormData) => {
-    if (!evaluationForAnswerSheet || !activeEstablishment) return;
+    if (!evaluationId || !activeEstablishment) return;
     setIsPrinting(true);
     const toastId = showLoading("Generando hojas de respuesta y pautas...");
 
     try {
       const [evaluation, students] = await Promise.all([
-        fetchEvaluationDetails(evaluationForAnswerSheet),
-        fetchStudentsForEvaluation(evaluationForAnswerSheet),
+        queryClient.fetchQuery({
+          queryKey: ['evaluationDetails', evaluationId],
+          queryFn: () => fetchEvaluationDetails(evaluationId),
+        }),
+        queryClient.fetchQuery({
+          queryKey: ['studentsForEvaluation', evaluationId],
+          queryFn: () => fetchStudentsForEvaluation(evaluationId),
+        })
       ]);
 
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);

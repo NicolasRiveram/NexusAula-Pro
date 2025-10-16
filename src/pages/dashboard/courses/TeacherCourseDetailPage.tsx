@@ -44,35 +44,45 @@ const TeacherCourseDetailPage = () => {
     }
   });
 
-  const handleDownloadCredentials = () => {
-    if (!cursoInfo || estudiantes.length === 0) {
-      showError("No hay estudiantes en este curso para generar credenciales.");
-      return;
+  const handleDownloadCredentials = async () => {
+    if (!cursoInfo) return;
+    try {
+      const studentsToDownload = await queryClient.fetchQuery({
+        queryKey: ['courseStudents', cursoInfo.curso.id],
+        queryFn: () => fetchEstudiantesPorCurso(cursoInfo.curso.id),
+      });
+
+      if (!studentsToDownload || studentsToDownload.length === 0) {
+        showError("No hay estudiantes en este curso para generar credenciales.");
+        return;
+      }
+
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text(`Credenciales de Acceso - ${cursoInfo.curso.nivel.nombre} ${cursoInfo.curso.nombre}`, 14, 22);
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text("A continuación se listan los datos de acceso para los estudiantes.", 14, 30);
+      doc.text("La contraseña temporal es el RUT del estudiante, sin puntos ni guion.", 14, 36);
+
+      const tableData = studentsToDownload.map(est => [
+        est.nombre_completo,
+        est.email || 'No asignado',
+        est.rut ? est.rut.replace(/[.-]/g, '') : 'SIN RUT',
+      ]);
+
+      autoTable(doc, {
+        startY: 45,
+        head: [['Nombre Completo', 'Email de Acceso', 'Contraseña Temporal']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [34, 49, 63] },
+      });
+
+      doc.save(`credenciales-${cursoInfo.curso.nivel.nombre}-${cursoInfo.curso.nombre}.pdf`);
+    } catch (error: any) {
+      showError(`Error al generar el PDF: ${error.message}`);
     }
-
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text(`Credenciales de Acceso - ${cursoInfo.curso.nivel.nombre} ${cursoInfo.curso.nombre}`, 14, 22);
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text("A continuación se listan los datos de acceso para los estudiantes.", 14, 30);
-    doc.text("La contraseña temporal es el RUT del estudiante, sin puntos ni guion.", 14, 36);
-
-    const tableData = estudiantes.map(est => [
-      est.nombre_completo,
-      est.email || 'No asignado',
-      est.rut ? est.rut.replace(/[.-]/g, '') : 'SIN RUT',
-    ]);
-
-    autoTable(doc, {
-      startY: 45,
-      head: [['Nombre Completo', 'Email de Acceso', 'Contraseña Temporal']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [34, 49, 63] },
-    });
-
-    doc.save(`credenciales-${cursoInfo.curso.nivel.nombre}-${cursoInfo.curso.nombre}.pdf`);
   };
 
   const handleEditClick = (estudiante: Estudiante) => {
