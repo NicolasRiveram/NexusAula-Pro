@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { fetchDesignSettings, getDesignAssetUrl } from '@/api/design';
+import { fetchDesignSettings, getDesignAssetUrl } from '@/api/designApi';
 
 interface DesignContextType {
   settings: Record<string, string | null>;

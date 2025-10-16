@@ -21,7 +21,7 @@ import { fetchRelevantProjects, SimpleProject } from '@/api/projectsApi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { fetchDocenteAsignaturas, Asignatura, Nivel, fetchDocenteNiveles } from '@/api/courses';
+import { fetchDocenteAsignaturas, Asignatura, Nivel, fetchDocenteNiveles } from '@/api/coursesApi';
 
 const schema = z.object({
   asignaturaId: z.string().uuid("Debes seleccionar una asignatura."),

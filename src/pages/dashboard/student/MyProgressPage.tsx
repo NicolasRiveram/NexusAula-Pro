@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { fetchStudentEvaluationHistory, fetchStudentPerformanceStats, fetchStudentSkillPerformance } from '@/api/student';
+import { fetchStudentEvaluationHistory, fetchStudentPerformanceStats, fetchStudentSkillPerformance } from '@/api/coursesApi';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
 import { Progress } from '@/components/ui/progress';
@@ -62,47 +62,43 @@ const MyProgressPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <Card>
-              <CardHeader>
-                  <CardTitle>Rendimiento General</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                  <div>
-                      <p className="text-sm font-medium">Promedio General de Logro</p>
-                      <p className="text-2xl font-bold">{stats?.average_score?.toFixed(1) ?? 'N/A'}%</p>
-                      <Progress value={stats?.average_score ?? 0} className="mt-1" />
-                  </div>
-                  <div>
-                      <p className="text-sm font-medium">Evaluaciones Completadas</p>
-                      <p className="text-2xl font-bold">{stats?.completed_evaluations ?? 0} / {stats?.total_evaluations ?? 0}</p>
-                  </div>
-              </CardContent>
-          </Card>
-        </div>
-        <div className="lg:col-span-2">
-          <Card>
-              <CardHeader>
-                  <CardTitle>Desempeño por Habilidad</CardTitle>
-                  <CardDescription>Tu promedio de logro en las diferentes habilidades evaluadas.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                  {skillPerformance && skillPerformance.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={200}>
-                          <BarChart data={skillPerformance.map(s => ({ name: s.habilidad_nombre, Logro: s.promedio_logro }))}>
-                              <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                              <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
-                              <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} formatter={(value: number) => [`${value.toFixed(1)}%`, 'Logro']} />
-                              <Legend />
-                              <Bar dataKey="Logro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                      </ResponsiveContainer>
-                  ) : (
-                      <p className="text-center text-muted-foreground py-10">No hay datos de habilidades para mostrar.</p>
-                  )}
-              </CardContent>
-          </Card>
-        </div>
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Rendimiento General</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm font-medium">Promedio General de Logro</p>
+              <p className="text-2xl font-bold">{stats?.average_score?.toFixed(1) ?? 'N/A'}%</p>
+              <Progress value={stats?.average_score ?? 0} className="mt-1" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Evaluaciones Completadas</p>
+              <p className="text-2xl font-bold">{stats?.completed_evaluations ?? 0} / {stats?.total_evaluations ?? 0}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Desempeño por Habilidad</CardTitle>
+            <CardDescription>Tu promedio de logro en las diferentes habilidades evaluadas.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {skillPerformance && skillPerformance.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={skillPerformance.map(s => ({ name: s.habilidad_nombre, Logro: s.promedio_logro }))}>
+                  <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} formatter={(value: number) => [`${value.toFixed(1)}%`, 'Logro']} />
+                  <Legend />
+                  <Bar dataKey="Logro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-muted-foreground py-10">No hay datos de habilidades para mostrar.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

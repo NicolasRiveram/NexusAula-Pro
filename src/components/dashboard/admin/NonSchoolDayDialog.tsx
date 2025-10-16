@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { saveNonSchoolDay, NonSchoolDay } from '@/api/admin';
+import { saveNonSchoolDay, NonSchoolDay } from '@/api/adminApi';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { showError, showSuccess } from '@/utils/toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';

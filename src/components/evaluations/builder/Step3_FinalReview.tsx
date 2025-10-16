@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { EvaluationDetail } from '@/api/evaluations';
+import { EvaluationDetail } from '@/api/evaluationsApi';
 
 interface Step3FinalReviewProps {
   control: Control<any>;

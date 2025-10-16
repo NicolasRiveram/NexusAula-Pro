@@ -3,7 +3,7 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { fetchPendingRequests, approveRequest, rejectRequest } from '@/api/admin';
+import { fetchPendingRequests, approveRequest, rejectRequest } from '@/api/adminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';

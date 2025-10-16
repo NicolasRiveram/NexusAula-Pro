@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { CursoBase } from '@/api/courses';
-import { deleteCourse } from '@/api/admin';
+import { CursoBase } from '@/api/coursesApi';
+import { deleteCourse } from '@/api/adminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { MoreHorizontal, Trash2, Edit, PlusCircle, ArrowLeft } from 'lucide-react';
 import CourseEditDialog from '@/components/dashboard/admin/CourseEditDialog';

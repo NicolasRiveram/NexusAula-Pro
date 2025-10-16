@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import { Loader2, TrendingUp, TrendingDown } from 'lucide-react';
-import { fetchCursosAsignaturasDocente, fetchCursosPorEstablecimiento, CursoAsignatura, CursoBase } from '@/api/courses';
+import { fetchCursosAsignaturasDocente, fetchCursosPorEstablecimiento, CursoAsignatura, CursoBase } from '@/api/coursesApi';
 import { 
   fetchStudentPerformance, 
   fetchSkillPerformance, 
@@ -13,7 +13,7 @@ import {
   fetchEstablishmentSkillPerformance,
   StudentPerformance, 
   SkillPerformance 
-} from '@/api/analytics';
+} from '@/api/analyticsApi';
 import { showError } from '@/utils/toast';
 import PerformanceSummaryCard from '@/components/analytics/PerformanceSummaryCard';
 import { useAuth } from '@/contexts/AuthContext';

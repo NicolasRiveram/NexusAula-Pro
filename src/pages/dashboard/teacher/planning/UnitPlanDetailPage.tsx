@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ArrowLeft, Loader2, BookOpen, Target, Lightbulb, Calendar } from 'lucide-react';
-import { fetchUnitPlanDetails, updateClassStatus, updateClassDetails, ScheduledClass, UpdateClassPayload, updateMasterClassDetails } from '@/api/planning';
+import { fetchUnitPlanDetails, updateClassStatus, updateClassDetails, ScheduledClass, UpdateClassPayload, updateMasterClassDetails } from '@/api/planningApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';

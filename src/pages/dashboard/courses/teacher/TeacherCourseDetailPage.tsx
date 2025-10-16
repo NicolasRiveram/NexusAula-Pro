@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, updateStudentProfile, Estudiante } from '@/api/courses';
+import { fetchDetallesCursoAsignatura, fetchEstudiantesPorCurso, updateStudentProfile, Estudiante } from '@/api/coursesApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';

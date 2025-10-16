@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ScheduledClass, UpdateClassPayload } from '@/api/planning';
+import { ScheduledClass, UpdateClassPayload } from '@/api/planningApi';
 
 const schema = z.object({
   titulo: z.string().min(1, "El título es requerido."),

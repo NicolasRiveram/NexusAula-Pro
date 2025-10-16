@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Download } from 'lucide-react';
-import { fetchReportById, Report } from '@/api/reports';
+import { fetchReportById, Report } from '@/api/reportsApi';
 import { showError } from '@/utils/toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { printComponent } from '@/utils/printUtils';

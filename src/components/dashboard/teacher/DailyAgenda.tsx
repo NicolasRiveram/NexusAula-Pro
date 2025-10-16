@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Clock, FileText, Megaphone, Loader2, BookOpen } from 'lucide-react';
-import { fetchDashboardDataForDay, DailyAgendaData, AgendaClase } from '@/api/dashboard';
+import { fetchDashboardDataForDay, DailyAgendaData, AgendaClase } from '@/api/dashboardApi';
 import { showError } from '@/utils/toast';
 import { Establishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';

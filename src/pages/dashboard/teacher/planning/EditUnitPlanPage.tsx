@@ -12,8 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { MultiSelect } from '@/components/MultiSelect';
 import { ArrowLeft, Loader2, Save, CalendarIcon, Edit, Sparkles } from 'lucide-react';
-import { updateUnitPlanDetails, updateClassDetails, ScheduledClass, UpdateClassPayload, scheduleClassesFromUnitPlan } from '@/api/planning';
-import { fetchCursosAsignaturasDocente } from '@/api/courses';
+import { updateUnitPlanDetails, updateClassDetails, ScheduledClass, UpdateClassPayload, scheduleClassesFromUnitPlan } from '@/api/planningApi';
+import { fetchCursosAsignaturasDocente } from '@/api/coursesApi';
 import { showError, showSuccess } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';

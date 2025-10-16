@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Trash2 } from 'lucide-react';
-import { EvaluationItem } from '@/api/evaluations';
+import { EvaluationItem } from '@/api/evaluationsApi';
 
 const alternativeSchema = z.object({
   texto: z.string().min(1, "El texto no puede estar vacío."),
@@ -98,7 +98,7 @@ const EditQuestionDialog: React.FC<EditQuestionDialogProps> = ({ isOpen, onClose
                     <Controller
                       name={`alternativas.${index}.texto`}
                       control={control}
-                      render={({ field: altField }) => <Input placeholder={`Alternativa ${String.fromCharCode(97 + index)}`} {...altField} />}
+                      render={({ field }) => <Input placeholder={`Alternativa ${String.fromCharCode(97 + index)}`} {...field} />}
                     />
                     <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 2}>
                       <Trash2 className="h-4 w-4 text-destructive" />

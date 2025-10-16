@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura } from '@/api/courses';
+import { fetchCursosAsignaturasDocente, fetchEstudiantesPorCurso, CursoAsignatura } from '@/api/coursesApi';
 import CreateCourseDialog from '@/components/courses/CreateCourseDialog';
 import AssignSubjectDialog from '@/components/courses/AssignSubjectDialog';
 import EnrollStudentsDialog from '@/components/courses/EnrollStudentsDialog';

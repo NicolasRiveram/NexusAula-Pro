@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from '@/lib/utils';
-import { getLogoPublicUrl } from '@/api/settings';
+import { getLogoPublicUrl } from '@/api/settingsApi';
 import { useDesign } from '@/contexts/DesignContext';
 import { ThemeToggle } from '../theme-toggle';
 import NavLinks from './NavLinks';

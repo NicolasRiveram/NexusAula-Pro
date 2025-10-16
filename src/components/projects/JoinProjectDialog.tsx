@@ -6,7 +6,7 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/courses';
+import { fetchCursosAsignaturasDocente, CursoAsignatura } from '@/api/coursesApi';
 import { showError } from '@/utils/toast';
 import { MultiSelect } from '@/components/MultiSelect';
 import { useQuery } from '@tanstack/react-query';

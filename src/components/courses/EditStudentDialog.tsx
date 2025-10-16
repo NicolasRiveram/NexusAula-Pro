@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { updateStudentProfile, Estudiante } from '@/api/student';
+import { updateStudentProfile, Estudiante } from '@/api/studentApi';
 import { showSuccess, showError } from '@/utils/toast';
 import { useMutation } from '@tanstack/react-query';
 

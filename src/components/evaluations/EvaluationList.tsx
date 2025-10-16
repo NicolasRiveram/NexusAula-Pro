@@ -1,5 +1,5 @@
 import React from 'react';
-import { Evaluation } from '@/api/evaluations';
+import { Evaluation } from '@/api/evaluationsApi';
 import EvaluationCard from './EvaluationCard';
 
 interface EvaluationListProps {

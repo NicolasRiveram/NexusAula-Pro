@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Evaluation } from '@/api/evaluations';
+import { Evaluation } from '@/api/evaluationsApi';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatEvaluationType } from '@/utils/evaluationUtils';

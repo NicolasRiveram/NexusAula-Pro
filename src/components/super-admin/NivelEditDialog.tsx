@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { saveNivel, Nivel, NivelData } from '@/api/super-admin';
+import { saveNivel, Nivel, NivelData } from '@/api/superAdminApi';
 import { showSuccess, showError } from '@/utils/toast';
 
 const schema = z.object({

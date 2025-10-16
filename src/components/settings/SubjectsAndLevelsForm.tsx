@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { UserPedagogicalProfile, updateUserPedagogicalProfile } from '@/api/settingsApi';
-import { fetchAsignaturas, fetchNiveles, Asignatura, Nivel } from '@/api/courses';
+import { fetchAsignaturas, fetchNiveles, Asignatura, Nivel } from '@/api/coursesApi';
 import { showSuccess, showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import { MultiSelect } from '@/components/MultiSelect';

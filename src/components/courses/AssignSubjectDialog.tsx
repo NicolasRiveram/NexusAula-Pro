@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { fetchCursosPorEstablecimiento, fetchDocenteAsignaturas, asignarAsignatura } from '@/api/courses';
+import { fetchCursosPorEstablecimiento, fetchDocenteAsignaturas, asignarAsignatura } from '@/api/coursesApi';
 import { showSuccess, showError } from '@/utils/toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';

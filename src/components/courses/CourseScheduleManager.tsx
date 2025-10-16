@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
-import { fetchScheduleForCourse, deleteScheduleBlock, ScheduleBlock } from '@/api/schedule';
+import { fetchScheduleForCourse, deleteScheduleBlock, ScheduleBlock } from '@/api/scheduleApi';
 import { showError, showSuccess } from '@/utils/toast';
 import ScheduleEditDialog from '@/components/schedule/ScheduleEditDialog';
 import {

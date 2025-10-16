@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { fetchStudentWeeklySchedule, StudentScheduleBlock } from '@/api/student';
+import { fetchStudentWeeklySchedule, StudentScheduleBlock } from '@/api/studentApi';
 import { showError } from '@/utils/toast';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';

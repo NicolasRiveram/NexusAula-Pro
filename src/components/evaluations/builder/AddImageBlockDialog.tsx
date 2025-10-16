@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createContentBlock, uploadEvaluationImage, EvaluationContentBlock, getPublicImageUrl, updateContentBlock } from '@/api/evaluations';
+import { createContentBlock, uploadEvaluationImage, EvaluationContentBlock, getPublicImageUrl, updateContentBlock } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
