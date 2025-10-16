@@ -114,7 +114,10 @@ const EvaluationPage = () => {
     setIsPrinting(true);
     const toastId = showLoading("Preparando evaluación para imprimir...");
     try {
-      const evaluationDetails = await fetchEvaluationDetails(evaluationToPrint);
+      const evaluationDetails = await queryClient.fetchQuery({
+        queryKey: ['evaluationDetails', evaluationToPrint],
+        queryFn: () => fetchEvaluationDetails(evaluationToPrint),
+      });
 
       if (!evaluationDetails.aspectos_a_evaluar_ia) {
         showError("Falta el resumen 'Aspectos a Evaluar'. Por favor, edita y finaliza la evaluación para generarlo.");
@@ -233,8 +236,14 @@ const EvaluationPage = () => {
 
     try {
       const [evaluation, students] = await Promise.all([
-        fetchEvaluationDetails(evaluationForAnswerSheet),
-        fetchStudentsForEvaluation(evaluationForAnswerSheet),
+        queryClient.fetchQuery({
+          queryKey: ['evaluationDetails', evaluationForAnswerSheet],
+          queryFn: () => fetchEvaluationDetails(evaluationForAnswerSheet),
+        }),
+        queryClient.fetchQuery({
+          queryKey: ['studentsForEvaluation', evaluationForAnswerSheet],
+          queryFn: () => fetchStudentsForEvaluation(evaluationForAnswerSheet),
+        })
       ]);
 
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
