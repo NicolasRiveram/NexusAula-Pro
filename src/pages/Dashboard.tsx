@@ -22,9 +22,9 @@ const Dashboard = () => {
     <>
       <TeacherTour run={runTour} onTourEnd={handleTourEnd} />
       <div className="flex h-screen bg-background">
-        <Sidebar profile={profile} />
+        <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header profile={profile} />
+          <Header />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-8" data-tour="main-content">
             {isTrial && <TrialBanner trialEndsAt={profile.trial_ends_at || null} />}
             <Outlet />
