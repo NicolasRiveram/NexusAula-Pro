@@ -19,8 +19,8 @@ const EvaluationResultsPage = lazy(() => import("../pages/dashboard/evaluations/
 const EvaluationTakerPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationTakerPage"));
 const EvaluationScannerPage = lazy(() => import("../pages/dashboard/evaluations/EvaluationScannerPage"));
 const AdaptPIEPage = lazy(() => import("../pages/dashboard/evaluations/AdaptPIEPage"));
-const ProjectsPage = lazy(() => import("../pages/dashboard/ProjectsPage"));
-const ProjectDetailPage = lazy(() => import("../pages/dashboard/ProjectDetailPage"));
+const ProjectsPage = lazy(() => import("../pages/dashboard/projects/ProjectsPage"));
+const ProjectDetailPage = lazy(() => import("../pages/dashboard/projects/ProjectDetailPage"));
 const SettingsPage = lazy(() => import("../pages/dashboard/SettingsPage"));
 const CourseDetailPage = lazy(() => import("../pages/dashboard/CourseDetailPage"));
 const StudentDetailPage = lazy(() => import("../pages/dashboard/StudentDetailPage"));
