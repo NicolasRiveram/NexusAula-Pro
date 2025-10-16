@@ -1,24 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { PlusCircle, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { fetchEvaluations, Evaluation, fetchEvaluationDetails, deleteEvaluation, deleteMultipleEvaluations, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
-import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
+import { PlusCircle, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatEvaluationType } from '@/utils/evaluationUtils';
-import { printComponent } from '@/utils/printUtils';
-import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
-import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/printable/PrintAnswerSheetDialog';
-import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
-import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
-import { seededShuffle } from '@/utils/shuffleUtils';
+import { fetchEvaluations, Evaluation, deleteEvaluation, deleteMultipleEvaluations, fetchEvaluationDetails, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
+import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,11 +17,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Checkbox } from '@/components/ui/checkbox';
 import PrintEvaluationDialog, { PrintFormData } from '@/components/evaluations/printable/PrintEvaluationDialog';
+import PrintAnswerSheetDialog, { AnswerSheetFormData } from '@/components/evaluations/printable/PrintAnswerSheetDialog';
 import AnswerKeyDialog from '@/components/evaluations/AnswerKeyDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import EvaluationList from '@/components/evaluations/EvaluationList';
+import { printComponent } from '@/utils/printUtils';
+import PrintableEvaluation from '@/components/evaluations/printable/PrintableEvaluation';
+import PrintableAnswerSheet from '@/components/evaluations/printable/PrintableAnswerSheet';
+import PrintableAnswerKey from '@/components/evaluations/printable/PrintableAnswerKey';
+import { seededShuffle } from '@/utils/shuffleUtils';
 
 const TeacherEvaluationPage = () => {
   const navigate = useNavigate();
@@ -150,7 +144,7 @@ const TeacherEvaluationPage = () => {
     onMutate: () => showLoading("Preparando evaluación para imprimir..."),
     onSuccess: (_, __, toastId) => dismissToast(toastId),
     onError: (error: any, _, toastId) => {
-      dismissToast(toastId);
+      if (toastId) dismissToast(toastId);
       showError(`Error al preparar la impresión: ${error.message}`);
     },
     onSettled: () => {
@@ -197,7 +191,7 @@ const TeacherEvaluationPage = () => {
     onMutate: () => showLoading("Generando hojas de respuesta y pautas..."),
     onSuccess: (_, __, toastId) => dismissToast(toastId),
     onError: (error: any, _, toastId) => {
-      dismissToast(toastId);
+      if (toastId) dismissToast(toastId);
       showError(`Error al generar las hojas: ${error.message}`);
     },
     onSettled: () => setAnswerSheetModalOpen(false),
@@ -234,188 +228,66 @@ const TeacherEvaluationPage = () => {
     }
   };
 
-  const groupEvaluationsByLevel = (evals: Evaluation[]): Record<string, Evaluation[]> => {
-    const groups: Record<string, Evaluation[]> = {};
-    evals.forEach(evaluation => {
-      const levels = new Set<string>();
-      if (evaluation.curso_asignaturas && evaluation.curso_asignaturas.length > 0) {
-        evaluation.curso_asignaturas.forEach(ca => {
-          if (ca.curso?.nivel?.nombre) {
-            levels.add(ca.curso.nivel.nombre);
-          }
-        });
-      }
-
-      if (levels.size === 0) {
-        const key = 'Sin Asignar';
-        if (!groups[key]) groups[key] = [];
-        if (!groups[key].some(e => e.id === evaluation.id)) {
-          groups[key].push(evaluation);
-        }
-      } else {
-        levels.forEach(levelName => {
-          if (!groups[levelName]) groups[levelName] = [];
-          if (!groups[levelName].some(e => e.id === evaluation.id)) {
-            groups[levelName].push(evaluation);
-          }
-        });
-      }
-    });
-    return groups;
-  };
-
   const renderEvaluations = (filterType?: string) => {
     const filtered = filterType ? teacherEvaluations.filter(e => e.tipo === filterType) : teacherEvaluations;
     
-    if (filtered.length === 0) {
-      return (
-        <div className="text-center py-12 border-2 border-dashed rounded-lg mt-4">
-          <h3 className="text-xl font-semibold">No hay evaluaciones de este tipo</h3>
-          <p className="text-muted-foreground mt-2">Crea una nueva evaluación para empezar.</p>
-        </div>
-      );
-    }
-
-    const grouped = groupEvaluationsByLevel(filtered);
-    const sortedLevels = Object.keys(grouped).sort();
-
     return (
-      <div className="space-y-8 mt-4">
-        {sortedLevels.map(levelName => (
-          <div key={levelName}>
-            <h2 className="text-2xl font-bold mb-4 pb-2 border-b">{levelName}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {grouped[levelName].map(evaluation => (
-                <div key={evaluation.id} className="relative">
-                  <div className="absolute top-2 left-2 z-10">
-                    <Checkbox
-                      checked={selectedEvaluations.includes(evaluation.id)}
-                      onCheckedChange={(checked) => handleSelectionChange(evaluation.id, !!checked)}
-                      className="bg-white"
-                    />
-                  </div>
-                  <Card className="flex flex-col h-full">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 pr-8">
-                          <CardTitle>{evaluation.titulo}</CardTitle>
-                          <CardDescription>
-                            Aplicación: {evaluation.fecha_aplicacion ? format(parseISO(evaluation.fecha_aplicacion), "d 'de' LLLL, yyyy", { locale: es }) : 'Sin fecha definida'}
-                          </CardDescription>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
-                              <Eye className="mr-2 h-4 w-4" /> Ver / Editar Contenido
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
-                              <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setEvaluationForAnswerKey(evaluation.id); setAnswerKeyDialogOpen(true); }}>
-                              <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
-                              <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
-                              <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <Badge variant="secondary" className="capitalize">{formatEvaluationType(evaluation.tipo)}</Badge>
-                          {evaluation.momento_evaluativo && <Badge variant="outline" className="capitalize">{evaluation.momento_evaluativo}</Badge>}
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {evaluation.curso_asignaturas.map((ca, index) => (
-                            <Badge key={index} variant="outline">
-                              {ca.curso.nivel.nombre} {ca.curso.nombre}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)} variant="secondary" className="w-full">
-                        <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <EvaluationList
+        evaluations={filtered}
+        selectedEvaluations={selectedEvaluations}
+        onSelectionChange={handleSelectionChange}
+        onViewDetails={(id) => navigate(`/dashboard/evaluacion/${id}`)}
+        onViewResults={(id) => navigate(`/dashboard/evaluacion/${id}/resultados`)}
+        onShowAnswerKey={(id) => { setEvaluationForAnswerKey(id); setAnswerKeyDialogOpen(true); }}
+        onPrint={handlePrintClick}
+        onPrintAnswerSheet={handleAnswerSheetClick}
+        onDelete={handleDeleteClick}
+        onCorrectWithCamera={(id) => navigate(`/dashboard/evaluacion/${id}/corregir`)}
+      />
     );
   };
 
   return (
-    <div className="container mx-auto space-y-6">
-      {loading ? (
-        <p>Cargando evaluaciones...</p>
-      ) : !activeEstablishment ? (
-        <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <h3 className="text-xl font-semibold">Selecciona un establecimiento</h3>
-          <p className="text-muted-foreground mt-2">Elige un establecimiento para gestionar tus evaluaciones.</p>
+    <>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Banco de Evaluaciones</h1>
+          <p className="text-muted-foreground">Crea, gestiona y comparte tus instrumentos de evaluación.</p>
         </div>
-      ) : (
-        <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Banco de Evaluaciones</h1>
-              <p className="text-muted-foreground">Crea, gestiona y comparte tus instrumentos de evaluación.</p>
-            </div>
-            <div className="flex gap-2 w-full md:w-auto">
-              {selectedEvaluations.length > 0 ? (
-                <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)} className="w-full">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar ({selectedEvaluations.length})
-                </Button>
-              ) : (
-                <>
-                  <Button asChild variant="outline" disabled={!activeEstablishment} className="w-1/2">
-                    <Link to="/dashboard/rubricas/crear">
-                      <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
-                    </Link>
-                  </Button>
-                  <Button asChild disabled={!activeEstablishment} className="w-1/2">
-                    <Link to="/dashboard/evaluacion/crear">
-                      <PlusCircle className="mr-2 h-4 w-4" /> Crear Evaluación
-                    </Link>
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-          <Tabs defaultValue="todas" className="w-full">
-            <TabsList>
-              <TabsTrigger value="todas">Todas</TabsTrigger>
-              <TabsTrigger value="prueba">Pruebas</TabsTrigger>
-              <TabsTrigger value="guia_de_trabajo">Guías</TabsTrigger>
-              <TabsTrigger value="otro">Otras</TabsTrigger>
-            </TabsList>
-            <TabsContent value="todas">{renderEvaluations()}</TabsContent>
-            <TabsContent value="prueba">{renderEvaluations('prueba')}</TabsContent>
-            <TabsContent value="guia_de_trabajo">{renderEvaluations('guia_de_trabajo')}</TabsContent>
-            <TabsContent value="otro">{renderEvaluations('otro')}</TabsContent>
-          </Tabs>
-        </>
-      )}
+        <div className="flex gap-2 w-full md:w-auto">
+          {selectedEvaluations.length > 0 ? (
+            <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)} className="w-full">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar ({selectedEvaluations.length})
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="outline" disabled={!activeEstablishment} className="w-1/2">
+                <Link to="/dashboard/rubricas/crear">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
+                </Link>
+              </Button>
+              <Button asChild disabled={!activeEstablishment} className="w-1/2">
+                <Link to="/dashboard/evaluacion/crear">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Crear Evaluación
+                </Link>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      <Tabs defaultValue="todas" className="w-full">
+        <TabsList>
+          <TabsTrigger value="todas">Todas</TabsTrigger>
+          <TabsTrigger value="prueba">Pruebas</TabsTrigger>
+          <TabsTrigger value="guia_de_trabajo">Guías</TabsTrigger>
+          <TabsTrigger value="otro">Otras</TabsTrigger>
+        </TabsList>
+        <TabsContent value="todas">{renderEvaluations()}</TabsContent>
+        <TabsContent value="prueba">{renderEvaluations('prueba')}</TabsContent>
+        <TabsContent value="guia_de_trabajo">{renderEvaluations('guia_de_trabajo')}</TabsContent>
+        <TabsContent value="otro">{renderEvaluations('otro')}</TabsContent>
+      </Tabs>
 
       <PrintEvaluationDialog
         isOpen={isPrintModalOpen}
@@ -471,7 +343,7 @@ const TeacherEvaluationPage = () => {
         onClose={() => setAnswerKeyDialogOpen(false)}
         evaluationId={evaluationForAnswerKey}
       />
-    </div>
+    </>
   );
 };
 
