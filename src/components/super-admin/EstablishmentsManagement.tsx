@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -19,33 +19,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const EstablishmentsManagement = () => {
-  const queryClient = useQueryClient();
+  const [establishments, setEstablishments] = useState<Establishment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
   const [establishmentToDelete, setEstablishmentToDelete] = useState<Establishment | null>(null);
 
-  const { data: establishments = [], isLoading: loading } = useQuery({
-    queryKey: ['allEstablishments'],
-    queryFn: fetchAllEstablishments,
-    onError: (error: any) => showError(error.message),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteEstablishment,
-    onSuccess: () => {
-      showSuccess("Establecimiento eliminado.");
-      queryClient.invalidateQueries({ queryKey: ['allEstablishments'] });
-    },
-    onError: (error: any) => showError(error.message),
-    onSettled: () => {
-      setAlertOpen(false);
-      setEstablishmentToDelete(null);
+  const loadEstablishments = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchAllEstablishments();
+      setEstablishments(data);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setLoading(false);
     }
-  });
+  };
+
+  useEffect(() => {
+    loadEstablishments();
+  }, []);
 
   const handleAdd = () => {
     setSelectedEstablishment(null);
@@ -62,9 +59,17 @@ const EstablishmentsManagement = () => {
     setAlertOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (establishmentToDelete) {
-      deleteMutation.mutate(establishmentToDelete.id);
+  const confirmDelete = async () => {
+    if (!establishmentToDelete) return;
+    try {
+      await deleteEstablishment(establishmentToDelete.id);
+      showSuccess("Establecimiento eliminado.");
+      loadEstablishments();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setAlertOpen(false);
+      setEstablishmentToDelete(null);
     }
   };
 
@@ -116,7 +121,7 @@ const EstablishmentsManagement = () => {
       <EstablishmentEditDialog
         isOpen={isDialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['allEstablishments'] })}
+        onSaved={loadEstablishments}
         establishment={selectedEstablishment}
       />
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -18,60 +19,66 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
 
 const RubricsPage = () => {
+  const [rubrics, setRubrics] = useState<Rubric[]>([]);
+  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [rubricToDelete, setRubricToDelete] = useState<Rubric | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  const { data: rubrics = [], isLoading: loading } = useQuery({
-    queryKey: ['rubrics', user?.id, activeEstablishment?.id],
-    queryFn: () => fetchRubrics(user!.id, activeEstablishment!.id),
-    enabled: !!user && !!activeEstablishment,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteRubric,
-    onSuccess: () => {
-      showSuccess("Rúbrica eliminada.");
-      queryClient.invalidateQueries({ queryKey: ['rubrics', user?.id, activeEstablishment?.id] });
-    },
-    onError: (error: any) => {
-      showError(error.message);
-    },
-    onSettled: () => {
-      setIsAlertOpen(false);
-      setRubricToDelete(null);
+  const loadRubrics = useCallback(async () => {
+    if (!activeEstablishment) {
+      setRubrics([]);
+      setLoading(false);
+      return;
     }
-  });
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      try {
+        const data = await fetchRubrics(user.id, activeEstablishment.id);
+        setRubrics(data);
+      } catch (err: any) {
+        showError(`Error al cargar rúbricas: ${err.message}`);
+      }
+    }
+    setLoading(false);
+  }, [activeEstablishment]);
+
+  useEffect(() => {
+    loadRubrics();
+  }, [loadRubrics]);
 
   const handleDeleteClick = (rubric: Rubric) => {
     setRubricToDelete(rubric);
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (rubricToDelete) {
-      deleteMutation.mutate(rubricToDelete.id);
+  const confirmDelete = async () => {
+    if (!rubricToDelete) return;
+    try {
+      await deleteRubric(rubricToDelete.id);
+      showSuccess("Rúbrica eliminada.");
+      loadRubrics();
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setIsAlertOpen(false);
+      setRubricToDelete(null);
     }
   };
 
-  const groupedRubrics = useMemo(() => {
-    return rubrics.reduce((acc, rubric) => {
-      const category = rubric.categoria || 'Sin Categoría';
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(rubric);
-      return acc;
-    }, {} as Record<string, Rubric[]>);
-  }, [rubrics]);
+  const groupedRubrics = rubrics.reduce((acc, rubric) => {
+    const category = rubric.categoria || 'Sin Categoría';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(rubric);
+    return acc;
+  }, {} as Record<string, Rubric[]>);
 
-  const sortedCategories = useMemo(() => Object.keys(groupedRubrics).sort(), [groupedRubrics]);
+  const sortedCategories = Object.keys(groupedRubrics).sort();
 
   return (
     <>

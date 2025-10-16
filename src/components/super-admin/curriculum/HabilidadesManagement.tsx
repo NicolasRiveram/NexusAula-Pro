@@ -3,79 +3,40 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
-import { Habilidad, deleteHabilidad, deleteMultipleHabilidades, fetchAllHabilidades } from '@/api/superAdminApi';
+import { Habilidad, deleteHabilidad } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import HabilidadEditDialog from '../HabilidadEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-const HabilidadesManagement = () => {
-  const queryClient = useQueryClient();
+interface HabilidadesManagementProps {
+  habilidades: Habilidad[];
+  onDataChange: () => void;
+  selectedHabilidades: string[];
+  setSelectedHabilidades: React.Dispatch<React.SetStateAction<string[]>>;
+  openBulkDeleteDialog: (type: 'habilidad') => void;
+}
+
+const HabilidadesManagement: React.FC<HabilidadesManagementProps> = ({ habilidades, onDataChange, selectedHabilidades, setSelectedHabilidades, openBulkDeleteDialog }) => {
   const [isHabilidadDialogOpen, setHabilidadDialogOpen] = useState(false);
   const [selectedHabilidad, setSelectedHabilidad] = useState<Habilidad | null>(null);
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [habilidadToDelete, setHabilidadToDelete] = useState<Habilidad | null>(null);
-  const [selectedHabilidades, setSelectedHabilidades] = useState<string[]>([]);
 
-  const { data: habilidades = [], isLoading } = useQuery({
-    queryKey: ['habilidades'],
-    queryFn: fetchAllHabilidades,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteHabilidad,
-    onSuccess: () => {
-      showSuccess('Habilidad eliminada.');
-      queryClient.invalidateQueries({ queryKey: ['habilidades'] });
-    },
-    onError: (error: any) => showError(error.message),
-    onSettled: () => {
-      setIsAlertOpen(false);
-      setHabilidadToDelete(null);
-    }
-  });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: deleteMultipleHabilidades,
-    onSuccess: (_, variables) => {
-      showSuccess(`${variables.length} habilidad(es) eliminadas.`);
-      queryClient.invalidateQueries({ queryKey: ['habilidades'] });
-      setSelectedHabilidades([]);
-    },
-    onError: (error: any) => showError(error.message),
-    onSettled: () => setIsAlertOpen(false),
-  });
-
-  const handleDeleteClick = (item: Habilidad) => {
-    setHabilidadToDelete(item);
-    setIsAlertOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (habilidadToDelete) {
-      deleteMutation.mutate(habilidadToDelete.id);
-    } else if (selectedHabilidades.length > 0) {
-      bulkDeleteMutation.mutate(selectedHabilidades);
+  const handleDelete = async (item: Habilidad) => {
+    if (window.confirm(`¿Seguro que quieres eliminar "${item.nombre}"?`)) {
+      try {
+        await deleteHabilidad(item.id);
+        showSuccess('Habilidad eliminada.');
+        onDataChange();
+      } catch (error: any) {
+        showError(error.message);
+      }
     }
   };
-
-  if (isLoading) return <p>Cargando habilidades...</p>;
 
   return (
     <>
       <div className="flex justify-end mb-4">
         {selectedHabilidades.length > 0 ? (
-          <Button variant="destructive" onClick={() => setIsAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedHabilidades.length})</Button>
+          <Button variant="destructive" onClick={() => openBulkDeleteDialog('habilidad')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedHabilidades.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedHabilidad(null); setHabilidadDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Habilidad</Button>
         )}
@@ -100,7 +61,7 @@ const HabilidadesManagement = () => {
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedHabilidad(h); setHabilidadDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDeleteClick(h)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDelete(h)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -108,21 +69,7 @@ const HabilidadesManagement = () => {
           ))}
         </TableBody>
       </Table>
-      <HabilidadEditDialog isOpen={isHabilidadDialogOpen} onClose={() => setHabilidadDialogOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['habilidades'] })} habilidad={selectedHabilidad} />
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {habilidadToDelete ? `Se eliminará permanentemente la habilidad "${habilidadToDelete.nombre}".` : `Se eliminarán permanentemente ${selectedHabilidades.length} habilidades.`} Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setHabilidadToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <HabilidadEditDialog isOpen={isHabilidadDialogOpen} onClose={() => setHabilidadDialogOpen(false)} onSaved={onDataChange} habilidad={selectedHabilidad} />
     </>
   );
 };

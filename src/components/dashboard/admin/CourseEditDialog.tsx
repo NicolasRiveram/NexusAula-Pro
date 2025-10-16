@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchNiveles, crearCurso, Nivel, CursoBase } from '@/api/coursesApi';
 import { updateCourse } from '@/api/adminApi';
 import { showSuccess, showError } from '@/utils/toast';
-import { useQuery, useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   nivelId: z.string().uuid("Debes seleccionar un nivel."),
@@ -30,11 +29,8 @@ interface CourseEditDialogProps {
 
 const CourseEditDialog: React.FC<CourseEditDialogProps> = ({ isOpen, onClose, onSaved, course }) => {
   const { activeEstablishment } = useEstablishment();
-  
-  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({
-    queryKey: ['niveles'],
-    queryFn: fetchNiveles,
-  });
+  const [niveles, setNiveles] = useState<Nivel[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -42,6 +38,7 @@ const CourseEditDialog: React.FC<CourseEditDialogProps> = ({ isOpen, onClose, on
 
   useEffect(() => {
     if (isOpen) {
+      fetchNiveles().then(setNiveles).catch(err => showError(err.message));
       if (course) {
         reset({
           nombre: course.nombre,
@@ -54,27 +51,24 @@ const CourseEditDialog: React.FC<CourseEditDialogProps> = ({ isOpen, onClose, on
     }
   }, [isOpen, course, reset]);
 
-  const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      if (!activeEstablishment) throw new Error("No hay un establecimiento activo.");
+  const onSubmit = async (data: FormData) => {
+    if (!activeEstablishment) return;
+    setIsSubmitting(true);
+    try {
       if (course) {
         await updateCourse(course.id, data.nombre, data.nivelId, data.anio);
+        showSuccess("Curso actualizado.");
       } else {
         await crearCurso(data.nombre, data.nivelId, data.anio, activeEstablishment.id);
+        showSuccess("Curso creado.");
       }
-    },
-    onSuccess: () => {
-      showSuccess(course ? "Curso actualizado." : "Curso creado.");
       onSaved();
       onClose();
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
       showError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-  });
-
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
   };
 
   return (
@@ -89,7 +83,7 @@ const CourseEditDialog: React.FC<CourseEditDialogProps> = ({ isOpen, onClose, on
             <Label htmlFor="nivelId">Nivel</Label>
             <Controller name="nivelId" control={control} render={({ field }) => (
               <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger><SelectValue placeholder={isLoadingNiveles ? "Cargando..." : "Selecciona un nivel"} /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
                 <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
               </Select>
             )} />
@@ -107,7 +101,7 @@ const CourseEditDialog: React.FC<CourseEditDialogProps> = ({ isOpen, onClose, on
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Guardando...' : 'Guardar'}</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

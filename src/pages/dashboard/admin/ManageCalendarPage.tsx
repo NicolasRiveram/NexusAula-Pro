@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,46 +11,34 @@ import { format, parseISO, isFuture } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import NonSchoolDayDialog from '@/components/dashboard/admin/NonSchoolDayDialog';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 const ManageCalendarPage = () => {
   const { activeEstablishment } = useEstablishment();
-  const queryClient = useQueryClient();
+  const [days, setDays] = useState<NonSchoolDay[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<NonSchoolDay | null>(null);
-  const [isAlertOpen, setAlertOpen] = useState(false);
-  const [dayToDelete, setDayToDelete] = useState<NonSchoolDay | null>(null);
 
-  const { data: days = [], isLoading: loading } = useQuery({
-    queryKey: ['nonSchoolDays', activeEstablishment?.id],
-    queryFn: () => fetchNonSchoolDays(activeEstablishment!.id),
-    enabled: !!activeEstablishment,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteNonSchoolDay,
-    onSuccess: () => {
-      showSuccess("Día no lectivo eliminado.");
-      queryClient.invalidateQueries({ queryKey: ['nonSchoolDays', activeEstablishment?.id] });
-    },
-    onError: (error: any) => {
-      showError(error.message);
-    },
-    onSettled: () => {
-      setAlertOpen(false);
-      setDayToDelete(null);
+  const loadDays = async () => {
+    if (!activeEstablishment) {
+      setDays([]);
+      setLoading(false);
+      return;
     }
-  });
+    setLoading(true);
+    try {
+      const data = await fetchNonSchoolDays(activeEstablishment.id);
+      setDays(data);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDays();
+  }, [activeEstablishment]);
 
   const calendarDays = useMemo(() => days.map(d => parseISO(d.fecha)), [days]);
   const upcomingDays = useMemo(() => days.filter(d => isFuture(parseISO(d.fecha)) || format(parseISO(d.fecha), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')), [days]);
@@ -65,14 +53,14 @@ const ManageCalendarPage = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = (day: NonSchoolDay) => {
-    setDayToDelete(day);
-    setAlertOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (dayToDelete) {
-      deleteMutation.mutate(dayToDelete.id);
+  const handleDelete = async (day: NonSchoolDay) => {
+    if (!window.confirm(`¿Seguro que quieres eliminar "${day.descripcion}" del calendario?`)) return;
+    try {
+      await deleteNonSchoolDay(day.id);
+      showSuccess("Día no lectivo eliminado.");
+      loadDays();
+    } catch (error: any) {
+      showError(error.message);
     }
   };
 
@@ -141,23 +129,9 @@ const ManageCalendarPage = () => {
       <NonSchoolDayDialog
         isOpen={isDialogOpen}
         onClose={() => setDialogOpen(false)}
-        onSaved={() => queryClient.invalidateQueries({ queryKey: ['nonSchoolDays', activeEstablishment?.id] })}
+        onSaved={loadDays}
         day={selectedDay}
       />
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Seguro que quieres eliminar "{dayToDelete?.descripcion}" del calendario?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };

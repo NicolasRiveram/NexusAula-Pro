@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { fetchTeacherActiveProjects } from '@/api/projectsApi';
 import { Loader2 } from 'lucide-react';
@@ -7,11 +8,10 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useAuth } from '@/contexts/AuthContext';
 
 const ActiveProjectsWidget = () => {
   const { activeEstablishment } = useEstablishment();
-  const { user } = useAuth();
+  const { data: user } = useQuery({ queryKey: ['user'], queryFn: async () => (await supabase.auth.getUser()).data.user });
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ['activeProjects', user?.id, activeEstablishment?.id],

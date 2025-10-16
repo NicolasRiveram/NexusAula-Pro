@@ -37,10 +37,15 @@ import { getLogoPublicUrl } from '@/api/settingsApi';
 import { useDesign } from '@/contexts/DesignContext';
 import { ThemeToggle } from '../theme-toggle';
 import NavLinks from './NavLinks';
-import { useAuth } from '@/contexts/AuthContext';
 
-const Header: React.FC = () => {
-  const { profile } = useAuth();
+interface HeaderProps {
+  profile: {
+    nombre_completo: string;
+    rol: string;
+  };
+}
+
+const Header: React.FC<HeaderProps> = ({ profile }) => {
   const { 
     activeEstablishment, 
     setActiveEstablishment, 
@@ -59,10 +64,6 @@ const Header: React.FC = () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
-
-  if (!profile) {
-    return null; // Or a loading skeleton
-  }
 
   const EstablishmentSelector = () => {
     if (loadingEstablishments) {
@@ -149,7 +150,7 @@ const Header: React.FC = () => {
                 <span className="text-2xl font-bold ml-2 text-foreground">NexusAula</span>
               </div>
             </SheetHeader>
-            <NavLinks onLinkClick={() => setOpenSheet(false)} />
+            <NavLinks profile={profile} onLinkClick={() => setOpenSheet(false)} />
           </SheetContent>
         </Sheet>
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,8 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CursoAsignatura } from '@/api/coursesApi';
 import { ScheduleBlock, saveScheduleBlock } from '@/api/scheduleApi';
-import { showSuccess, showError } from '@/utils/toast';
-import { useMutation } from '@tanstack/react-query';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const schema = z.object({
   curso_asignatura_id: z.string().uuid("Debes seleccionar un curso."),
@@ -39,6 +38,8 @@ const diasSemana = [
 ];
 
 const ScheduleEditDialog: React.FC<ScheduleEditDialogProps> = ({ isOpen, onClose, onSaved, scheduleBlock, cursosAsignaturas, fixedCursoId }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -63,20 +64,26 @@ const ScheduleEditDialog: React.FC<ScheduleEditDialogProps> = ({ isOpen, onClose
     }
   }, [isOpen, scheduleBlock, fixedCursoId, reset]);
 
-  const mutation = useMutation({
-    mutationFn: (data: FormData) => saveScheduleBlock(data, scheduleBlock?.id),
-    onSuccess: () => {
+  const onSubmit = async (data: FormData) => {
+    setIsSubmitting(true);
+    const toastId = showLoading(scheduleBlock ? "Actualizando horario..." : "Guardando horario...");
+    try {
+      await saveScheduleBlock({
+        curso_asignatura_id: data.curso_asignatura_id,
+        dia_semana: data.dia_semana,
+        hora_inicio: data.hora_inicio,
+        hora_fin: data.hora_fin,
+      }, scheduleBlock?.id);
+      dismissToast(toastId);
       showSuccess("Horario guardado correctamente.");
       onSaved();
       onClose();
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
+      dismissToast(toastId);
       showError(`Error al guardar: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
-  });
-
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
   };
 
   return (
@@ -137,7 +144,7 @@ const ScheduleEditDialog: React.FC<ScheduleEditDialogProps> = ({ isOpen, onClose
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Guardando...' : 'Guardar'}</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

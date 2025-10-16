@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Control, FieldErrors, UseFormSetValue, UseFormGetValues, UseFormWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import { Controller } from 'react-hook-form';
 import { FormData } from '../schemas';
-import { createEstablishmentAndPromoteCoordinator, requestJoinEstablishment, searchEstablishments } from '../api';
+import { createEstablishmentAndPromoteCoordinator, requestJoinEstablishment, searchEstablishments, Establecimiento } from '../api';
 import { showSuccess, showError } from '@/utils/toast';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useDebounce } from '@/hooks/useDebounce';
 
 interface Step2EstablishmentProps {
   control: Control<FormData>;
@@ -20,6 +18,8 @@ interface Step2EstablishmentProps {
   getValues: UseFormGetValues<FormData>;
   watch: UseFormWatch<FormData>;
   setCurrentStep: (step: number) => void;
+  isActionLoading: boolean;
+  setIsActionLoading: (loading: boolean) => void;
 }
 
 const Step2Establishment: React.FC<Step2EstablishmentProps> = ({
@@ -29,47 +29,36 @@ const Step2Establishment: React.FC<Step2EstablishmentProps> = ({
   getValues,
   watch,
   setCurrentStep,
+  isActionLoading,
+  setIsActionLoading,
 }) => {
   const [isEstablishmentDialogOpen, setIsEstablishmentDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
-
-  const { data: searchResults = [] } = useQuery({
-    queryKey: ['searchEstablishments', debouncedSearchTerm],
-    queryFn: () => searchEstablishments(debouncedSearchTerm),
-    enabled: debouncedSearchTerm.length > 2,
-  });
+  const [searchResults, setSearchResults] = useState<Establecimiento[]>([]);
 
   const selectedEstablishmentId = watch('establecimiento_id');
   const selectedEstablishmentName = watch('establecimiento_nombre');
 
-  const createEstablishmentMutation = useMutation({
-    mutationFn: createEstablishmentAndPromoteCoordinator,
-    onSuccess: (newEstablishmentId) => {
-      const newEstData = getValues();
-      showSuccess("Establecimiento creado y vinculado exitosamente. Tu rol es ahora Coordinador.");
-      setValue('establecimiento_id', newEstablishmentId as string);
-      setValue('establecimiento_nombre', newEstData.new_establecimiento_nombre);
-      setIsEstablishmentDialogOpen(false);
-      setCurrentStep(3);
-    },
-    onError: (error: any) => {
-      showError("Error al crear el establecimiento: " + error.message);
-    },
-  });
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchTerm.length > 2) {
+        try {
+          const data = await searchEstablishments(searchTerm);
+          setSearchResults(data || []);
+        } catch (error) {
+          console.error("Error buscando establecimientos:", error);
+          showError("Error al buscar establecimientos.");
+          setSearchResults([]);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
 
-  const joinRequestMutation = useMutation({
-    mutationFn: requestJoinEstablishment,
-    onSuccess: () => {
-      showSuccess("Solicitud de unión enviada. Espera la aprobación del administrador.");
-      setCurrentStep(3);
-    },
-    onError: (error: any) => {
-      showError("Error al solicitar unión al establecimiento: " + error.message);
-    },
-  });
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
-  const handleCreateEstablishment = () => {
+  const handleCreateEstablishment = async () => {
     const newEstData = getValues();
     const { new_establecimiento_nombre, new_establecimiento_direccion, new_establecimiento_comuna, new_establecimiento_region, new_establecimiento_telefono, new_establecimiento_email_contacto } = newEstData;
 
@@ -78,25 +67,48 @@ const Step2Establishment: React.FC<Step2EstablishmentProps> = ({
       return;
     }
 
-    createEstablishmentMutation.mutate({
-      p_nombre: new_establecimiento_nombre,
-      p_direccion: new_establecimiento_direccion,
-      p_comuna: new_establecimiento_comuna,
-      p_region: new_establecimiento_region,
-      p_telefono: new_establecimiento_telefono || null,
-      p_email_contacto: new_establecimiento_email_contacto || null,
-    });
+    setIsActionLoading(true);
+    try {
+      const newEstablishmentId = await createEstablishmentAndPromoteCoordinator({
+        p_nombre: new_establecimiento_nombre,
+        p_direccion: new_establecimiento_direccion,
+        p_comuna: new_establecimiento_comuna,
+        p_region: new_establecimiento_region,
+        p_telefono: new_establecimiento_telefono || null,
+        p_email_contacto: new_establecimiento_email_contacto || null,
+      });
+
+      showSuccess("Establecimiento creado y vinculado exitosamente. Tu rol es ahora Coordinador.");
+      setValue('establecimiento_id', newEstablishmentId as string);
+      setValue('establecimiento_nombre', new_establecimiento_nombre);
+      setIsEstablishmentDialogOpen(false);
+      setCurrentStep(3); // Avanzar al siguiente paso
+    } catch (error: any) {
+      console.error("Error al crear establecimiento:", error);
+      showError("Error al crear el establecimiento: " + error.message);
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
-  const handleSolicitarUnion = () => {
+  const handleSolicitarUnion = async () => {
     if (!selectedEstablishmentId) {
       showError("Por favor, selecciona un establecimiento para solicitar unirte.");
       return;
     }
-    joinRequestMutation.mutate(selectedEstablishmentId);
-  };
 
-  const isActionLoading = createEstablishmentMutation.isPending || joinRequestMutation.isPending;
+    setIsActionLoading(true);
+    try {
+      await requestJoinEstablishment(selectedEstablishmentId);
+      showSuccess("Solicitud de unión enviada. Espera la aprobación del administrador.");
+      setCurrentStep(3); // Avanzar al siguiente paso
+    } catch (error: any) {
+      console.error("Error al solicitar unión:", error);
+      showError("Error al solicitar unión al establecimiento: " + error.message);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -109,7 +121,7 @@ const Step2Establishment: React.FC<Step2EstablishmentProps> = ({
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        {debouncedSearchTerm.length > 2 && searchResults.length > 0 && (
+        {searchTerm.length > 2 && searchResults.length > 0 && (
           <Command className="rounded-lg border shadow-md">
             <CommandList>
               <CommandEmpty>No se encontraron establecimientos.</CommandEmpty>
@@ -121,6 +133,7 @@ const Step2Establishment: React.FC<Step2EstablishmentProps> = ({
                       setValue('establecimiento_id', est.id);
                       setValue('establecimiento_nombre', est.nombre);
                       setSearchTerm(est.nombre);
+                      setSearchResults([]);
                     }}
                     className={cn(
                       "cursor-pointer",
@@ -141,7 +154,7 @@ const Step2Establishment: React.FC<Step2EstablishmentProps> = ({
       </div>
 
       <Button onClick={handleSolicitarUnion} disabled={!selectedEstablishmentId || isActionLoading} className="w-full">
-        {joinRequestMutation.isPending ? 'Solicitando...' : 'Solicitar Unirme'}
+        {isActionLoading ? 'Solicitando...' : 'Solicitar Unirme'}
       </Button>
 
       <div className="relative flex justify-center text-xs uppercase">
@@ -230,7 +243,7 @@ const Step2Establishment: React.FC<Step2EstablishmentProps> = ({
           </div>
           <DialogFooter>
             <Button type="button" onClick={handleCreateEstablishment} disabled={isActionLoading}>
-              {createEstablishmentMutation.isPending ? 'Creando...' : 'Crear Establecimiento'}
+              {isActionLoading ? 'Creando...' : 'Crear Establecimiento'}
             </Button>
           </DialogFooter>
         </DialogContent>

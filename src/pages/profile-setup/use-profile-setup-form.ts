@@ -14,6 +14,7 @@ const stepFields: FieldPath<FormData>[][] = [
 
 export const useProfileSetupForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const {
     control,
@@ -63,6 +64,8 @@ export const useProfileSetupForm = () => {
   return {
     currentStep,
     setCurrentStep,
+    isActionLoading,
+    setIsActionLoading,
     control,
     handleSubmit,
     watch,

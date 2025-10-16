@@ -1,25 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { fetchStudentWeeklySchedule, StudentScheduleBlock } from '@/api/studentApi';
 import { showError } from '@/utils/toast';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
 
 const diasSemana = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
 const StudentSchedulePage = () => {
+  const [schedule, setSchedule] = useState<StudentScheduleBlock[]>([]);
+  const [loading, setLoading] = useState(true);
   const { activeEstablishment } = useEstablishment();
-  const { user } = useAuth();
 
-  const { data: schedule = [], isLoading: loading } = useQuery({
-    queryKey: ['studentSchedule', user?.id, activeEstablishment?.id],
-    queryFn: () => fetchStudentWeeklySchedule(user!.id, activeEstablishment!.id),
-    enabled: !!user && !!activeEstablishment,
-    onError: (error: any) => showError(`Error al cargar el horario: ${error.message}`),
-  });
+  useEffect(() => {
+    const loadSchedule = async () => {
+      if (!activeEstablishment) {
+        setSchedule([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        try {
+          const scheduleData = await fetchStudentWeeklySchedule(user.id, activeEstablishment.id);
+          setSchedule(scheduleData);
+        } catch (error: any) {
+          showError(`Error al cargar el horario: ${error.message}`);
+        }
+      }
+      setLoading(false);
+    };
+    loadSchedule();
+  }, [activeEstablishment]);
 
   const groupedSchedule = schedule.reduce((acc, block) => {
     (acc[block.dia_semana] = acc[block.dia_semana] || []).push(block);

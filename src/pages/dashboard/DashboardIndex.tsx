@@ -1,13 +1,22 @@
 import React from 'react';
+import { useOutletContext } from 'react-router-dom';
 import TeacherDashboard from './TeacherDashboard';
 import AdminDashboard from './AdminDashboard';
 import StudentDashboard from './StudentDashboard';
 import SuperAdminDashboard from './SuperAdminDashboard';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+
+interface Profile {
+  nombre_completo: string;
+  rol: string;
+}
+
+interface DashboardContext {
+  profile: Profile | null;
+}
 
 const DashboardIndex = () => {
-  const { profile } = useAuth();
+  const { profile } = useOutletContext<DashboardContext>();
 
   if (!profile) {
     return (

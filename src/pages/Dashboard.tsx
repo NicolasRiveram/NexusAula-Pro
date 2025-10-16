@@ -1,5 +1,5 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { useTeacherTour } from '@/hooks/useTeacherTour';
@@ -9,10 +9,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import FullPageLoader from '@/components/layout/FullPageLoader';
 
 const Dashboard = () => {
-  const { profile } = useAuth();
+  const navigate = useNavigate();
+  const { session, profile, loading } = useAuth();
   const { runTour, handleTourEnd } = useTeacherTour(profile?.rol || '');
 
-  if (!profile) {
+  useEffect(() => {
+    if (!loading) {
+      if (!session) {
+        navigate('/login');
+      } else if (profile && !profile.perfil_completo) {
+        navigate('/configurar-perfil');
+      }
+    }
+  }, [session, profile, loading, navigate]);
+
+  if (loading || !profile) {
     return <FullPageLoader />;
   }
 
@@ -22,12 +33,12 @@ const Dashboard = () => {
     <>
       <TeacherTour run={runTour} onTourEnd={handleTourEnd} />
       <div className="flex h-screen bg-background">
-        <Sidebar />
+        <Sidebar profile={profile} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header />
+          <Header profile={profile} />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-8" data-tour="main-content">
             {isTrial && <TrialBanner trialEndsAt={profile.trial_ends_at || null} />}
-            <Outlet />
+            <Outlet context={{ profile }} />
           </main>
         </div>
       </div>

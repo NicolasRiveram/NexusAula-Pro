@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -7,11 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Nivel, Asignatura, fetchAllNiveles, fetchAllAsignaturas } from '@/api/superAdminApi';
+import { Nivel, Asignatura } from '@/api/superAdminApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Link } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   url: z.string().url("Debe ser una URL válida."),
@@ -21,17 +20,23 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-const UrlUploadForm = () => {
-  const queryClient = useQueryClient();
+interface UrlUploadFormProps {
+  niveles: Nivel[];
+  asignaturas: Asignatura[];
+  onUploadSuccess: () => void;
+}
+
+const UrlUploadForm: React.FC<UrlUploadFormProps> = ({ niveles, asignaturas, onUploadSuccess }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
-  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({ queryKey: ['niveles'], queryFn: fetchAllNiveles });
-  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({ queryKey: ['asignaturas'], queryFn: fetchAllAsignaturas });
-
-  const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
+    setIsProcessing(true);
+    const toastId = showLoading("Accediendo a la URL y analizando con IA... Esto puede tardar un momento.");
+    try {
       const { data: result, error } = await supabase.functions.invoke('process-curriculum-url', {
         body: {
           url: data.url,
@@ -39,26 +44,19 @@ const UrlUploadForm = () => {
           asignaturaId: data.asignaturaId,
         },
       });
+
       if (error) throw error;
-      return result;
-    },
-    onMutate: () => {
-      return showLoading("Accediendo a la URL y analizando con IA... Esto puede tardar un momento.");
-    },
-    onSuccess: (result, _, toastId) => {
+
       dismissToast(toastId);
       showSuccess(result.message);
       reset();
-      queryClient.invalidateQueries(); // Invalidate all queries to refresh curriculum data
-    },
-    onError: (error: any, _, toastId) => {
-      if (toastId) dismissToast(toastId);
+      onUploadSuccess();
+    } catch (error: any) {
+      dismissToast(toastId);
       showError(`Error: ${error.message}`);
-    },
-  });
-
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -80,8 +78,8 @@ const UrlUploadForm = () => {
             <div>
               <Label>Nivel Educativo</Label>
               <Controller name="nivelId" control={control} render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingNiveles}>
-                  <SelectTrigger><SelectValue placeholder={isLoadingNiveles ? "Cargando..." : "Selecciona un nivel"} /></SelectTrigger>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
                   <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
                 </Select>
               )} />
@@ -90,8 +88,8 @@ const UrlUploadForm = () => {
             <div>
               <Label>Asignatura</Label>
               <Controller name="asignaturaId" control={control} render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingAsignaturas}>
-                  <SelectTrigger><SelectValue placeholder={isLoadingAsignaturas ? "Cargando..." : "Selecciona una asignatura"} /></SelectTrigger>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
                   <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
                 </Select>
               )} />
@@ -99,9 +97,9 @@ const UrlUploadForm = () => {
             </div>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link className="mr-2 h-4 w-4" />}
-              {mutation.isPending ? 'Analizando...' : 'Analizar y Guardar'}
+            <Button type="submit" disabled={isProcessing}>
+              {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link className="mr-2 h-4 w-4" />}
+              Analizar y Guardar
             </Button>
           </div>
         </form>

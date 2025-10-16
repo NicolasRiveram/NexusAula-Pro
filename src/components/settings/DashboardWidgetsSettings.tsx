@@ -10,7 +10,6 @@ import { updateDashboardWidgetsPrefs } from '@/api/settingsApi';
 import { showSuccess, showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import { ALL_DASHBOARD_WIDGETS } from '@/config/dashboardWidgets';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   visible: z.record(z.boolean()),
@@ -25,29 +24,22 @@ interface DashboardWidgetsSettingsProps {
 }
 
 const DashboardWidgetsSettings: React.FC<DashboardWidgetsSettingsProps> = ({ userId, currentPrefs, onUpdate }) => {
-  const queryClient = useQueryClient();
-  const { control, handleSubmit } = useForm<FormData>({
+  const { control, handleSubmit, formState: { isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       visible: currentPrefs.visible,
     },
   });
 
-  const mutation = useMutation({
-    mutationFn: (newPrefs: { order: string[], visible: Record<string, boolean> }) => updateDashboardWidgetsPrefs(userId, newPrefs),
-    onSuccess: () => {
+  const onSubmit = async (data: FormData) => {
+    try {
+      const newPrefs = { ...currentPrefs, visible: data.visible };
+      await updateDashboardWidgetsPrefs(userId, newPrefs);
       showSuccess("Preferencias del dashboard actualizadas.");
-      queryClient.invalidateQueries({ queryKey: ['userProfile', userId] });
       onUpdate();
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
       showError(error.message);
-    },
-  });
-
-  const onSubmit = (data: FormData) => {
-    const newPrefs = { ...currentPrefs, visible: data.visible };
-    mutation.mutate(newPrefs);
+    }
   };
 
   return (
@@ -79,8 +71,8 @@ const DashboardWidgetsSettings: React.FC<DashboardWidgetsSettingsProps> = ({ use
             ))}
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar Preferencias
             </Button>
           </div>

@@ -3,45 +3,38 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle, Loader2, Save } from 'lucide-react';
-import { ObjetivoAprendizaje, Nivel, Asignatura, Eje, deleteObjetivoAprendizaje, bulkInsertObjectives, fetchAllObjetivosAprendizaje, fetchAllNiveles, fetchAllAsignaturas, fetchAllEjes, deleteMultipleObjetivosAprendizaje } from '@/api/superAdminApi';
-import { showError, showSuccess } from '@/utils/toast';
+import { ObjetivoAprendizaje, Nivel, Asignatura, Eje, deleteObjetivoAprendizaje, bulkInsertObjectives } from '@/api/superAdminApi';
+import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import ObjetivoAprendizajeEditDialog from '../ObjetivoAprendizajeEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-const ObjetivosManagement = () => {
-  const queryClient = useQueryClient();
+interface ObjetivosManagementProps {
+  oas: ObjetivoAprendizaje[];
+  niveles: Nivel[];
+  asignaturas: Asignatura[];
+  ejes: Eje[];
+  onDataChange: () => void;
+  selectedOas: string[];
+  setSelectedOas: React.Dispatch<React.SetStateAction<string[]>>;
+  openBulkDeleteDialog: (type: 'oa') => void;
+}
+
+const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles, asignaturas, ejes, onDataChange, selectedOas, setSelectedOas, openBulkDeleteDialog }) => {
   const [isOaDialogOpen, setOaDialogOpen] = useState(false);
   const [selectedOa, setSelectedOa] = useState<ObjetivoAprendizaje | null>(null);
   const [oaNivelFilter, setOaNivelFilter] = useState<string>('all');
   const [oaAsignaturaFilter, setOaAsignaturaFilter] = useState<string>('all');
+
   const [selectedBulkNivel, setSelectedBulkNivel] = useState('');
   const [selectedBulkAsignatura, setSelectedBulkAsignatura] = useState('');
   const [selectedBulkEje, setSelectedBulkEje] = useState('');
   const [bulkText, setBulkText] = useState('');
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [filteredBulkEjes, setFilteredBulkEjes] = useState<Eje[]>([]);
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [oaToDelete, setOaToDelete] = useState<ObjetivoAprendizaje | null>(null);
-  const [selectedOas, setSelectedOas] = useState<string[]>([]);
-
-  const { data: oas = [], isLoading: isLoadingOas } = useQuery({ queryKey: ['oas'], queryFn: fetchAllObjetivosAprendizaje });
-  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({ queryKey: ['niveles'], queryFn: fetchAllNiveles });
-  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({ queryKey: ['asignaturas'], queryFn: fetchAllAsignaturas });
-  const { data: ejes = [], isLoading: isLoadingEjes } = useQuery({ queryKey: ['ejes'], queryFn: fetchAllEjes });
 
   useEffect(() => {
     if (selectedBulkAsignatura) {
@@ -60,68 +53,38 @@ const ObjetivosManagement = () => {
     });
   }, [oas, oaNivelFilter, oaAsignaturaFilter]);
 
-  const bulkInsertMutation = useMutation({
-    mutationFn: (vars: { nivelId: string, asignaturaId: string, ejeId: string, text: string }) => 
-      bulkInsertObjectives(vars.nivelId, vars.asignaturaId, vars.ejeId, vars.text),
-    onSuccess: (result) => {
-      showSuccess(result.message);
-      setBulkText('');
-      queryClient.invalidateQueries({ queryKey: ['oas'] });
-    },
-    onError: (error: any) => showError(error.message),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteObjetivoAprendizaje,
-    onSuccess: () => {
-      showSuccess('OA eliminado.');
-      queryClient.invalidateQueries({ queryKey: ['oas'] });
-    },
-    onError: (error: any) => showError(error.message),
-    onSettled: () => {
-      setIsAlertOpen(false);
-      setOaToDelete(null);
-    }
-  });
-
-  const bulkDeleteMutation = useMutation({
-    mutationFn: deleteMultipleObjetivosAprendizaje,
-    onSuccess: (_, variables) => {
-      showSuccess(`${variables.length} OA(s) eliminados.`);
-      queryClient.invalidateQueries({ queryKey: ['oas'] });
-      setSelectedOas([]);
-    },
-    onError: (error: any) => showError(error.message),
-    onSettled: () => setIsAlertOpen(false),
-  });
-
-  const handleBulkSave = () => {
+  const handleBulkSave = async () => {
     if (!selectedBulkNivel || !selectedBulkAsignatura || !selectedBulkEje || !bulkText) {
       showError("Por favor, completa todos los campos: Nivel, Asignatura, Eje y pega los objetivos.");
       return;
     }
-    bulkInsertMutation.mutate({
-      nivelId: selectedBulkNivel,
-      asignaturaId: selectedBulkAsignatura,
-      ejeId: selectedBulkEje,
-      text: bulkText,
-    });
-  };
-
-  const handleDeleteClick = (item: ObjetivoAprendizaje) => {
-    setOaToDelete(item);
-    setIsAlertOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (oaToDelete) {
-      deleteMutation.mutate(oaToDelete.id);
-    } else if (selectedOas.length > 0) {
-      bulkDeleteMutation.mutate(selectedOas);
+    setIsBulkSaving(true);
+    const toastId = showLoading("Procesando y guardando objetivos...");
+    try {
+      const result = await bulkInsertObjectives(selectedBulkNivel, selectedBulkAsignatura, selectedBulkEje, bulkText);
+      dismissToast(toastId);
+      showSuccess(result.message);
+      setBulkText('');
+      onDataChange();
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(error.message);
+    } finally {
+      setIsBulkSaving(false);
     }
   };
 
-  if (isLoadingOas || isLoadingNiveles || isLoadingAsignaturas || isLoadingEjes) return <p>Cargando objetivos...</p>;
+  const handleDelete = async (item: ObjetivoAprendizaje) => {
+    if (window.confirm(`¿Seguro que quieres eliminar "${item.codigo}"?`)) {
+      try {
+        await deleteObjetivoAprendizaje(item.id);
+        showSuccess('OA eliminado.');
+        onDataChange();
+      } catch (error: any) {
+        showError(error.message);
+      }
+    }
+  };
 
   return (
     <>
@@ -166,9 +129,9 @@ const ObjetivosManagement = () => {
             />
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleBulkSave} disabled={bulkInsertMutation.isPending}>
-              {bulkInsertMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {bulkInsertMutation.isPending ? 'Guardando...' : 'Guardar Objetivos'}
+            <Button onClick={handleBulkSave} disabled={isBulkSaving}>
+              {isBulkSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {isBulkSaving ? 'Guardando...' : 'Guardar Objetivos'}
             </Button>
           </div>
         </CardContent>
@@ -185,7 +148,7 @@ const ObjetivosManagement = () => {
           </Select>
         </div>
         {selectedOas.length > 0 ? (
-          <Button variant="destructive" onClick={() => setIsAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
+          <Button variant="destructive" onClick={() => openBulkDeleteDialog('oa')}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedOa(null); setOaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear OA</Button>
         )}
@@ -216,7 +179,7 @@ const ObjetivosManagement = () => {
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedOa(oa); setOaDialogOpen(true); }}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDeleteClick(oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDelete(oa)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -224,21 +187,7 @@ const ObjetivosManagement = () => {
           ))}
         </TableBody>
       </Table>
-      <ObjetivoAprendizajeEditDialog isOpen={isOaDialogOpen} onClose={() => setOaDialogOpen(false)} onSaved={() => queryClient.invalidateQueries({ queryKey: ['oas'] })} oa={selectedOa} niveles={niveles} asignaturas={asignaturas} ejes={ejes} />
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {oaToDelete ? `Se eliminará permanentemente el OA "${oaToDelete.codigo}".` : `Se eliminarán permanentemente ${selectedOas.length} OAs.`} Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setOaToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ObjetivoAprendizajeEditDialog isOpen={isOaDialogOpen} onClose={() => setOaDialogOpen(false)} onSaved={onDataChange} oa={selectedOa} niveles={niveles} asignaturas={asignaturas} ejes={ejes} />
     </>
   );
 };

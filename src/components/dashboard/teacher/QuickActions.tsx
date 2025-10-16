@@ -1,11 +1,16 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { ALL_QUICK_ACTIONS, QuickAction } from '@/config/quickActions';
-import { useAuth } from '@/contexts/AuthContext';
+
+interface DashboardContext {
+  profile: {
+    quick_actions_prefs?: string[];
+  };
+}
 
 const QuickActions = () => {
-  const { profile } = useAuth();
+  const { profile } = useOutletContext<DashboardContext>();
 
   const defaultActions = ['new_plan', 'new_evaluation', 'manage_courses'];
   const actionIds = profile?.quick_actions_prefs && profile.quick_actions_prefs.length > 0 

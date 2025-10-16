@@ -2,7 +2,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical, School } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
 
 const teacherNavItems = [
   { to: '/dashboard', icon: Home, label: 'Inicio' },
@@ -38,16 +37,13 @@ const superAdminNavItems = [
 ];
 
 interface NavLinksProps {
+  profile: {
+    rol: string;
+  };
   onLinkClick?: () => void; // Optional callback for mobile to close the sheet
 }
 
-const NavLinks: React.FC<NavLinksProps> = ({ onLinkClick }) => {
-  const { profile } = useAuth();
-
-  if (!profile) {
-    return null;
-  }
-
+const NavLinks: React.FC<NavLinksProps> = ({ profile, onLinkClick }) => {
   const isSuperAdmin = profile.rol === 'super_administrador';
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
   const isStudent = profile.rol === 'estudiante';

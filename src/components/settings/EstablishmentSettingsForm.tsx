@@ -10,7 +10,6 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { uploadEstablishmentLogo, updateEstablishmentDetails, getLogoPublicUrl } from '@/api/settingsApi';
 import { showSuccess, showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   logo: z.any().optional(),
@@ -20,9 +19,8 @@ type FormData = z.infer<typeof schema>;
 
 const EstablishmentSettingsForm = () => {
   const { activeEstablishment, setActiveEstablishment } = useEstablishment();
-  const queryClient = useQueryClient();
   const [preview, setPreview] = useState<string | null>(null);
-  const { register, handleSubmit, watch } = useForm<FormData>({
+  const { register, handleSubmit, watch, formState: { isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -43,29 +41,27 @@ const EstablishmentSettingsForm = () => {
     }
   }, [logoFile]);
 
-  const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      if (!activeEstablishment) throw new Error("No hay un establecimiento activo.");
-      if (!data.logo || data.logo.length === 0) throw new Error("Por favor, selecciona un archivo de logo.");
-      
+  const onSubmit = async (data: FormData) => {
+    if (!activeEstablishment) {
+      showError("No hay un establecimiento activo.");
+      return;
+    }
+    if (!data.logo || data.logo.length === 0) {
+      showError("Por favor, selecciona un archivo de logo.");
+      return;
+    }
+
+    try {
       const filePath = await uploadEstablishmentLogo(activeEstablishment.id, data.logo[0]);
       await updateEstablishmentDetails(activeEstablishment.id, { logo_url: filePath });
-      return filePath;
-    },
-    onSuccess: (filePath) => {
-      showSuccess("Logo del establecimiento actualizado.");
-      if (activeEstablishment) {
-        setActiveEstablishment({ ...activeEstablishment, logo_url: filePath });
-      }
-      queryClient.invalidateQueries({ queryKey: ['userEstablishments'] });
-    },
-    onError: (error: any) => {
-      showError(error.message);
-    },
-  });
+      
+      // Actualiza el contexto para reflejar los cambios inmediatamente
+      setActiveEstablishment({ ...activeEstablishment, logo_url: filePath });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+      showSuccess("Logo del establecimiento actualizado.");
+    } catch (error: any) {
+      showError(error.message);
+    }
   };
 
   return (
@@ -90,8 +86,8 @@ const EstablishmentSettingsForm = () => {
             <p className="text-xs text-muted-foreground mt-1">Recomendado: PNG o SVG con fondo transparente.</p>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar Logo
             </Button>
           </div>

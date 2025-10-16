@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,6 @@ import { fetchAsignaturas, fetchNiveles, Asignatura, Nivel } from '@/api/courses
 import { showSuccess, showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import { MultiSelect } from '@/components/MultiSelect';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   asignaturaIds: z.array(z.string()).min(1, "Debes seleccionar al menos una asignatura."),
@@ -25,20 +24,23 @@ interface SubjectsAndLevelsFormProps {
 }
 
 const SubjectsAndLevelsForm: React.FC<SubjectsAndLevelsFormProps> = ({ pedagogicalProfile, userId }) => {
-  const queryClient = useQueryClient();
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const [allAsignaturas, setAllAsignaturas] = useState<Asignatura[]>([]);
+  const [allNiveles, setAllNiveles] = useState<Nivel[]>([]);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  const { control, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
-  const { data: allAsignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({
-    queryKey: ['allAsignaturas'],
-    queryFn: fetchAsignaturas,
-  });
-
-  const { data: allNiveles = [], isLoading: isLoadingNiveles } = useQuery({
-    queryKey: ['allNiveles'],
-    queryFn: fetchNiveles,
-  });
+  useEffect(() => {
+    Promise.all([fetchAsignaturas(), fetchNiveles()])
+      .then(([asignaturasData, nivelesData]) => {
+        setAllAsignaturas(asignaturasData);
+        setAllNiveles(nivelesData);
+      })
+      .catch(() => showError("Error al cargar opciones de asignaturas y niveles."))
+      .finally(() => setLoadingOptions(false));
+  }, []);
 
   useEffect(() => {
     if (pedagogicalProfile) {
@@ -49,22 +51,16 @@ const SubjectsAndLevelsForm: React.FC<SubjectsAndLevelsFormProps> = ({ pedagogic
     }
   }, [pedagogicalProfile, reset]);
 
-  const mutation = useMutation({
-    mutationFn: (data: { asignaturaIds: string[], nivelIds: string[] }) => updateUserPedagogicalProfile(userId, data.asignaturaIds, data.nivelIds),
-    onSuccess: () => {
+  const onSubmit = async (data: FormData) => {
+    try {
+      await updateUserPedagogicalProfile(userId, data.asignaturaIds, data.nivelIds);
       showSuccess("Preferencias pedagógicas actualizadas.");
-      queryClient.invalidateQueries({ queryKey: ['pedagogicalProfile', userId] });
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
       showError(error.message);
-    },
-  });
-
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+    }
   };
 
-  if (isLoadingAsignaturas || isLoadingNiveles) {
+  if (loadingOptions) {
     return <Card><CardContent className="flex justify-center items-center h-48"><Loader2 className="animate-spin" /></CardContent></Card>;
   }
 
@@ -109,8 +105,8 @@ const SubjectsAndLevelsForm: React.FC<SubjectsAndLevelsFormProps> = ({ pedagogic
             {errors.nivelIds && <p className="text-red-500 text-sm mt-1">{errors.nivelIds.message}</p>}
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar Cambios
             </Button>
           </div>

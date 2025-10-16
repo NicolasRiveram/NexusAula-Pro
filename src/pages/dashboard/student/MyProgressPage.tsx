@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { fetchStudentEvaluationHistory, fetchStudentPerformanceStats, fetchStudentSkillPerformance } from '@/api/coursesApi';
@@ -14,10 +15,16 @@ import { es } from 'date-fns/locale';
 import { calculateGrade } from '@/utils/evaluationUtils';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
 
 const MyProgressPage = () => {
-  const { user } = useAuth();
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
+    }
+  });
+
   const studentId = user?.id;
 
   const { data: stats, isLoading: isLoadingStats } = useQuery({

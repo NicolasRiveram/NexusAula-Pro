@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { saveEstablishment, Establishment, EstablishmentData } from '@/api/superAdminApi';
+import { saveEstablishment, Establishment } from '@/api/superAdminApi';
 import { showSuccess, showError } from '@/utils/toast';
-import { useMutation } from '@tanstack/react-query';
 
 const schema = z.object({
   nombre: z.string().min(3, "El nombre es requerido."),
@@ -29,7 +28,7 @@ interface EstablishmentEditDialogProps {
 }
 
 const EstablishmentEditDialog: React.FC<EstablishmentEditDialogProps> = ({ isOpen, onClose, onSaved, establishment }) => {
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -57,20 +56,15 @@ const EstablishmentEditDialog: React.FC<EstablishmentEditDialogProps> = ({ isOpe
     }
   }, [isOpen, establishment, reset]);
 
-  const mutation = useMutation({
-    mutationFn: (data: FormData) => saveEstablishment(data, establishment?.id),
-    onSuccess: () => {
+  const onSubmit = async (data: FormData) => {
+    try {
+      await saveEstablishment(data, establishment?.id);
       showSuccess(`Establecimiento ${establishment ? 'actualizado' : 'creado'} correctamente.`);
       onSaved();
       onClose();
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
       showError(error.message);
     }
-  });
-
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
   };
 
   return (
@@ -115,7 +109,7 @@ const EstablishmentEditDialog: React.FC<EstablishmentEditDialogProps> = ({ isOpe
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Guardando...' : 'Guardar'}</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

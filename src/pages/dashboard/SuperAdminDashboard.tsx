@@ -4,12 +4,15 @@ import EstablishmentsManagement from '@/components/super-admin/EstablishmentsMan
 import CurriculumManagement from '@/components/super-admin/CurriculumManagement';
 import UsersManagement from '@/components/super-admin/UsersManagement';
 import PendingRequestsManagement from '@/components/super-admin/PendingRequestsManagement';
+import AIStatusCheck from '@/components/super-admin/AIStatusCheck';
 
 const SuperAdminDashboard = () => {
   return (
     <div className="container mx-auto space-y-6">
       <h1 className="text-3xl font-bold">Panel de Super Administrador</h1>
       
+      <AIStatusCheck />
+
       <Tabs defaultValue="establishments" className="w-full">
         <TabsList>
           <TabsTrigger value="establishments">Establecimientos</TabsTrigger>

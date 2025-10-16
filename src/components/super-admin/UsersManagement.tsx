@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -10,29 +10,34 @@ import { Badge } from '@/components/ui/badge';
 import UserEditDialog from './UserEditDialog';
 import SubscriptionEditDialog from './SubscriptionEditDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 
 const UsersManagement = () => {
-  const queryClient = useQueryClient();
+  const [users, setUsers] = useState<GlobalUser[]>([]);
+  const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [selectedEstablishment, setSelectedEstablishment] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
   const [isUserDialogOpen, setUserDialogOpen] = useState(false);
   const [isSubDialogOpen, setSubDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<GlobalUser | null>(null);
 
-  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['allUsers'],
-    queryFn: fetchAllUsers,
-    onError: (error: any) => showError(error.message),
-  });
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [usersData, establishmentsData] = await Promise.all([fetchAllUsers(), fetchAllEstablishments()]);
+      setUsers(usersData);
+      setEstablishments(establishmentsData);
+    } catch (error: any) {
+      showError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const { data: establishments = [], isLoading: isLoadingEstablishments } = useQuery({
-    queryKey: ['allEstablishments'],
-    queryFn: fetchAllEstablishments,
-    onError: (error: any) => showError(error.message),
-  });
-
-  const loading = isLoadingUsers || isLoadingEstablishments;
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filteredUsers = useMemo(() => {
     let filtered = users;
@@ -56,10 +61,6 @@ const UsersManagement = () => {
   const handleEditSub = (user: GlobalUser) => {
     setSelectedUser(user);
     setSubDialogOpen(true);
-  };
-
-  const handleDataSaved = () => {
-    queryClient.invalidateQueries({ queryKey: ['allUsers'] });
   };
 
   return (
@@ -154,13 +155,13 @@ const UsersManagement = () => {
       <UserEditDialog
         isOpen={isUserDialogOpen}
         onClose={() => setUserDialogOpen(false)}
-        onSaved={handleDataSaved}
+        onSaved={loadData}
         user={selectedUser}
       />
       <SubscriptionEditDialog
         isOpen={isSubDialogOpen}
         onClose={() => setSubDialogOpen(false)}
-        onSaved={handleDataSaved}
+        onSaved={loadData}
         user={selectedUser}
       />
     </>

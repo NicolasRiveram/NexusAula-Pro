@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,8 +11,6 @@ import { fetchNiveles, fetchAsignaturas, Nivel, Asignatura } from '@/api/courses
 import { showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import GeneratorResultsComponent from '@/components/super-admin/expert-generator/GeneratorResultsComponent';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import AIStatusCheck from '@/components/super-admin/AIStatusCheck';
 
 const schema = z.object({
   nivelId: z.string().uuid("Debes seleccionar un nivel."),
@@ -22,6 +20,9 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 const ExpertGeneratorPage = () => {
+  const [niveles, setNiveles] = useState<Nivel[]>([]);
+  const [asignaturas, setAsignaturas] = useState<Asignatura[]>([]);
+  const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any | null>(null);
   const [currentSelection, setCurrentSelection] = useState<{ nivelId: string; asignaturaId: string } | null>(null);
 
@@ -29,20 +30,27 @@ const ExpertGeneratorPage = () => {
     resolver: zodResolver(schema),
   });
 
-  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({
-    queryKey: ['nivelesForGenerator'],
-    queryFn: fetchNiveles,
-    onError: (error: any) => showError(`Error al cargar niveles: ${error.message}`),
-  });
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [nivelesData, asignaturasData] = await Promise.all([
+          fetchNiveles(),
+          fetchAsignaturas(),
+        ]);
+        setNiveles(nivelesData);
+        setAsignaturas(asignaturasData);
+      } catch (error: any) {
+        showError(`Error al cargar opciones: ${error.message}`);
+      }
+    };
+    loadOptions();
+  }, []);
 
-  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({
-    queryKey: ['asignaturasForGenerator'],
-    queryFn: fetchAsignaturas,
-    onError: (error: any) => showError(`Error al cargar asignaturas: ${error.message}`),
-  });
-
-  const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
+    setLoading(true);
+    setResults(null);
+    setCurrentSelection({ nivelId: data.nivelId, asignaturaId: data.asignaturaId });
+    try {
       const { data: resultData, error } = await supabase.functions.invoke('expert-curriculum-simulator', {
         body: {
           nivelId: data.nivelId,
@@ -50,27 +58,16 @@ const ExpertGeneratorPage = () => {
         },
       });
       if (error) throw error;
-      return resultData;
-    },
-    onSuccess: (data) => {
-      setResults(data);
-    },
-    onError: (error: any) => {
+      setResults(resultData);
+    } catch (error: any) {
       showError(`Error al generar la simulación: ${error.message}`);
-    },
-  });
-
-  const onSubmit = (data: FormData) => {
-    setResults(null);
-    setCurrentSelection({ nivelId: data.nivelId, asignaturaId: data.asignaturaId });
-    mutation.mutate(data);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const loadingOptions = isLoadingNiveles || isLoadingAsignaturas;
 
   return (
     <div className="container mx-auto space-y-6">
-      <AIStatusCheck />
       <Card>
         <CardHeader>
           <CardTitle>Generador Experto: Simulador Curricular</CardTitle>
@@ -87,8 +84,8 @@ const ExpertGeneratorPage = () => {
                   name="nivelId"
                   control={control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value} disabled={loadingOptions}>
-                      <SelectTrigger><SelectValue placeholder={loadingOptions ? "Cargando..." : "Selecciona un nivel"} /></SelectTrigger>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
                       <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
                     </Select>
                   )}
@@ -101,8 +98,8 @@ const ExpertGeneratorPage = () => {
                   name="asignaturaId"
                   control={control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value} disabled={loadingOptions}>
-                      <SelectTrigger><SelectValue placeholder={loadingOptions ? "Cargando..." : "Selecciona una asignatura"} /></SelectTrigger>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
                       <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
                     </Select>
                   )}
@@ -111,16 +108,16 @@ const ExpertGeneratorPage = () => {
               </div>
             </div>
             <div className="flex justify-end">
-              <Button type="submit" disabled={mutation.isPending || loadingOptions}>
-                {mutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {mutation.isPending ? 'Generando...' : 'Generar Simulación'}
+              <Button type="submit" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                {loading ? 'Generando...' : 'Generar Simulación'}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {mutation.isPending && (
+      {loading && (
         <div className="flex flex-col items-center justify-center text-center h-64">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
           <p className="text-lg font-semibold">La IA está procesando tu solicitud...</p>
