@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchStudentEvaluationHistory } from '@/api/studentApi';
+import { fetchStudentEvaluationHistory } from '@/api/student';
 import { fetchEvaluationsForStudent } from '@/api/rubricsApi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
