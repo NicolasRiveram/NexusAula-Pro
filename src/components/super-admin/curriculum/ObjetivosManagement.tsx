@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle, Loader2, Save } from 'lucide-react';
-import { ObjetivoAprendizaje, Nivel, Asignatura, Eje, deleteObjetivoAprendizaje, bulkInsertObjectives } from '@/api/superAdminApi';
-import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
+import { ObjetivoAprendizaje, Nivel, Asignatura, Eje, deleteObjetivoAprendizaje, bulkInsertObjectives, fetchAllObjetivosAprendizaje, fetchAllNiveles, fetchAllAsignaturas, fetchAllEjes, deleteMultipleObjetivosAprendizaje } from '@/api/superAdminApi';
+import { showError, showSuccess } from '@/utils/toast';
 import ObjetivoAprendizajeEditDialog from '../ObjetivoAprendizajeEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,33 +21,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-interface ObjetivosManagementProps {
-  oas: ObjetivoAprendizaje[];
-  niveles: Nivel[];
-  asignaturas: Asignatura[];
-  ejes: Eje[];
-  selectedOas: string[];
-  setSelectedOas: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: () => void;
-}
-
-const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles, asignaturas, ejes, selectedOas, setSelectedOas, openBulkDeleteDialog }) => {
+const ObjetivosManagement = () => {
   const queryClient = useQueryClient();
   const [isOaDialogOpen, setOaDialogOpen] = useState(false);
   const [selectedOa, setSelectedOa] = useState<ObjetivoAprendizaje | null>(null);
   const [oaNivelFilter, setOaNivelFilter] = useState<string>('all');
   const [oaAsignaturaFilter, setOaAsignaturaFilter] = useState<string>('all');
-
   const [selectedBulkNivel, setSelectedBulkNivel] = useState('');
   const [selectedBulkAsignatura, setSelectedBulkAsignatura] = useState('');
   const [selectedBulkEje, setSelectedBulkEje] = useState('');
   const [bulkText, setBulkText] = useState('');
   const [filteredBulkEjes, setFilteredBulkEjes] = useState<Eje[]>([]);
-
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [oaToDelete, setOaToDelete] = useState<ObjetivoAprendizaje | null>(null);
+  const [selectedOas, setSelectedOas] = useState<string[]>([]);
+
+  const { data: oas = [], isLoading: isLoadingOas } = useQuery({ queryKey: ['oas'], queryFn: fetchAllObjetivosAprendizaje });
+  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({ queryKey: ['niveles'], queryFn: fetchAllNiveles });
+  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({ queryKey: ['asignaturas'], queryFn: fetchAllAsignaturas });
+  const { data: ejes = [], isLoading: isLoadingEjes } = useQuery({ queryKey: ['ejes'], queryFn: fetchAllEjes });
 
   useEffect(() => {
     if (selectedBulkAsignatura) {
@@ -90,6 +84,17 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
     }
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: deleteMultipleObjetivosAprendizaje,
+    onSuccess: (_, variables) => {
+      showSuccess(`${variables.length} OA(s) eliminados.`);
+      queryClient.invalidateQueries({ queryKey: ['oas'] });
+      setSelectedOas([]);
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => setIsAlertOpen(false),
+  });
+
   const handleBulkSave = () => {
     if (!selectedBulkNivel || !selectedBulkAsignatura || !selectedBulkEje || !bulkText) {
       showError("Por favor, completa todos los campos: Nivel, Asignatura, Eje y pega los objetivos.");
@@ -111,8 +116,12 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
   const confirmDelete = () => {
     if (oaToDelete) {
       deleteMutation.mutate(oaToDelete.id);
+    } else if (selectedOas.length > 0) {
+      bulkDeleteMutation.mutate(selectedOas);
     }
   };
+
+  if (isLoadingOas || isLoadingNiveles || isLoadingAsignaturas || isLoadingEjes) return <p>Cargando objetivos...</p>;
 
   return (
     <>
@@ -176,7 +185,7 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
           </Select>
         </div>
         {selectedOas.length > 0 ? (
-          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
+          <Button variant="destructive" onClick={() => setIsAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedOas.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedOa(null); setOaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear OA</Button>
         )}
@@ -221,11 +230,11 @@ const ObjetivosManagement: React.FC<ObjetivosManagementProps> = ({ oas, niveles,
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el OA "{oaToDelete?.codigo}".
+              {oaToDelete ? `Se eliminará permanentemente el OA "${oaToDelete.codigo}".` : `Se eliminarán permanentemente ${selectedOas.length} OAs.`} Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setOaToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
-import { Nivel, deleteNivel } from '@/api/superAdminApi';
+import { Nivel, deleteNivel, deleteMultipleNiveles, fetchAllNiveles } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import NivelEditDialog from '../NivelEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,21 +17,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-interface NivelesManagementProps {
-  niveles: Nivel[];
-  selectedNiveles: string[];
-  setSelectedNiveles: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: () => void;
-}
-
-const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, selectedNiveles, setSelectedNiveles, openBulkDeleteDialog }) => {
+const NivelesManagement = () => {
   const queryClient = useQueryClient();
   const [isNivelDialogOpen, setNivelDialogOpen] = useState(false);
   const [selectedNivel, setSelectedNivel] = useState<Nivel | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [nivelToDelete, setNivelToDelete] = useState<Nivel | null>(null);
+  const [selectedNiveles, setSelectedNiveles] = useState<string[]>([]);
+
+  const { data: niveles = [], isLoading } = useQuery({
+    queryKey: ['niveles'],
+    queryFn: fetchAllNiveles,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: deleteNivel,
@@ -46,6 +45,17 @@ const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, selected
     }
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: deleteMultipleNiveles,
+    onSuccess: (_, variables) => {
+      showSuccess(`${variables.length} nivel(es) eliminados.`);
+      queryClient.invalidateQueries({ queryKey: ['niveles'] });
+      setSelectedNiveles([]);
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => setIsAlertOpen(false),
+  });
+
   const handleDeleteClick = (item: Nivel) => {
     setNivelToDelete(item);
     setIsAlertOpen(true);
@@ -54,14 +64,18 @@ const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, selected
   const confirmDelete = () => {
     if (nivelToDelete) {
       deleteMutation.mutate(nivelToDelete.id);
+    } else if (selectedNiveles.length > 0) {
+      bulkDeleteMutation.mutate(selectedNiveles);
     }
   };
+
+  if (isLoading) return <p>Cargando niveles...</p>;
 
   return (
     <>
       <div className="flex justify-end mb-4">
         {selectedNiveles.length > 0 ? (
-          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedNiveles.length})</Button>
+          <Button variant="destructive" onClick={() => setIsAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedNiveles.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedNivel(null); setNivelDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Nivel</Button>
         )}
@@ -100,11 +114,11 @@ const NivelesManagement: React.FC<NivelesManagementProps> = ({ niveles, selected
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el nivel "{nivelToDelete?.nombre}".
+              {nivelToDelete ? `Se eliminará permanentemente el nivel "${nivelToDelete.nombre}".` : `Se eliminarán permanentemente ${selectedNiveles.length} niveles.`} Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setNivelToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

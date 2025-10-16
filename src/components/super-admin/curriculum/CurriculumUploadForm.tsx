@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Nivel, Asignatura } from '@/api/superAdminApi';
+import { Nivel, Asignatura, fetchAllNiveles, fetchAllAsignaturas } from '@/api/superAdminApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const schema = z.object({
   nivelId: z.string().uuid("Debes seleccionar un nivel."),
@@ -23,16 +23,14 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-interface CurriculumUploadFormProps {
-  niveles: Nivel[];
-  asignaturas: Asignatura[];
-  onUploadSuccess: () => void;
-}
-
-const CurriculumUploadForm: React.FC<CurriculumUploadFormProps> = ({ niveles, asignaturas, onUploadSuccess }) => {
+const CurriculumUploadForm = () => {
+  const queryClient = useQueryClient();
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+
+  const { data: niveles = [], isLoading: isLoadingNiveles } = useQuery({ queryKey: ['niveles'], queryFn: fetchAllNiveles });
+  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({ queryKey: ['asignaturas'], queryFn: fetchAllAsignaturas });
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -73,7 +71,7 @@ const CurriculumUploadForm: React.FC<CurriculumUploadFormProps> = ({ niveles, as
       if (toastId) dismissToast(toastId);
       showSuccess("Archivo subido. El procesamiento ha comenzado en segundo plano. Verás el estado en la tabla de abajo.");
       reset();
-      onUploadSuccess();
+      queryClient.invalidateQueries({ queryKey: ['curriculumUploadJobs'] });
     },
     onError: (error: any, _, toastId) => {
       if (toastId) dismissToast(toastId);
@@ -97,8 +95,8 @@ const CurriculumUploadForm: React.FC<CurriculumUploadFormProps> = ({ niveles, as
             <div>
               <Label>Nivel Educativo</Label>
               <Controller name="nivelId" control={control} render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingNiveles}>
+                  <SelectTrigger><SelectValue placeholder={isLoadingNiveles ? "Cargando..." : "Selecciona un nivel"} /></SelectTrigger>
                   <SelectContent>{niveles.map(n => <SelectItem key={n.id} value={n.id}>{n.nombre}</SelectItem>)}</SelectContent>
                 </Select>
               )} />
@@ -107,8 +105,8 @@ const CurriculumUploadForm: React.FC<CurriculumUploadFormProps> = ({ niveles, as
             <div>
               <Label>Asignatura</Label>
               <Controller name="asignaturaId" control={control} render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona una asignatura" /></SelectTrigger>
+                <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingAsignaturas}>
+                  <SelectTrigger><SelectValue placeholder={isLoadingAsignaturas ? "Cargando..." : "Selecciona una asignatura"} /></SelectTrigger>
                   <SelectContent>{asignaturas.map(a => <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>)}</SelectContent>
                 </Select>
               )} />

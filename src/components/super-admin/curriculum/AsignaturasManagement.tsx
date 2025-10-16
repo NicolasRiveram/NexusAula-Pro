@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
-import { Asignatura, deleteAsignatura } from '@/api/superAdminApi';
+import { Asignatura, deleteAsignatura, deleteMultipleAsignaturas, fetchAllAsignaturas } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import AsignaturaEditDialog from '../AsignaturaEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,21 +17,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-interface AsignaturasManagementProps {
-  asignaturas: Asignatura[];
-  selectedAsignaturas: string[];
-  setSelectedAsignaturas: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: () => void;
-}
-
-const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignaturas, selectedAsignaturas, setSelectedAsignaturas, openBulkDeleteDialog }) => {
+const AsignaturasManagement = () => {
   const queryClient = useQueryClient();
   const [isAsignaturaDialogOpen, setAsignaturaDialogOpen] = useState(false);
   const [selectedAsignatura, setSelectedAsignatura] = useState<Asignatura | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [asignaturaToDelete, setAsignaturaToDelete] = useState<Asignatura | null>(null);
+  const [selectedAsignaturas, setSelectedAsignaturas] = useState<string[]>([]);
+
+  const { data: asignaturas = [], isLoading } = useQuery({
+    queryKey: ['asignaturas'],
+    queryFn: fetchAllAsignaturas,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAsignatura,
@@ -46,6 +45,17 @@ const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignatur
     }
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: deleteMultipleAsignaturas,
+    onSuccess: (_, variables) => {
+      showSuccess(`${variables.length} asignatura(s) eliminadas.`);
+      queryClient.invalidateQueries({ queryKey: ['asignaturas'] });
+      setSelectedAsignaturas([]);
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => setIsAlertOpen(false),
+  });
+
   const handleDeleteClick = (item: Asignatura) => {
     setAsignaturaToDelete(item);
     setIsAlertOpen(true);
@@ -54,14 +64,18 @@ const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignatur
   const confirmDelete = () => {
     if (asignaturaToDelete) {
       deleteMutation.mutate(asignaturaToDelete.id);
+    } else if (selectedAsignaturas.length > 0) {
+      bulkDeleteMutation.mutate(selectedAsignaturas);
     }
   };
+
+  if (isLoading) return <p>Cargando asignaturas...</p>;
 
   return (
     <>
       <div className="flex justify-end mb-4">
         {selectedAsignaturas.length > 0 ? (
-          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedAsignaturas.length})</Button>
+          <Button variant="destructive" onClick={() => setIsAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedAsignaturas.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedAsignatura(null); setAsignaturaDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Asignatura</Button>
         )}
@@ -100,11 +114,11 @@ const AsignaturasManagement: React.FC<AsignaturasManagementProps> = ({ asignatur
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente la asignatura "{asignaturaToDelete?.nombre}".
+              {asignaturaToDelete ? `Se eliminará permanentemente la asignatura "${asignaturaToDelete.nombre}".` : `Se eliminarán permanentemente ${selectedAsignaturas.length} asignaturas.`} Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setAsignaturaToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

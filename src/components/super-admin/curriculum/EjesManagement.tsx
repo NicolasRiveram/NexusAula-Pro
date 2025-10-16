@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
-import { Eje, Asignatura, deleteEje } from '@/api/superAdminApi';
+import { Eje, Asignatura, deleteEje, deleteMultipleEjes, fetchAllEjes, fetchAllAsignaturas } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import EjeEditDialog from '../EjeEditDialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,28 +18,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-interface EjesManagementProps {
-  ejes: Eje[];
-  asignaturas: Asignatura[];
-  selectedEjes: string[];
-  setSelectedEjes: React.Dispatch<React.SetStateAction<string[]>>;
-  openBulkDeleteDialog: () => void;
-}
-
-const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, selectedEjes, setSelectedEjes, openBulkDeleteDialog }) => {
+const EjesManagement = () => {
   const queryClient = useQueryClient();
   const [isEjeDialogOpen, setEjeDialogOpen] = useState(false);
   const [selectedEje, setSelectedEje] = useState<Eje | null>(null);
   const [ejeAsignaturaFilter, setEjeAsignaturaFilter] = useState<string>('all');
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [ejeToDelete, setEjeToDelete] = useState<Eje | null>(null);
+  const [selectedEjes, setSelectedEjes] = useState<string[]>([]);
+
+  const { data: ejes = [], isLoading: isLoadingEjes } = useQuery({ queryKey: ['ejes'], queryFn: fetchAllEjes });
+  const { data: asignaturas = [], isLoading: isLoadingAsignaturas } = useQuery({ queryKey: ['asignaturas'], queryFn: fetchAllAsignaturas });
 
   const filteredEjes = useMemo(() => {
-    if (ejeAsignaturaFilter === 'all') {
-      return ejes;
-    }
+    if (ejeAsignaturaFilter === 'all') return ejes;
     return ejes.filter(eje => eje.asignatura_id === ejeAsignaturaFilter);
   }, [ejes, ejeAsignaturaFilter]);
 
@@ -56,6 +50,17 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, sele
     }
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: deleteMultipleEjes,
+    onSuccess: (_, variables) => {
+      showSuccess(`${variables.length} eje(s) eliminados.`);
+      queryClient.invalidateQueries({ queryKey: ['ejes'] });
+      setSelectedEjes([]);
+    },
+    onError: (error: any) => showError(error.message),
+    onSettled: () => setIsAlertOpen(false),
+  });
+
   const handleDeleteClick = (item: Eje) => {
     setEjeToDelete(item);
     setIsAlertOpen(true);
@@ -64,8 +69,12 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, sele
   const confirmDelete = () => {
     if (ejeToDelete) {
       deleteMutation.mutate(ejeToDelete.id);
+    } else if (selectedEjes.length > 0) {
+      bulkDeleteMutation.mutate(selectedEjes);
     }
   };
+
+  if (isLoadingEjes || isLoadingAsignaturas) return <p>Cargando ejes...</p>;
 
   return (
     <>
@@ -80,7 +89,7 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, sele
           </Select>
         </div>
         {selectedEjes.length > 0 ? (
-          <Button variant="destructive" onClick={openBulkDeleteDialog}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedEjes.length})</Button>
+          <Button variant="destructive" onClick={() => setIsAlertOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar ({selectedEjes.length})</Button>
         ) : (
           <Button onClick={() => { setSelectedEje(null); setEjeDialogOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Crear Eje</Button>
         )}
@@ -119,11 +128,11 @@ const EjesManagement: React.FC<EjesManagementProps> = ({ ejes, asignaturas, sele
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Se eliminará permanentemente el eje "{ejeToDelete?.nombre}".
+              {ejeToDelete ? `Se eliminará permanentemente el eje "${ejeToDelete.nombre}".` : `Se eliminarán permanentemente ${selectedEjes.length} ejes.`} Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setEjeToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
