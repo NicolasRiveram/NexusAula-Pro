@@ -47,7 +47,7 @@ const StudentResponseDetailPage = lazy(() => import("./pages/dashboard/evaluatio
 const DashboardIndex = lazy(() => import("./pages/dashboard/DashboardIndex"));
 const ManageCoursesPage = lazy(() => import("./pages/dashboard/admin/ManageCoursesPage"));
 const ManageCalendarPage = lazy(() => import("./pages/dashboard/admin/ManageCalendarPage"));
-const DesignManagementPage = lazy(() => import("./pages/dashboard/admin/DesignManagementPage"));
+const DesignManagementPage = lazy(() => import("./pages/dashboard/super-admin/DesignManagementPage"));
 const StudentSchedulePage = lazy(() => import("./pages/dashboard/student/StudentSchedulePage"));
 const MyProgressPage = lazy(() => import("./pages/dashboard/student/MyProgressPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/reports/ReportsPage"));
