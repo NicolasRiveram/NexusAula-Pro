@@ -7,7 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FormData } from '../schemas';
-import { Asignatura, Nivel } from '../api';
+import { Asignatura, Nivel } from '@/api/courses';
 import { MultiSelect } from '@/components/MultiSelect';
 import { Check } from 'lucide-react';
 
