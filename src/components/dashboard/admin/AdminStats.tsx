@@ -2,7 +2,7 @@ import React from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BookOpen, UserPlus, School } from 'lucide-react';
-import { fetchEstablishmentStats } from '@/api/adminApi';
+import { fetchEstablishmentStats } from '@/api/admin';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 

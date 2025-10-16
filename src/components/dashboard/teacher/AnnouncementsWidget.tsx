@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
-import { fetchActiveAnnouncements } from '@/api/adminApi';
+import { fetchActiveAnnouncements } from '@/api/admin';
 import { Loader2, Megaphone } from 'lucide-react';
 
 const AnnouncementsWidget = () => {

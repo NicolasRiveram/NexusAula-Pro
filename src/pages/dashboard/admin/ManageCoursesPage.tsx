@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { CursoBase } from '@/api/coursesApi';
-import { deleteCourse } from '@/api/adminApi';
+import { deleteCourse } from '@/api/admin';
 import { showError, showSuccess } from '@/utils/toast';
 import { MoreHorizontal, Trash2, Edit, PlusCircle, ArrowLeft } from 'lucide-react';
 import CourseEditDialog from '@/components/dashboard/admin/CourseEditDialog';

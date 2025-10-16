@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { fetchNonSchoolDays, deleteNonSchoolDay, NonSchoolDay } from '@/api/adminApi';
+import { fetchNonSchoolDays, deleteNonSchoolDay, NonSchoolDay } from '@/api/admin';
 import { showError, showSuccess } from '@/utils/toast';
 import { PlusCircle, Edit, Trash2, ArrowLeft } from 'lucide-react';
 import { format, parseISO, isFuture } from 'date-fns';

@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { fetchAnnouncements, deleteAnnouncement, Announcement } from '@/api/adminApi';
+import { fetchAnnouncements, deleteAnnouncement, Announcement } from '@/api/admin';
 import { showError, showSuccess } from '@/utils/toast';
 import { MoreHorizontal, Trash2, Edit, PlusCircle } from 'lucide-react';
 import { format, parseISO, isWithinInterval, isFuture, isPast } from 'date-fns';

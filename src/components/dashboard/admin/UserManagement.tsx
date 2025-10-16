@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { fetchEstablishmentUsers, removeUserFromEstablishment, EstablishmentUser } from '@/api/adminApi';
+import { fetchEstablishmentUsers, removeUserFromEstablishment, EstablishmentUser } from '@/api/admin';
 import { showError, showSuccess } from '@/utils/toast';
 import { MoreHorizontal, Trash2, UserCog, Book, FileText, FileSignature } from 'lucide-react';
 import EditUserRoleDialog from './EditUserRoleDialog';
