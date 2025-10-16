@@ -1,6 +1,6 @@
 import React from 'react';
-import TeacherCourseDetailPage from './courses/TeacherCourseDetailPage';
-import StudentCourseDetailPage from './courses/StudentCourseDetailPage';
+import TeacherCourseDetailPage from './teacher/TeacherCourseDetailPage';
+import StudentCourseDetailPage from './student/StudentCourseDetailPage';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
