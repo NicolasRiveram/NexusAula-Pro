@@ -3,7 +3,7 @@ import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
-import { fetchTeacherSchedule, deleteScheduleBlock, ScheduleBlock } from '@/api/scheduleApi';
+import { fetchTeacherSchedule, deleteScheduleBlock, ScheduleBlock } from '@/api/schedule';
 import { fetchCursosAsignaturasDocente } from '@/api/courses';
 import { showError, showSuccess } from '@/utils/toast';
 import ScheduleEditDialog from '@/components/schedule/ScheduleEditDialog';

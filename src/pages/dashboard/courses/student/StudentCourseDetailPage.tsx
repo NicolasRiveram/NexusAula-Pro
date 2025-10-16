@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, User, Clock, FileText, Send, CheckCircle, BookOpen } from 'lucide-react';
 import { fetchStudentCourseDetails, fetchStudentEvaluationsForCourse, fetchClassesForStudentCourse } from '@/api/student';
-import { fetchScheduleForCourse } from '@/api/scheduleApi';
+import { fetchScheduleForCourse } from '@/api/schedule';
 import { showError } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
