@@ -1,8 +1,8 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import FullPageLoader from '@/components/layout/FullPageLoader';
-import TeacherEvaluationPage from './evaluations/TeacherEvaluationPage';
-import StudentEvaluationPage from './evaluations/StudentEvaluationPage';
+import TeacherEvaluationPage from './TeacherEvaluationPage';
+import StudentEvaluationPage from './StudentEvaluationPage';
 
 const EvaluationPage = () => {
   const { profile, loading } = useAuth();
