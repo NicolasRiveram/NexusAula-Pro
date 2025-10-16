@@ -18,23 +18,38 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onAligned, isP
   const drawFiducialGuides = (ctx: CanvasRenderingContext2D, color: string) => {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
-    const marginX = w * 0.05;
-    const marginY = h * 0.05;
-    const size = Math.min(w, h) * 0.03;
+    const A4_ASPECT_RATIO = 210 / 297; // Ancho / Alto
+
+    let guideBoxWidth, guideBoxHeight;
+
+    // Calculate guide box dimensions to match A4 aspect ratio
+    if (w / h > A4_ASPECT_RATIO) {
+      // Canvas is wider than A4 paper, so height is the limiting factor
+      guideBoxHeight = h * 0.9;
+      guideBoxWidth = guideBoxHeight * A4_ASPECT_RATIO;
+    } else {
+      // Canvas is taller than A4 paper, so width is the limiting factor
+      guideBoxWidth = w * 0.9;
+      guideBoxHeight = guideBoxWidth / A4_ASPECT_RATIO;
+    }
+
+    const offsetX = (w - guideBoxWidth) / 2;
+    const offsetY = (h - guideBoxHeight) / 2;
+    const size = Math.min(guideBoxWidth, guideBoxHeight) * 0.04;
 
     const positions = [
-      { x: marginX, y: marginY }, { x: w / 2, y: marginY }, { x: w - marginX, y: marginY },
-      { x: marginX, y: h / 2 }, { x: w - marginX, y: h / 2 },
-      { x: marginX, y: h - marginY }, { x: w / 2, y: h - marginY }, { x: w - marginX, y: h - marginY },
+      { x: offsetX, y: offsetY }, { x: offsetX + guideBoxWidth / 2, y: offsetY }, { x: offsetX + guideBoxWidth, y: offsetY },
+      { x: offsetX, y: offsetY + guideBoxHeight / 2 }, { x: offsetX + guideBoxWidth, y: offsetY + guideBoxHeight / 2 },
+      { x: offsetX, y: offsetY + guideBoxHeight }, { x: offsetX + guideBoxWidth / 2, y: offsetY + guideBoxHeight }, { x: offsetX + guideBoxWidth, y: offsetY + guideBoxHeight },
     ];
 
     ctx.strokeStyle = color;
     ctx.lineWidth = 4;
-    ctx.font = "14px sans-serif";
+    ctx.font = "16px sans-serif";
     ctx.fillStyle = color;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("ALINEA LAS 8 MARCAS NEGRAS CON LAS GUÍAS", w / 2, marginY / 2);
+    ctx.fillText("ALINEA LAS 8 MARCAS NEGRAS CON LAS GUÍAS", w / 2, offsetY / 2);
 
     positions.forEach(pos => {
       ctx.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size);
