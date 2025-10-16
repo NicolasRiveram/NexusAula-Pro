@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { updateUserRole, EstablishmentUser } from '@/api/adminApi';
+import { updateUserRole, EstablishmentUser } from '@/api/admin';
 import { showError, showSuccess } from '@/utils/toast';
 import { useMutation } from '@tanstack/react-query';
 
