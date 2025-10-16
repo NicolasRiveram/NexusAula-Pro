@@ -617,7 +617,7 @@ const EvaluationPage = () => {
       <AnswerKeyDialog
         isOpen={isAnswerKeyDialogOpen}
         onClose={() => setAnswerKeyDialogOpen(false)}
-        evaluationId={evaluationId || null}
+        evaluationId={evaluationForAnswerKey}
       />
     </div>
   );
