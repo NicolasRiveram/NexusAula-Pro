@@ -2,15 +2,14 @@ import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { fetchCursosPorEstablecimiento, fetchDocenteAsignaturas, asignarAsignatura, CursoBase, Asignatura } from '@/api/coursesApi';
+import { fetchCursosPorEstablecimiento, fetchDocenteAsignaturas, asignarAsignatura } from '@/api/coursesApi';
 import { showSuccess, showError } from '@/utils/toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 const schema = z.object({
@@ -29,7 +28,6 @@ interface AssignSubjectDialogProps {
 const AssignSubjectDialog: React.FC<AssignSubjectDialogProps> = ({ isOpen, onClose, onSubjectAssigned }) => {
   const { activeEstablishment } = useEstablishment();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),

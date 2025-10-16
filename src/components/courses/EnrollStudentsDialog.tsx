@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { inscribirYCrearEstudiantes } from '@/api/coursesApi';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 import { Download, UserPlus, Loader2 } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 
