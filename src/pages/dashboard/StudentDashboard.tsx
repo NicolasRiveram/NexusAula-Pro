@@ -1,7 +1,7 @@
 import React from 'react';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { useQuery } from '@tanstack/react-query';
-import { fetchStudentDashboardData, fetchStudentCourses } from '@/api/studentApi';
+import { fetchStudentDashboardData, fetchStudentCourses } from '@/api/student';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, FileText, Megaphone, Book, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
