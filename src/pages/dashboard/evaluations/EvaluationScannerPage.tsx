@@ -44,6 +44,7 @@ const EvaluationScannerPage = () => {
   const [overwritePayload, setOverwritePayload] = useState<{ answers: { itemId: string; selectedAlternativeId: string }[] } | null>(null);
 
   const [reviewData, setReviewData] = useState<any | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     if (evaluationId) {
@@ -64,6 +65,7 @@ const EvaluationScannerPage = () => {
     setLockedStudentInfo(null);
     setIsProcessing(false);
     setReviewData(null);
+    setIsAnalyzing(false);
   };
 
   const handleQrScanned = (qrData: string) => {
@@ -148,83 +150,88 @@ const EvaluationScannerPage = () => {
     if (isProcessing || !evaluation || qrCode.data !== scannedQrData) return;
 
     setIsProcessing(true);
-    const toastId = showLoading(`Analizando respuestas de ${lockedStudentInfo?.studentName}...`);
+    setScannerOpen(false);
+    setIsAnalyzing(true);
 
-    try {
-      const [, , rowLabel] = scannedQrData!.split('|');
-      const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = qrCode.location;
-      const srcPoints = [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner];
-      const dstWidth = 827;
-      const dstHeight = 1169;
-      const dstPoints = [{x:0, y:0}, {x:dstWidth, y:0}, {x:dstWidth, y:dstHeight}, {x:0, y:dstHeight}];
-      
-      const transform = getPerspectiveTransform(srcPoints, dstPoints);
-      const warpedImageData = warpPerspective(imageData, transform, dstWidth, dstHeight);
+    // Perform perspective correction immediately to show the user the captured image
+    const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = qrCode.location;
+    const srcPoints = [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner];
+    const dstWidth = 827;
+    const dstHeight = 1169;
+    const dstPoints = [{x:0, y:0}, {x:dstWidth, y:0}, {x:dstWidth, y:dstHeight}, {x:0, y:dstHeight}];
+    const transform = getPerspectiveTransform(srcPoints, dstPoints);
+    const warpedImageData = warpPerspective(imageData, transform, dstWidth, dstHeight);
 
-      const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
-      const processedAnswers: any[] = [];
-      
-      const questionsPerColumn = Math.ceil(allQuestions.length / 3);
-      const colWidth = 230;
-      const rowHeight = 28;
-      const startX = 60;
-      const startY = 380;
-      const bubbleRadius = 7;
+    // Set initial review data with just the image
+    setReviewData({ warpedImageData });
 
-      allQuestions.forEach(q => {
-        const shuffledAlts = seededShuffle(q.item_alternativas, `${seed}-${rowLabel}-${q.id}`);
-        let minBrightness = 255;
-        let selectedIndex = -1;
-
-        const colIndex = Math.floor((q.orden - 1) / questionsPerColumn);
-        const rowIndex = (q.orden - 1) % questionsPerColumn;
-
-        for (let i = 0; i < q.item_alternativas.length; i++) {
-          const bubbleX = startX + colIndex * colWidth + i * 45;
-          const bubbleY = startY + rowIndex * rowHeight;
-          const brightness = getBubbleDarkness(warpedImageData, bubbleX, bubbleY, bubbleRadius);
-          if (brightness < minBrightness) {
-            minBrightness = brightness;
-            selectedIndex = i;
-          }
-        }
+    // Process answers in the background
+    setTimeout(() => {
+      try {
+        const [, , rowLabel] = scannedQrData!.split('|');
+        const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
+        const processedAnswers: any[] = [];
         
-        if (selectedIndex > -1 && minBrightness < 150) {
-          const selectedAlternative = shuffledAlts[selectedIndex];
-          processedAnswers.push({ 
-            itemId: q.id, 
-            selectedAlternativeId: selectedAlternative.id,
-            isCorrect: selectedAlternative.es_correcta,
-            questionOrder: q.orden,
-            selectedIndex: selectedIndex,
-            alternativesCount: q.item_alternativas.length,
-            score: selectedAlternative.es_correcta ? q.puntaje : 0,
-          });
+        const questionsPerColumn = Math.ceil(allQuestions.length / 3);
+        const colWidth = 230;
+        const rowHeight = 28;
+        const startX = 60;
+        const startY = 380;
+        const bubbleRadius = 7;
+
+        allQuestions.forEach(q => {
+          const shuffledAlts = seededShuffle(q.item_alternativas, `${seed}-${rowLabel}-${q.id}`);
+          let minBrightness = 255;
+          let selectedIndex = -1;
+
+          const colIndex = Math.floor((q.orden - 1) / questionsPerColumn);
+          const rowIndex = (q.orden - 1) % questionsPerColumn;
+
+          for (let i = 0; i < q.item_alternativas.length; i++) {
+            const bubbleX = startX + colIndex * colWidth + i * 45;
+            const bubbleY = startY + rowIndex * rowHeight;
+            const brightness = getBubbleDarkness(warpedImageData, bubbleX, bubbleY, bubbleRadius);
+            if (brightness < minBrightness) {
+              minBrightness = brightness;
+              selectedIndex = i;
+            }
+          }
+          
+          if (selectedIndex > -1 && minBrightness < 150) {
+            const selectedAlternative = shuffledAlts[selectedIndex];
+            processedAnswers.push({ 
+              itemId: q.id, 
+              selectedAlternativeId: selectedAlternative.id,
+              isCorrect: selectedAlternative.es_correcta,
+              questionOrder: q.orden,
+              selectedIndex: selectedIndex,
+              alternativesCount: q.item_alternativas.length,
+              score: selectedAlternative.es_correcta ? q.puntaje : 0,
+            });
+          }
+        });
+
+        if (processedAnswers.length < allQuestions.length * 0.9) {
+          throw new Error(`Solo se leyeron ${processedAnswers.length} de ${allQuestions.length} respuestas. Intenta de nuevo con mejor iluminación y alineación.`);
         }
-      });
 
-      if (processedAnswers.length < allQuestions.length * 0.9) {
-        throw new Error(`Solo se leyeron ${processedAnswers.length} de ${allQuestions.length} respuestas. Intenta de nuevo con mejor iluminación y alineación.`);
+        const score = processedAnswers.reduce((acc, ans) => acc + ans.score, 0);
+        const total = allQuestions.reduce((acc, q) => acc + q.puntaje, 0);
+        const grade = calculateGrade(score, total);
+
+        setReviewData({ warpedImageData, processedAnswers, score, total, grade });
+      } catch (error: any) {
+        showError(error.message);
+        setScanResult({ studentName: 'Error', message: error.message, isError: true });
+        resetScanner();
+      } finally {
+        setIsAnalyzing(false);
       }
-
-      const score = processedAnswers.reduce((acc, ans) => acc + ans.score, 0);
-      const total = allQuestions.reduce((acc, q) => acc + q.puntaje, 0);
-      const grade = calculateGrade(score, total);
-
-      setReviewData({ warpedImageData, processedAnswers, score, total, grade });
-      setScannerOpen(false);
-      dismissToast(toastId);
-
-    } catch (error: any) {
-      dismissToast(toastId);
-      showError(error.message);
-      setScanResult({ studentName: 'Error', message: error.message, isError: true });
-      resetScanner();
-    }
+    }, 100); // Short delay to allow UI to update
   }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo]);
 
   const handleConfirmReview = async () => {
-    if (!reviewData) return;
+    if (!reviewData || isAnalyzing) return;
     const toastId = showLoading(`Guardando respuestas de ${lockedStudentInfo?.studentName}...`);
     const answersToSubmit = reviewData.processedAnswers.map((a: any) => ({ itemId: a.itemId, selectedAlternativeId: a.selectedAlternativeId }));
     try {
@@ -262,6 +269,7 @@ const EvaluationScannerPage = () => {
             studentName={lockedStudentInfo!.studentName}
             onConfirm={handleConfirmReview}
             onCancel={resetScanner}
+            isAnalyzing={isAnalyzing}
           />
         ) : (
           <Card>
