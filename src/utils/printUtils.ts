@@ -184,6 +184,10 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
           .fm-s-bottom-left { bottom: 5mm; left: 5mm; }
           .fm-s-bottom-center { bottom: 5mm; left: 50%; transform: translateX(-50%); }
           .fm-s-bottom-right { bottom: 5mm; right: 5mm; }
+          .fm-i-top-left { top: 30%; left: 8%; }
+          .fm-i-top-right { top: 30%; right: 8%; }
+          .fm-i-bottom-left { bottom: 10%; left: 8%; }
+          .fm-i-bottom-right { bottom: 10%; right: 8%; }
 
           /* Answer Key */
           .answer-key-title { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 10px; }
