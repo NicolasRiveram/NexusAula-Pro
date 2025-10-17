@@ -161,17 +161,16 @@ const EvaluationScannerPage = () => {
             .select('id')
             .eq('evaluacion_id', evaluationId)
             .eq('estudiante_perfil_id', studentId)
-            .limit(1)
-            .single();
+            .limit(1);
 
           if (fetchError) throw fetchError;
 
-          if (existingResponse) {
+          if (existingResponse && existingResponse.length > 0) {
             setScanResult({
               studentName: lockedStudentInfo!.studentName,
               message: 'Este estudiante ya completó la evaluación.',
               isError: true,
-              responseId: existingResponse.id,
+              responseId: existingResponse[0].id,
             });
           } else {
             showError("El estudiante ya respondió, pero no se pudo encontrar la respuesta anterior.");

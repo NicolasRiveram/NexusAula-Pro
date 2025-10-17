@@ -18,7 +18,7 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameId = useRef<number>();
 
-  const drawGuides = (ctx: CanvasRenderingContext2D, color: string) => {
+  const drawGuides = (ctx: CanvasRenderingContext2D, color: string, qrLocation?: any) => {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
     ctx.strokeStyle = color;
@@ -35,28 +35,16 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
       ctx.strokeRect(x, y, boxSize, boxSize);
       ctx.fillText("Enfoca el código QR dentro del recuadro", w / 2, y / 2);
     } else {
-      const A4_ASPECT_RATIO = 210 / 297;
-      let guideBoxWidth, guideBoxHeight;
-      if (w / h > A4_ASPECT_RATIO) {
-        guideBoxHeight = h * 0.9;
-        guideBoxWidth = guideBoxHeight * A4_ASPECT_RATIO;
-      } else {
-        guideBoxWidth = w * 0.9;
-        guideBoxHeight = guideBoxWidth / A4_ASPECT_RATIO;
+      ctx.fillText("Alinea la hoja para que el recuadro se vea lo más rectangular posible", w / 2, h * 0.1);
+      if (qrLocation) {
+        ctx.beginPath();
+        ctx.moveTo(qrLocation.topLeftCorner.x, qrLocation.topLeftCorner.y);
+        ctx.lineTo(qrLocation.topRightCorner.x, qrLocation.topRightCorner.y);
+        ctx.lineTo(qrLocation.bottomRightCorner.x, qrLocation.bottomRightCorner.y);
+        ctx.lineTo(qrLocation.bottomLeftCorner.x, qrLocation.bottomLeftCorner.y);
+        ctx.closePath();
+        ctx.stroke();
       }
-      const offsetX = (w - guideBoxWidth) / 2;
-      const offsetY = (h - guideBoxHeight) / 2;
-      const size = Math.min(guideBoxWidth, guideBoxHeight) * 0.04;
-      const positions = [
-        { x: offsetX, y: offsetY }, { x: w - offsetX, y: offsetY },
-        { x: offsetX, y: h - offsetY }, { x: w - offsetX, y: h - offsetY },
-        { x: w / 2, y: offsetY }, { x: w / 2, y: h - offsetY },
-        { x: offsetX, y: h / 2 }, { x: w - offsetX, y: h / 2 },
-      ];
-      ctx.fillText("ALINEA LAS 8 MARCAS NEGRAS CON LAS GUÍAS", w / 2, offsetY / 2);
-      positions.forEach(pos => {
-        ctx.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size);
-      });
     }
   };
 
@@ -99,17 +87,21 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
         const heightRight = Math.hypot(bottomRightCorner.x - topRightCorner.x, bottomRightCorner.y - topRightCorner.y);
         const distortion = Math.abs(1 - widthTop / widthBottom) + Math.abs(1 - heightLeft / heightRight);
         
-        if (distortion < 0.2) {
+        if (distortion < 0.15) { // Stricter threshold for better alignment
           guideColor = 'rgba(74, 222, 128, 0.9)';
           onAligned(imageData, code);
           return; // Stop loop
         } else {
           guideColor = 'rgba(239, 68, 68, 0.9)';
         }
+        drawGuides(overlayCtx, guideColor, code.location);
+      } else {
+        drawGuides(overlayCtx, guideColor);
       }
+    } else {
+      drawGuides(overlayCtx, guideColor);
     }
     
-    drawGuides(overlayCtx, guideColor);
     animationFrameId.current = requestAnimationFrame(tick);
   }, [isProcessing, onAligned, onQrScanned, scanMode]);
 
