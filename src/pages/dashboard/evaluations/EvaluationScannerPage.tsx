@@ -161,6 +161,7 @@ const EvaluationScannerPage = () => {
             .select('id')
             .eq('evaluacion_id', evaluationId)
             .eq('estudiante_perfil_id', studentId)
+            .limit(1)
             .single();
 
           if (fetchError) throw fetchError;
