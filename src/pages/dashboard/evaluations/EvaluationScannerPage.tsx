@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Camera, CheckCircle, Loader2, XCircle } from 'lucide-react';
+import { ArrowLeft, Camera, CheckCircle, Loader2, XCircle, X } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
 import { seededShuffle } from '@/utils/shuffleUtils';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import ScannerOverlay from '@/components/evaluations/scanner/ScannerOverlay';
 import { getPerspectiveTransform, warpPerspective } from '@/utils/perspective';
+import { supabase } from '@/integrations/supabase/client';
 
 const EvaluationScannerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -18,7 +19,7 @@ const EvaluationScannerPage = () => {
   const [students, setStudents] = useState<{ id: string; nombre_completo: string }[]>([]);
   const [seed, setSeed] = useState('nexus-2024');
   const [isScannerOpen, setScannerOpen] = useState(false);
-  const [scanResult, setScanResult] = useState<{ studentName: string; message: string; isError: boolean; score?: string } | null>(null);
+  const [scanResult, setScanResult] = useState<{ studentName: string; message: string; isError: boolean; score?: string; responseId?: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [scanMode, setScanMode] = useState<'qr' | 'align'>('qr');
@@ -152,15 +153,41 @@ const EvaluationScannerPage = () => {
 
     } catch (error: any) {
       dismissToast(toastId);
-      showError(error.message);
-      setScanResult({ studentName: 'Error', message: error.message, isError: true });
+      const [, studentId] = scannedQrData!.split('|');
+      if (error.message.includes('User has already submitted a response')) {
+        try {
+          const { data: existingResponse, error: fetchError } = await supabase
+            .from('respuestas_estudiante')
+            .select('id')
+            .eq('evaluacion_id', evaluationId)
+            .eq('estudiante_perfil_id', studentId)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          if (existingResponse) {
+            setScanResult({
+              studentName: lockedStudentInfo!.studentName,
+              message: 'Este estudiante ya completó la evaluación.',
+              isError: true,
+              responseId: existingResponse.id,
+            });
+          } else {
+            showError("El estudiante ya respondió, pero no se pudo encontrar la respuesta anterior.");
+            setScanResult({ studentName: 'Error', message: "El estudiante ya respondió, pero no se pudo encontrar la respuesta anterior.", isError: true });
+          }
+        } catch (fetchErr: any) {
+          showError(`Error al buscar la respuesta existente: ${fetchErr.message}`);
+          setScanResult({ studentName: 'Error', message: `Error al buscar la respuesta existente: ${fetchErr.message}`, isError: true });
+        }
+      } else {
+        showError(error.message);
+        setScanResult({ studentName: 'Error', message: error.message, isError: true });
+      }
     } finally {
-      setTimeout(() => {
-        setScanResult(null);
-        resetScanner();
-      }, 5000);
+      resetScanner();
     }
-  }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo]);
+  }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo, evaluationId]);
 
   return (
     <div className="container mx-auto space-y-6">
@@ -183,11 +210,25 @@ const EvaluationScannerPage = () => {
             <Camera className="mr-2 h-4 w-4" /> Iniciar Escáner
           </Button>
           {scanResult && (
-            <div className={cn("p-4 rounded-md flex items-center", scanResult.isError ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-700')}>
-              {scanResult.isError ? <XCircle className="h-6 w-6 mr-3" /> : <CheckCircle className="h-6 w-6 mr-3" />}
-              <div>
-                <p className="font-bold">{scanResult.studentName} {scanResult.score && `(${scanResult.score})`}</p>
-                <p>{scanResult.message}</p>
+            <div className={cn("p-4 rounded-md flex items-center justify-between", scanResult.isError ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-700')}>
+              <div className="flex items-center">
+                {scanResult.isError ? <XCircle className="h-6 w-6 mr-3" /> : <CheckCircle className="h-6 w-6 mr-3" />}
+                <div>
+                  <p className="font-bold">{scanResult.studentName} {scanResult.score && `(${scanResult.score})`}</p>
+                  <p>{scanResult.message}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {scanResult.responseId && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to={`/dashboard/evaluacion/${evaluationId}/resultados/${scanResult.responseId}`}>
+                      Ver Respuestas
+                    </Link>
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" onClick={() => setScanResult(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           )}
