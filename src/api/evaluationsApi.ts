@@ -966,9 +966,10 @@ export const fetchStudentResponseDetails = async (responseId: string): Promise<S
   return data || [];
 };
 
-export const submitEvaluationResponse = async (evaluationId: string, answers: StudentAnswer[]): Promise<string> => {
+export const submitEvaluationResponse = async (evaluationId: string, answers: StudentAnswer[], studentId: string): Promise<string> => {
   const { data, error } = await supabase.rpc('submit_student_response', {
     p_evaluation_id: evaluationId,
+    p_student_id: studentId,
     p_answers: answers,
   });
 
@@ -976,9 +977,10 @@ export const submitEvaluationResponse = async (evaluationId: string, answers: St
   return data;
 };
 
-export const replaceEvaluationResponse = async (evaluationId: string, answers: StudentAnswer[]): Promise<string> => {
+export const replaceEvaluationResponse = async (evaluationId: string, answers: StudentAnswer[], studentId: string): Promise<string> => {
   const { data, error } = await supabase.rpc('replace_student_response', {
     p_evaluation_id: evaluationId,
+    p_student_id: studentId,
     p_answers: answers,
   });
 

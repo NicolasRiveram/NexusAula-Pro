@@ -121,7 +121,7 @@ const EvaluationScannerPage = () => {
 
   const processAndSubmit = async (submitFunction: typeof submitEvaluationResponse | typeof replaceEvaluationResponse, answers: { itemId: string; selectedAlternativeId: string }[]) => {
     const [, studentId] = scannedQrData!.split('|');
-    const responseId = await submitFunction(evaluationId!, answers);
+    const responseId = await submitFunction(evaluationId!, answers, studentId);
     dismissToast();
     showSuccess(`Respuestas de ${lockedStudentInfo?.studentName} guardadas.`);
     setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas guardadas con éxito.', isError: false, score: `${answers.length}/${evaluation!.evaluation_content_blocks.flatMap(b => b.evaluacion_items).length}`, responseId });
