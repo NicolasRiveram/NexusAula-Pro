@@ -24,9 +24,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import ScanReview from '@/components/evaluations/scanner/ScanReview';
 import { calculateGrade } from '@/utils/evaluationUtils';
+import { useQueryClient } from '@tanstack/react-query';
 
 const EvaluationScannerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
+  const queryClient = useQueryClient();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [students, setStudents] = useState<{ id: string; nombre_completo: string }[]>([]);
   const [seed, setSeed] = useState('nexus-2024');
@@ -109,11 +111,19 @@ const EvaluationScannerPage = () => {
     return pixelCount > 0 ? totalBrightness / pixelCount : 255;
   };
 
+  const invalidateEvaluationQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['evaluationResultsSummary', evaluationId] });
+    queryClient.invalidateQueries({ queryKey: ['evaluationStatistics', evaluationId] });
+    queryClient.invalidateQueries({ queryKey: ['itemAnalysis', evaluationId] });
+    queryClient.invalidateQueries({ queryKey: ['skillAnalysisForEvaluation', evaluationId] });
+  };
+
   const processAndSubmit = async (submitFunction: typeof submitEvaluationResponse | typeof replaceEvaluationResponse, answers: { itemId: string; selectedAlternativeId: string }[]) => {
     const responseId = await submitFunction(evaluationId!, answers);
     dismissToast();
     showSuccess(`Respuestas de ${lockedStudentInfo?.studentName} guardadas.`);
     setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas guardadas con éxito.', isError: false, score: `${answers.length}/${evaluation!.evaluation_content_blocks.flatMap(b => b.evaluacion_items).length}`, responseId });
+    invalidateEvaluationQueries();
   };
 
   const handleConfirmOverwrite = async () => {
