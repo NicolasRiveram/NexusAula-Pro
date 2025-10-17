@@ -59,6 +59,22 @@ export interface StudentSkillPerformance {
   promedio_logro: number;
 }
 
+export interface StudentResponseDetail {
+  id: string;
+  alternativa_seleccionada_id: string;
+  es_correcto: boolean;
+  evaluacion_items: {
+    id: string;
+    enunciado: string;
+    habilidad_evaluada: string | null;
+    item_alternativas: {
+      id: string;
+      texto: string;
+      es_correcta: boolean;
+    }[];
+  };
+}
+
 // --- Funciones de Lectura ---
 
 export const fetchNiveles = async (): Promise<Nivel[]> => {
@@ -232,6 +248,37 @@ export const fetchStudentEvaluationHistory = async (studentId: string): Promise<
         throw new Error(`Error fetching student evaluation history: ${error.message}`);
     }
     return data || [];
+};
+
+export const fetchStudentResponseDetailsForHistory = async (studentId: string, evaluationId: string): Promise<StudentResponseDetail[]> => {
+    const { data: response, error: responseError } = await supabase
+        .from('respuestas_estudiante')
+        .select('id')
+        .eq('estudiante_perfil_id', studentId)
+        .eq('evaluacion_id', evaluationId)
+        .limit(1)
+        .single();
+
+    if (responseError) throw new Error(`Error finding student response: ${responseError.message}`);
+    if (!response) return [];
+
+    const { data, error } = await supabase
+        .from('desempeno_item_estudiante')
+        .select(`
+            id,
+            alternativa_seleccionada_id,
+            es_correcto,
+            evaluacion_items (
+                id,
+                enunciado,
+                habilidad_evaluada,
+                item_alternativas ( id, texto, es_correcta )
+            )
+        `)
+        .eq('respuesta_estudiante_id', response.id);
+
+    if (error) throw new Error(`Error fetching response details: ${error.message}`);
+    return data as StudentResponseDetail[];
 };
 
 export const fetchStudentPerformanceStats = async (studentId: string): Promise<StudentPerformanceStats> => {

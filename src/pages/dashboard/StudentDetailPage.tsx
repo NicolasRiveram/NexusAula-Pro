@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Mail, User, Hash, FileSignature } from 'lucide-react';
-import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance } from '@/api/coursesApi';
+import { ArrowLeft, Mail, User, Hash, FileSignature, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { fetchStudentProfile, Estudiante, fetchStudentEnrollments, StudentEnrollment, fetchStudentEvaluationHistory, StudentEvaluationHistory, fetchStudentPerformanceStats, StudentPerformanceStats, fetchStudentSkillPerformance, StudentSkillPerformance, fetchStudentResponseDetailsForHistory, StudentResponseDetail } from '@/api/coursesApi';
 import { fetchEvaluationsForStudent, StudentRubricEvaluation } from '@/api/rubricsApi';
 import { showError } from '@/utils/toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -16,6 +16,63 @@ import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
 
+interface ResponseDetailViewProps {
+  studentId: string;
+  evaluationId: string;
+}
+
+const ResponseDetailView: React.FC<ResponseDetailViewProps> = ({ studentId, evaluationId }) => {
+  const [details, setDetails] = useState<StudentResponseDetail[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStudentResponseDetailsForHistory(studentId, evaluationId)
+      .then(setDetails)
+      .catch(err => showError(err.message))
+      .finally(() => setLoading(false));
+  }, [studentId, evaluationId]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  }
+
+  if (!details || details.length === 0) {
+    return <p className="text-muted-foreground text-sm p-4">No se encontraron detalles para esta evaluación.</p>;
+  }
+
+  const correctCount = details.filter(d => d.es_correcto).length;
+  const errorCount = details.length - correctCount;
+
+  return (
+    <div className="p-4 space-y-6">
+      <div className="flex gap-4">
+        <Badge variant="default" className="bg-green-500 hover:bg-green-600">Aciertos: {correctCount}</Badge>
+        <Badge variant="destructive">Errores: {errorCount}</Badge>
+      </div>
+      {details.map((detail, index) => (
+        <div key={detail.id}>
+          <p className="font-semibold">{index + 1}. {detail.evaluacion_items.enunciado}</p>
+          {detail.evaluacion_items.habilidad_evaluada && <Badge variant="outline" className="mt-1">{detail.evaluacion_items.habilidad_evaluada}</Badge>}
+          <ul className="mt-2 space-y-1 text-sm">
+            {detail.evaluacion_items.item_alternativas.map((alt, altIndex) => {
+              const isSelected = alt.id === detail.alternativa_seleccionada_id;
+              const isCorrect = alt.es_correcta;
+              return (
+                <li key={alt.id} className={cn("flex items-center p-2 rounded-md", isSelected && "bg-blue-100 dark:bg-blue-900/30", isCorrect && "font-bold")}>
+                  <span className="mr-2">{String.fromCharCode(97 + altIndex)})</span>
+                  <span>{alt.texto}</span>
+                  {isCorrect && <CheckCircle2 className="h-4 w-4 ml-auto text-green-600" />}
+                  {isSelected && !isCorrect && <XCircle className="h-4 w-4 ml-auto text-destructive" />}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const StudentDetailPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const [student, setStudent] = useState<Estudiante | null>(null);
@@ -25,6 +82,7 @@ const StudentDetailPage = () => {
   const [stats, setStats] = useState<StudentPerformanceStats | null>(null);
   const [skillPerformance, setSkillPerformance] = useState<StudentSkillPerformance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeAccordionItem, setActiveAccordionItem] = useState<string | undefined>();
 
   useEffect(() => {
     if (studentId) {
@@ -143,37 +201,36 @@ const StudentDetailPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Historial de Evaluaciones</CardTitle>
+          <CardTitle>Historial de Evaluaciones (Pruebas)</CardTitle>
         </CardHeader>
         <CardContent>
           {evaluationHistory.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Evaluación</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Puntaje</TableHead>
-                  <TableHead>Nota (60%)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {evaluationHistory.map(ev => {
-                  const nota = calculateGrade(ev.score_obtained, ev.max_score);
-                  return (
-                    <TableRow key={ev.evaluation_id}>
-                      <TableCell className="font-medium">{ev.evaluation_title}</TableCell>
-                      <TableCell>{format(parseISO(ev.response_date), "d LLL, yyyy", { locale: es })}</TableCell>
-                      <TableCell>{ev.score_obtained} / {ev.max_score}</TableCell>
-                      <TableCell>
-                        <span className={cn("font-semibold", nota < 4.0 ? "text-destructive" : "text-green-600")}>
-                          {nota.toFixed(1)}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <Accordion type="single" collapsible value={activeAccordionItem} onValueChange={setActiveAccordionItem}>
+              {evaluationHistory.map(ev => {
+                const nota = calculateGrade(ev.score_obtained, ev.max_score);
+                return (
+                  <AccordionItem key={ev.evaluation_id} value={ev.evaluation_id}>
+                    <AccordionTrigger>
+                      <div className="flex justify-between w-full pr-4 items-center">
+                        <div className="text-left">
+                          <p className="font-semibold">{ev.evaluation_title}</p>
+                          <p className="text-sm text-muted-foreground">{format(parseISO(ev.response_date), "d LLL, yyyy", { locale: es })}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge>Puntaje: {ev.score_obtained} / {ev.max_score}</Badge>
+                          <Badge variant="outline" className={cn("text-base", nota < 4.0 ? "text-destructive border-destructive" : "text-green-600 border-green-600")}>
+                            Nota: {nota.toFixed(1)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {activeAccordionItem === ev.evaluation_id && <ResponseDetailView studentId={studentId} evaluationId={ev.evaluation_id} />}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
           ) : (
             <p className="text-muted-foreground text-center">No hay historial de evaluaciones para mostrar.</p>
           )}
