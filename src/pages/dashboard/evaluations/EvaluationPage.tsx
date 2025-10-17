@@ -238,6 +238,10 @@ const EvaluationPage = () => {
       const answerKey: { [row: string]: { [q: number]: string } } = {};
       const printableComponents: React.ReactElement[] = [];
 
+      const midIndex = Math.ceil(students.length / 2);
+      const studentsA = students.slice(0, midIndex);
+      const studentsB = students.slice(midIndex);
+
       for (let i = 0; i < formData.rows; i++) {
         const rowLabel = String.fromCharCode(65 + i);
         answerKey[rowLabel] = {};
@@ -250,7 +254,9 @@ const EvaluationPage = () => {
           }
         });
 
-        for (const student of students) {
+        const studentsForRow = formData.rows === 1 ? students : (rowLabel === 'A' ? studentsA : studentsB);
+
+        for (const student of studentsForRow) {
           const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
           printableComponents.push(
             <PrintableAnswerSheet
@@ -457,25 +463,25 @@ const EvaluationPage = () => {
 
     return (
       <>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold">Banco de Evaluaciones</h1>
             <p className="text-muted-foreground">Crea, gestiona y comparte tus instrumentos de evaluación.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full md:w-auto">
             {selectedEvaluations.length > 0 ? (
-              <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)}>
+              <Button variant="destructive" onClick={() => setBulkDeleteDialogOpen(true)} className="w-full">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar ({selectedEvaluations.length})
               </Button>
             ) : (
               <>
-                <Button asChild variant="outline" disabled={!activeEstablishment}>
+                <Button asChild variant="outline" disabled={!activeEstablishment} className="w-1/2">
                   <Link to="/dashboard/rubricas/crear">
                     <PlusCircle className="mr-2 h-4 w-4" /> Crear Rúbrica
                   </Link>
                 </Button>
-                <Button asChild disabled={!activeEstablishment}>
+                <Button asChild disabled={!activeEstablishment} className="w-1/2">
                   <Link to="/dashboard/evaluacion/crear">
                     <PlusCircle className="mr-2 h-4 w-4" /> Crear Nueva Evaluación
                   </Link>
