@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 interface ScannerOverlayProps {
   onClose: () => void;
   onQrScanned: (qrData: string) => void;
-  onAligned: (imageData: ImageData, qrCode: any) => void;
+  onAligned: (imageData: ImageData, qrCode: any, corners: {x: number, y: number}[]) => void;
   isProcessing: boolean;
   scanMode: 'qr' | 'align';
   scanFeedback: { studentName: string; evalTitle: string } | null;
@@ -111,7 +111,16 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
         
         if (distortion < 0.15) { // Stricter threshold for better alignment
           guideColor = 'rgba(74, 222, 128, 0.9)';
-          onAligned(imageData, code);
+          const w = video.videoWidth;
+          const h = video.videoHeight;
+          const margin = 0.05;
+          const corners = [
+            { x: w * margin, y: h * margin }, // Top-left
+            { x: w * (1 - margin), y: h * margin }, // Top-right
+            { x: w * (1 - margin), y: h * (1 - margin) }, // Bottom-right
+            { x: w * margin, y: h * (1 - margin) }, // Bottom-left
+          ];
+          onAligned(imageData, code, corners);
           return; // Stop loop
         } else {
           guideColor = 'rgba(239, 68, 68, 0.9)';

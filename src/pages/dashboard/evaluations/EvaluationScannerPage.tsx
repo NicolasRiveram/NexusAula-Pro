@@ -146,7 +146,7 @@ const EvaluationScannerPage = () => {
     }
   };
 
-  const handleAligned = useCallback(async (imageData: ImageData, qrCode: any) => {
+  const handleAligned = useCallback(async (imageData: ImageData, qrCode: any, corners: {x: number, y: number}[]) => {
     if (isProcessing || !evaluation || qrCode.data !== scannedQrData) return;
 
     setIsProcessing(true);
@@ -154,8 +154,7 @@ const EvaluationScannerPage = () => {
     setIsAnalyzing(true);
 
     // Perform perspective correction immediately to show the user the captured image
-    const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = qrCode.location;
-    const srcPoints = [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner];
+    const srcPoints = corners;
     const dstWidth = 827;
     const dstHeight = 1169;
     const dstPoints = [{x:0, y:0}, {x:dstWidth, y:0}, {x:dstWidth, y:dstHeight}, {x:0, y:dstHeight}];
