@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, XCircle } from 'lucide-react';
 import { EvaluationDetail } from '@/api/evaluationsApi';
 import { cn } from '@/lib/utils';
 
@@ -46,26 +45,33 @@ const ScanReview: React.FC<ScanReviewProps> = ({
         canvas.height = imageData.height;
         ctx.putImageData(imageData, 0, 0);
 
-        // Draw markers
+        // Constants must match the scanner logic
         const questionsPerColumn = Math.ceil(processedAnswers.length / 3);
         const colWidth = 230;
         const rowHeight = 28;
         const startX = 60;
         const startY = 380;
+        const bubbleOffsetX = 22.5; // Horizontal center of the bubble area
+        const bubbleOffsetY = 14;   // Vertical center of the bubble area
 
         processedAnswers.forEach(answer => {
           const colIndex = Math.floor((answer.questionOrder - 1) / questionsPerColumn);
           const rowIndex = (answer.questionOrder - 1) % questionsPerColumn;
-          const bubbleX = startX + colIndex * colWidth + answer.selectedIndex * 45;
-          const bubbleY = startY + rowIndex * rowHeight;
+          
+          // Calculate the center of the selected bubble
+          const bubbleX = startX + colIndex * colWidth + answer.selectedIndex * 45 + bubbleOffsetX;
+          const bubbleY = startY + rowIndex * rowHeight + bubbleOffsetY;
 
           ctx.font = 'bold 24px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
           if (answer.isCorrect) {
-            ctx.fillStyle = 'green';
-            ctx.fillText('✓', bubbleX, bubbleY + 8);
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.9)'; // Green
+            ctx.fillText('✓', bubbleX, bubbleY);
           } else {
-            ctx.fillStyle = 'red';
-            ctx.fillText('✗', bubbleX, bubbleY + 8);
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.9)'; // Red
+            ctx.fillText('✗', bubbleX, bubbleY);
           }
         });
       }
@@ -93,7 +99,7 @@ const ScanReview: React.FC<ScanReviewProps> = ({
             </p>
           </div>
         </div>
-        <div className="w-full overflow-x-auto border rounded-md">
+        <div className="w-full overflow-x-auto border rounded-md bg-gray-100 dark:bg-gray-800">
           <canvas ref={canvasRef} className="max-w-none" />
         </div>
         <div className="flex justify-end gap-2">

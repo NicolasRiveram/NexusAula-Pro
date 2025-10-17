@@ -111,19 +111,21 @@ const EvaluationScannerPage = () => {
     return pixelCount > 0 ? totalBrightness / pixelCount : 255;
   };
 
-  const invalidateEvaluationQueries = () => {
+  const invalidateEvaluationQueries = (studentId: string) => {
     queryClient.invalidateQueries({ queryKey: ['evaluationResultsSummary', evaluationId] });
     queryClient.invalidateQueries({ queryKey: ['evaluationStatistics', evaluationId] });
     queryClient.invalidateQueries({ queryKey: ['itemAnalysis', evaluationId] });
     queryClient.invalidateQueries({ queryKey: ['skillAnalysisForEvaluation', evaluationId] });
+    queryClient.invalidateQueries({ queryKey: ['studentEvaluationHistory', studentId] });
   };
 
   const processAndSubmit = async (submitFunction: typeof submitEvaluationResponse | typeof replaceEvaluationResponse, answers: { itemId: string; selectedAlternativeId: string }[]) => {
+    const [, studentId] = scannedQrData!.split('|');
     const responseId = await submitFunction(evaluationId!, answers);
     dismissToast();
     showSuccess(`Respuestas de ${lockedStudentInfo?.studentName} guardadas.`);
     setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas guardadas con éxito.', isError: false, score: `${answers.length}/${evaluation!.evaluation_content_blocks.flatMap(b => b.evaluacion_items).length}`, responseId });
-    invalidateEvaluationQueries();
+    invalidateEvaluationQueries(studentId);
   };
 
   const handleConfirmOverwrite = async () => {
