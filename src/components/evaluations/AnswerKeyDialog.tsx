@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { seededShuffle } from '@/utils/shuffleUtils';
+import { generateBalancedShuffledAlternatives } from '@/utils/shuffleUtils';
 import { Switch } from '@/components/ui/switch';
 
 const schema = z.object({
@@ -69,22 +69,25 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
       const rowLabel = String.fromCharCode(65 + i);
       newKey[rowLabel] = {};
 
-      allItems.forEach(item => {
+      const itemsToProcess = allItems.map(item => {
         const adaptation = usePieVersion && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
-        let alternativesToUse = adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas;
+        return {
+          ...item,
+          item_alternativas: adaptation ? adaptation.alternativas_adaptadas : item.item_alternativas
+        };
+      });
 
-        if (alternativesToUse) {
-          alternativesToUse = [...alternativesToUse].sort((a, b) => a.orden - b.orden);
-        }
+      const balancedAlternativesMap = generateBalancedShuffledAlternatives(itemsToProcess, data.seed, rowLabel);
 
+      itemsToProcess.forEach(item => {
         if (item.tipo_item === 'seleccion_multiple') {
-          const shuffledAlts = seededShuffle(alternativesToUse, `${data.seed}-${rowLabel}-${item.id}`);
+          const shuffledAlts = balancedAlternativesMap[item.id];
           const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
           if (correctIndex !== -1) {
             newKey[rowLabel][item.orden] = String.fromCharCode(65 + correctIndex);
           }
         } else if (item.tipo_item === 'verdadero_falso') {
-            const correctAnswer = alternativesToUse.find(alt => alt.es_correcta)?.texto;
+            const correctAnswer = item.item_alternativas.find(alt => alt.es_correcta)?.texto;
             newKey[rowLabel][item.orden] = correctAnswer === 'Verdadero' ? 'V' : 'F';
         } else {
             newKey[rowLabel][item.orden] = 'Abierta';
