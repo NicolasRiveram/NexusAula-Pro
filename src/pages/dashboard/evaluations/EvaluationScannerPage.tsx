@@ -20,7 +20,10 @@ const EvaluationScannerPage = () => {
   const [isScannerOpen, setScannerOpen] = useState(false);
   const [scanResult, setScanResult] = useState<{ studentName: string; message: string; isError: boolean; score?: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [lastScannedId, setLastScannedId] = useState<string | null>(null);
+  
+  const [scanMode, setScanMode] = useState<'qr' | 'align'>('qr');
+  const [scannedQrData, setScannedQrData] = useState<string | null>(null);
+  const [lockedStudentInfo, setLockedStudentInfo] = useState<{ studentName: string; evalTitle: string } | null>(null);
 
   useEffect(() => {
     if (evaluationId) {
@@ -33,6 +36,35 @@ const EvaluationScannerPage = () => {
       }).catch(err => showError(`Error al cargar datos: ${err.message}`));
     }
   }, [evaluationId]);
+
+  const resetScanner = () => {
+    setScannerOpen(false);
+    setScanMode('qr');
+    setScannedQrData(null);
+    setLockedStudentInfo(null);
+    setIsProcessing(false);
+  };
+
+  const handleQrScanned = (qrData: string) => {
+    if (isProcessing || !evaluation) return;
+    
+    const [evalId, studentId, rowLabel] = qrData.split('|');
+    
+    if (evalId !== evaluationId) {
+      showError("El código QR no corresponde a esta evaluación.");
+      return;
+    }
+
+    const student = students.find(s => s.id === studentId);
+    if (!student) {
+      showError("Estudiante no encontrado en este curso.");
+      return;
+    }
+
+    setScannedQrData(qrData);
+    setLockedStudentInfo({ studentName: student.nombre_completo, evalTitle: evaluation.titulo });
+    setScanMode('align');
+  };
 
   const getBubbleDarkness = (imageData: ImageData, cx: number, cy: number, radius: number) => {
     let totalBrightness = 0;
@@ -59,31 +91,21 @@ const EvaluationScannerPage = () => {
   };
 
   const handleAligned = useCallback(async (imageData: ImageData, qrCode: any) => {
-    if (isProcessing || !evaluation) return;
-
-    const qrData = qrCode.data;
-    if (lastScannedId === qrData) return;
+    if (isProcessing || !evaluation || qrCode.data !== scannedQrData) return;
 
     setIsProcessing(true);
-    setScannerOpen(false);
-    setLastScannedId(qrData);
-
-    const [evalId, studentId, rowLabel] = qrData.split('|');
-    const student = students.find(s => s.id === studentId);
-    const studentName = student ? student.nombre_completo : `Fila ${rowLabel}`;
-    const toastId = showLoading(`QR de ${studentName} detectado. Analizando...`);
+    const toastId = showLoading(`Analizando respuestas de ${lockedStudentInfo?.studentName}...`);
 
     try {
-      if (evalId !== evaluationId) throw new Error('Este QR no pertenece a la evaluación actual.');
-
+      const [, , rowLabel] = scannedQrData!.split('|');
       const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = qrCode.location;
       const srcPoints = [topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner];
-      const dstWidth = 200;
-      const dstHeight = 200;
+      const dstWidth = 827;
+      const dstHeight = 1169;
       const dstPoints = [{x:0, y:0}, {x:dstWidth, y:0}, {x:dstWidth, y:dstHeight}, {x:0, y:dstHeight}];
       
-      const transform = getPerspectiveTransform(dstPoints, srcPoints);
-      const warpedImageData = warpPerspective(imageData, transform, 827, 1169); // A4 size ratio
+      const transform = getPerspectiveTransform(srcPoints, dstPoints);
+      const warpedImageData = warpPerspective(imageData, transform, dstWidth, dstHeight);
 
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
       const answers: { itemId: string; selectedAlternativeId: string }[] = [];
@@ -118,15 +140,15 @@ const EvaluationScannerPage = () => {
         }
       });
 
-      if (answers.length < allQuestions.length * 0.9) { // Allow for some missed questions
+      if (answers.length < allQuestions.length * 0.9) {
         throw new Error(`Solo se leyeron ${answers.length} de ${allQuestions.length} respuestas. Intenta de nuevo con mejor iluminación y alineación.`);
       }
 
-      const responseId = await submitEvaluationResponse(evaluationId, answers);
+      await submitEvaluationResponse(evaluationId!, answers);
       
       dismissToast(toastId);
-      showSuccess(`Respuestas de ${studentName} enviadas.`);
-      setScanResult({ studentName, message: 'Respuestas enviadas con éxito.', isError: false, score: `${answers.length}/${allQuestions.length}` });
+      showSuccess(`Respuestas de ${lockedStudentInfo?.studentName} enviadas.`);
+      setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas enviadas con éxito.', isError: false, score: `${answers.length}/${allQuestions.length}` });
 
     } catch (error: any) {
       dismissToast(toastId);
@@ -135,11 +157,10 @@ const EvaluationScannerPage = () => {
     } finally {
       setTimeout(() => {
         setScanResult(null);
-        setLastScannedId(null);
-        setIsProcessing(false);
+        resetScanner();
       }, 5000);
     }
-  }, [evaluation, students, seed, isProcessing, lastScannedId]);
+  }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo]);
 
   return (
     <div className="container mx-auto space-y-6">
@@ -174,9 +195,12 @@ const EvaluationScannerPage = () => {
       </Card>
       {isScannerOpen && (
         <ScannerOverlay 
-          onClose={() => setScannerOpen(false)} 
+          onClose={resetScanner} 
+          onQrScanned={handleQrScanned}
           onAligned={handleAligned}
           isProcessing={isProcessing}
+          scanMode={scanMode}
+          scanFeedback={lockedStudentInfo}
         />
       )}
     </div>

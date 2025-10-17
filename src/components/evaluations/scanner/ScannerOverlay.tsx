@@ -5,55 +5,59 @@ import { Button } from '@/components/ui/button';
 
 interface ScannerOverlayProps {
   onClose: () => void;
+  onQrScanned: (qrData: string) => void;
   onAligned: (imageData: ImageData, qrCode: any) => void;
   isProcessing: boolean;
+  scanMode: 'qr' | 'align';
+  scanFeedback: { studentName: string; evalTitle: string } | null;
 }
 
-const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onAligned, isProcessing }) => {
+const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, onAligned, isProcessing, scanMode, scanFeedback }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameId = useRef<number>();
 
-  const drawFiducialGuides = (ctx: CanvasRenderingContext2D, color: string) => {
+  const drawGuides = (ctx: CanvasRenderingContext2D, color: string) => {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
-    const A4_ASPECT_RATIO = 210 / 297; // Ancho / Alto
-
-    let guideBoxWidth, guideBoxHeight;
-
-    // Calculate guide box dimensions to match A4 aspect ratio
-    if (w / h > A4_ASPECT_RATIO) {
-      // Canvas is wider than A4 paper, so height is the limiting factor
-      guideBoxHeight = h * 0.9;
-      guideBoxWidth = guideBoxHeight * A4_ASPECT_RATIO;
-    } else {
-      // Canvas is taller than A4 paper, so width is the limiting factor
-      guideBoxWidth = w * 0.9;
-      guideBoxHeight = guideBoxWidth / A4_ASPECT_RATIO;
-    }
-
-    const offsetX = (w - guideBoxWidth) / 2;
-    const offsetY = (h - guideBoxHeight) / 2;
-    const size = Math.min(guideBoxWidth, guideBoxHeight) * 0.04;
-
-    const positions = [
-      { x: offsetX, y: offsetY }, { x: offsetX + guideBoxWidth / 2, y: offsetY }, { x: offsetX + guideBoxWidth, y: offsetY },
-      { x: offsetX, y: offsetY + guideBoxHeight / 2 }, { x: offsetX + guideBoxWidth, y: offsetY + guideBoxHeight / 2 },
-      { x: offsetX, y: offsetY + guideBoxHeight }, { x: offsetX + guideBoxWidth / 2, y: offsetY + guideBoxHeight }, { x: offsetX + guideBoxWidth, y: offsetY + guideBoxHeight },
-    ];
-
     ctx.strokeStyle = color;
     ctx.lineWidth = 4;
     ctx.font = "16px sans-serif";
     ctx.fillStyle = color;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("ALINEA LAS 8 MARCAS NEGRAS CON LAS GUÍAS", w / 2, offsetY / 2);
 
-    positions.forEach(pos => {
-      ctx.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size);
-    });
+    if (scanMode === 'qr') {
+      const boxSize = Math.min(w, h) * 0.6;
+      const x = (w - boxSize) / 2;
+      const y = (h - boxSize) / 2;
+      ctx.strokeRect(x, y, boxSize, boxSize);
+      ctx.fillText("Enfoca el código QR dentro del recuadro", w / 2, y / 2);
+    } else {
+      const A4_ASPECT_RATIO = 210 / 297;
+      let guideBoxWidth, guideBoxHeight;
+      if (w / h > A4_ASPECT_RATIO) {
+        guideBoxHeight = h * 0.9;
+        guideBoxWidth = guideBoxHeight * A4_ASPECT_RATIO;
+      } else {
+        guideBoxWidth = w * 0.9;
+        guideBoxHeight = guideBoxWidth / A4_ASPECT_RATIO;
+      }
+      const offsetX = (w - guideBoxWidth) / 2;
+      const offsetY = (h - guideBoxHeight) / 2;
+      const size = Math.min(guideBoxWidth, guideBoxHeight) * 0.04;
+      const positions = [
+        { x: offsetX, y: offsetY }, { x: w - offsetX, y: offsetY },
+        { x: offsetX, y: h - offsetY }, { x: w - offsetX, y: h - offsetY },
+        { x: w / 2, y: offsetY }, { x: w / 2, y: h - offsetY },
+        { x: offsetX, y: h / 2 }, { x: w - offsetX, y: h / 2 },
+      ];
+      ctx.fillText("ALINEA LAS 8 MARCAS NEGRAS CON LAS GUÍAS", w / 2, offsetY / 2);
+      positions.forEach(pos => {
+        ctx.strokeRect(pos.x - size / 2, pos.y - size / 2, size, size);
+      });
+    }
   };
 
   const tick = useCallback(() => {
@@ -80,34 +84,34 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onAligned, isP
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
     let guideColor = 'rgba(255, 255, 255, 0.5)';
-    let isAligned = false;
-
-    if (code) {
-      const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = code.location;
-      const widthTop = Math.hypot(topRightCorner.x - topLeftCorner.x, topRightCorner.y - topLeftCorner.y);
-      const widthBottom = Math.hypot(bottomRightCorner.x - bottomLeftCorner.x, bottomRightCorner.y - bottomLeftCorner.y);
-      const heightLeft = Math.hypot(bottomLeftCorner.x - topLeftCorner.x, bottomLeftCorner.y - topLeftCorner.y);
-      const heightRight = Math.hypot(bottomRightCorner.x - topRightCorner.x, bottomRightCorner.y - topRightCorner.y);
-      
-      const distortion = Math.abs(1 - widthTop / widthBottom) + Math.abs(1 - heightLeft / heightRight);
-      
-      if (distortion < 0.2) { // Low distortion means it's relatively flat
-        isAligned = true;
-        guideColor = 'rgba(74, 222, 128, 0.9)';
-      } else {
-        guideColor = 'rgba(239, 68, 68, 0.9)';
+    
+    if (scanMode === 'qr') {
+      if (code) {
+        onQrScanned(code.data);
+        return; // Stop loop, parent will change mode
+      }
+    } else if (scanMode === 'align') {
+      if (code) {
+        const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = code.location;
+        const widthTop = Math.hypot(topRightCorner.x - topLeftCorner.x, topRightCorner.y - topLeftCorner.y);
+        const widthBottom = Math.hypot(bottomRightCorner.x - bottomLeftCorner.x, bottomRightCorner.y - bottomLeftCorner.y);
+        const heightLeft = Math.hypot(bottomLeftCorner.x - topLeftCorner.x, bottomLeftCorner.y - topLeftCorner.y);
+        const heightRight = Math.hypot(bottomRightCorner.x - topRightCorner.x, bottomRightCorner.y - topRightCorner.y);
+        const distortion = Math.abs(1 - widthTop / widthBottom) + Math.abs(1 - heightLeft / heightRight);
+        
+        if (distortion < 0.2) {
+          guideColor = 'rgba(74, 222, 128, 0.9)';
+          onAligned(imageData, code);
+          return; // Stop loop
+        } else {
+          guideColor = 'rgba(239, 68, 68, 0.9)';
+        }
       }
     }
     
-    drawFiducialGuides(overlayCtx, guideColor);
-
-    if (code && isAligned) {
-      onAligned(imageData, code);
-      return; // Stop the loop
-    }
-    
+    drawGuides(overlayCtx, guideColor);
     animationFrameId.current = requestAnimationFrame(tick);
-  }, [isProcessing, onAligned]);
+  }, [isProcessing, onAligned, onQrScanned, scanMode]);
 
   useEffect(() => {
     const startCamera = async () => {
@@ -146,6 +150,12 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onAligned, isP
         <video ref={videoRef} className="scanner-video" />
         <canvas ref={overlayCanvasRef} className="scanner-overlay-canvas" />
       </div>
+      {scanFeedback && (
+        <div className="scanner-feedback">
+          <p className="font-bold">{scanFeedback.studentName}</p>
+          <p className="text-sm">{scanFeedback.evalTitle}</p>
+        </div>
+      )}
     </div>
   );
 };
