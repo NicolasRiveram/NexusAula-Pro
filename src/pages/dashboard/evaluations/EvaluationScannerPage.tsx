@@ -5,13 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Camera, CheckCircle, Loader2, XCircle, X } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse, fetchStudentsForEvaluation, replaceEvaluationResponse } from '@/api/evaluationsApi';
 import { seededShuffle } from '@/utils/shuffleUtils';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import ScannerOverlay from '@/components/evaluations/scanner/ScannerOverlay';
 import { getPerspectiveTransform, warpPerspective } from '@/utils/perspective';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const EvaluationScannerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -25,6 +35,9 @@ const EvaluationScannerPage = () => {
   const [scanMode, setScanMode] = useState<'qr' | 'align'>('qr');
   const [scannedQrData, setScannedQrData] = useState<string | null>(null);
   const [lockedStudentInfo, setLockedStudentInfo] = useState<{ studentName: string; evalTitle: string } | null>(null);
+
+  const [isOverwriteConfirmOpen, setOverwriteConfirmOpen] = useState(false);
+  const [overwritePayload, setOverwritePayload] = useState<{ answers: { itemId: string; selectedAlternativeId: string }[] } | null>(null);
 
   useEffect(() => {
     if (evaluationId) {
@@ -91,6 +104,29 @@ const EvaluationScannerPage = () => {
     return pixelCount > 0 ? totalBrightness / pixelCount : 255;
   };
 
+  const processAndSubmit = async (submitFunction: typeof submitEvaluationResponse | typeof replaceEvaluationResponse, answers: { itemId: string; selectedAlternativeId: string }[]) => {
+    await submitFunction(evaluationId!, answers);
+    dismissToast();
+    showSuccess(`Respuestas de ${lockedStudentInfo?.studentName} guardadas.`);
+    setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas guardadas con éxito.', isError: false, score: `${answers.length}/${evaluation!.evaluation_content_blocks.flatMap(b => b.evaluacion_items).length}` });
+  };
+
+  const handleConfirmOverwrite = async () => {
+    setOverwriteConfirmOpen(false);
+    if (!overwritePayload) return;
+    const toastId = showLoading(`Reemplazando respuestas de ${lockedStudentInfo?.studentName}...`);
+    try {
+      await processAndSubmit(replaceEvaluationResponse, overwritePayload.answers);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error al reemplazar: ${error.message}`);
+      setScanResult({ studentName: 'Error', message: error.message, isError: true });
+    } finally {
+      setOverwritePayload(null);
+      resetScanner();
+    }
+  };
+
   const handleAligned = useCallback(async (imageData: ImageData, qrCode: any) => {
     if (isProcessing || !evaluation || qrCode.data !== scannedQrData) return;
 
@@ -145,106 +181,95 @@ const EvaluationScannerPage = () => {
         throw new Error(`Solo se leyeron ${answers.length} de ${allQuestions.length} respuestas. Intenta de nuevo con mejor iluminación y alineación.`);
       }
 
-      await submitEvaluationResponse(evaluationId!, answers);
-      
-      dismissToast(toastId);
-      showSuccess(`Respuestas de ${lockedStudentInfo?.studentName} enviadas.`);
-      setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas enviadas con éxito.', isError: false, score: `${answers.length}/${allQuestions.length}` });
+      await processAndSubmit(submitEvaluationResponse, answers);
+      resetScanner();
 
     } catch (error: any) {
       dismissToast(toastId);
-      const [, studentId] = scannedQrData!.split('|');
       if (error.message.includes('User has already submitted a response')) {
-        try {
-          const { data: existingResponse, error: fetchError } = await supabase
-            .from('respuestas_estudiante')
-            .select('id')
-            .eq('evaluacion_id', evaluationId)
-            .eq('estudiante_perfil_id', studentId)
-            .limit(1);
-
-          if (fetchError) throw fetchError;
-
-          if (existingResponse && existingResponse.length > 0) {
-            setScanResult({
-              studentName: lockedStudentInfo!.studentName,
-              message: 'Este estudiante ya completó la evaluación.',
-              isError: true,
-              responseId: existingResponse[0].id,
-            });
-          } else {
-            showError("El estudiante ya respondió, pero no se pudo encontrar la respuesta anterior.");
-            setScanResult({ studentName: 'Error', message: "El estudiante ya respondió, pero no se pudo encontrar la respuesta anterior.", isError: true });
-          }
-        } catch (fetchErr: any) {
-          showError(`Error al buscar la respuesta existente: ${fetchErr.message}`);
-          setScanResult({ studentName: 'Error', message: `Error al buscar la respuesta existente: ${fetchErr.message}`, isError: true });
-        }
+        const answers = JSON.parse(error.config.body).p_answers;
+        setOverwritePayload({ answers });
+        setOverwriteConfirmOpen(true);
       } else {
         showError(error.message);
         setScanResult({ studentName: 'Error', message: error.message, isError: true });
+        resetScanner();
       }
-    } finally {
-      resetScanner();
     }
   }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo, evaluationId]);
 
   return (
-    <div className="container mx-auto space-y-6">
-      <Link to={`/dashboard/evaluacion/${evaluationId}`} className="flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Volver a la Evaluación
-      </Link>
-      <Card>
-        <CardHeader>
-          <CardTitle>Corrección Rápida con Cámara</CardTitle>
-          <CardDescription>Apunta la cámara a la hoja de respuestas para corregir automáticamente.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
-            <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={isScannerOpen || isProcessing} />
-            <p className="text-xs text-muted-foreground">Debe ser la misma que usaste para generar las hojas.</p>
-          </div>
-          <Button onClick={() => setScannerOpen(true)} className="w-full" disabled={isScannerOpen || isProcessing}>
-            <Camera className="mr-2 h-4 w-4" /> Iniciar Escáner
-          </Button>
-          {scanResult && (
-            <div className={cn("p-4 rounded-md flex items-center justify-between", scanResult.isError ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-700')}>
-              <div className="flex items-center">
-                {scanResult.isError ? <XCircle className="h-6 w-6 mr-3" /> : <CheckCircle className="h-6 w-6 mr-3" />}
-                <div>
-                  <p className="font-bold">{scanResult.studentName} {scanResult.score && `(${scanResult.score})`}</p>
-                  <p>{scanResult.message}</p>
+    <>
+      <div className="container mx-auto space-y-6">
+        <Link to={`/dashboard/evaluacion/${evaluationId}`} className="flex items-center text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Volver a la Evaluación
+        </Link>
+        <Card>
+          <CardHeader>
+            <CardTitle>Corrección Rápida con Cámara</CardTitle>
+            <CardDescription>Apunta la cámara a la hoja de respuestas para corregir automáticamente.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
+              <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={isScannerOpen || isProcessing} />
+              <p className="text-xs text-muted-foreground">Debe ser la misma que usaste para generar las hojas.</p>
+            </div>
+            <Button onClick={() => setScannerOpen(true)} className="w-full" disabled={isScannerOpen || isProcessing}>
+              <Camera className="mr-2 h-4 w-4" /> Iniciar Escáner
+            </Button>
+            {scanResult && (
+              <div className={cn("p-4 rounded-md flex items-center justify-between", scanResult.isError ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-700')}>
+                <div className="flex items-center">
+                  {scanResult.isError ? <XCircle className="h-6 w-6 mr-3" /> : <CheckCircle className="h-6 w-6 mr-3" />}
+                  <div>
+                    <p className="font-bold">{scanResult.studentName} {scanResult.score && `(${scanResult.score})`}</p>
+                    <p>{scanResult.message}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {scanResult.responseId && (
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={`/dashboard/evaluacion/${evaluationId}/resultados/${scanResult.responseId}`}>
+                        Ver Respuestas
+                      </Link>
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => setScanResult(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {scanResult.responseId && (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/dashboard/evaluacion/${evaluationId}/resultados/${scanResult.responseId}`}>
-                      Ver Respuestas
-                    </Link>
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" onClick={() => setScanResult(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      {isScannerOpen && (
-        <ScannerOverlay 
-          onClose={resetScanner} 
-          onQrScanned={handleQrScanned}
-          onAligned={handleAligned}
-          isProcessing={isProcessing}
-          scanMode={scanMode}
-          scanFeedback={lockedStudentInfo}
-        />
-      )}
-    </div>
+            )}
+          </CardContent>
+        </Card>
+        {isScannerOpen && (
+          <ScannerOverlay 
+            onClose={resetScanner} 
+            onQrScanned={handleQrScanned}
+            onAligned={handleAligned}
+            isProcessing={isProcessing}
+            scanMode={scanMode}
+            scanFeedback={lockedStudentInfo}
+          />
+        )}
+      </div>
+      <AlertDialog open={isOverwriteConfirmOpen} onOpenChange={setOverwriteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Respuesta Existente</AlertDialogTitle>
+            <AlertDialogDescription>
+              El estudiante {lockedStudentInfo?.studentName} ya tiene una respuesta para esta evaluación. ¿Deseas reemplazarla con esta nueva corrección?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setOverwritePayload(null); resetScanner(); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmOverwrite}>Reemplazar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

@@ -976,6 +976,16 @@ export const submitEvaluationResponse = async (evaluationId: string, answers: St
   return data;
 };
 
+export const replaceEvaluationResponse = async (evaluationId: string, answers: StudentAnswer[]): Promise<string> => {
+  const { data, error } = await supabase.rpc('replace_student_response', {
+    p_evaluation_id: evaluationId,
+    p_answers: answers,
+  });
+
+  if (error) throw new Error(`Error replacing evaluation: ${error.message}`);
+  return data;
+};
+
 export const fetchStudentResponseForEvaluation = async (evaluationId: string, studentId: string): Promise<{ id: string } | null> => {
   const { data, error } = await supabase
     .from('respuestas_estudiante')

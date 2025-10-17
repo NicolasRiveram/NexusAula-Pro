@@ -18,7 +18,7 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameId = useRef<number>();
 
-  const drawGuides = (ctx: CanvasRenderingContext2D, color: string, qrLocation?: any) => {
+  const drawGuides = (ctx: CanvasRenderingContext2D, color: string) => {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
     ctx.strokeStyle = color;
@@ -35,16 +35,38 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
       ctx.strokeRect(x, y, boxSize, boxSize);
       ctx.fillText("Enfoca el código QR dentro del recuadro", w / 2, y / 2);
     } else {
-      ctx.fillText("Alinea la hoja para que el recuadro se vea lo más rectangular posible", w / 2, h * 0.1);
-      if (qrLocation) {
-        ctx.beginPath();
-        ctx.moveTo(qrLocation.topLeftCorner.x, qrLocation.topLeftCorner.y);
-        ctx.lineTo(qrLocation.topRightCorner.x, qrLocation.topRightCorner.y);
-        ctx.lineTo(qrLocation.bottomRightCorner.x, qrLocation.bottomRightCorner.y);
-        ctx.lineTo(qrLocation.bottomLeftCorner.x, qrLocation.bottomLeftCorner.y);
-        ctx.closePath();
-        ctx.stroke();
-      }
+      const margin = 0.05; // 5% margin
+      const cornerSize = 0.05; // 5% of width/height
+      
+      ctx.fillText("Alinea las 4 marcas de las esquinas con las guías", w / 2, h * 0.1);
+
+      // Top-left
+      ctx.beginPath();
+      ctx.moveTo(w * margin, h * (margin + cornerSize));
+      ctx.lineTo(w * margin, h * margin);
+      ctx.lineTo(w * (margin + cornerSize), h * margin);
+      ctx.stroke();
+
+      // Top-right
+      ctx.beginPath();
+      ctx.moveTo(w * (1 - margin), h * (margin + cornerSize));
+      ctx.lineTo(w * (1 - margin), h * margin);
+      ctx.lineTo(w * (1 - (margin + cornerSize)), h * margin);
+      ctx.stroke();
+
+      // Bottom-left
+      ctx.beginPath();
+      ctx.moveTo(w * margin, h * (1 - (margin + cornerSize)));
+      ctx.lineTo(w * margin, h * (1 - margin));
+      ctx.lineTo(w * (margin + cornerSize), h * (1 - margin));
+      ctx.stroke();
+
+      // Bottom-right
+      ctx.beginPath();
+      ctx.moveTo(w * (1 - margin), h * (1 - (margin + cornerSize)));
+      ctx.lineTo(w * (1 - margin), h * (1 - margin));
+      ctx.lineTo(w * (1 - (margin + cornerSize)), h * (1 - margin));
+      ctx.stroke();
     }
   };
 
@@ -94,14 +116,10 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
         } else {
           guideColor = 'rgba(239, 68, 68, 0.9)';
         }
-        drawGuides(overlayCtx, guideColor, code.location);
-      } else {
-        drawGuides(overlayCtx, guideColor);
       }
-    } else {
-      drawGuides(overlayCtx, guideColor);
     }
     
+    drawGuides(overlayCtx, guideColor);
     animationFrameId.current = requestAnimationFrame(tick);
   }, [isProcessing, onAligned, onQrScanned, scanMode]);
 
