@@ -87,7 +87,7 @@
     left: 50%;
     width: 100%;
     height: 100%;
-    object-fit: contain; /* Changed from cover to contain */
+    object-fit: cover; /* Changed from contain to cover */
     transform: translate(-50%, -50%);
   }
 

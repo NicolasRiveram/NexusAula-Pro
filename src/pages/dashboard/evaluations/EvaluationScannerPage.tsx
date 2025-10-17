@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Camera, CheckCircle, Loader2, XCircle, X } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse, fetchStudentsForEvaluation, replaceEvaluationResponse } from '@/api/evaluationsApi';
-import { seededShuffle } from '@/utils/shuffleUtils';
+import { generateBalancedShuffledAlternatives } from '@/utils/shuffleUtils';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import ScannerOverlay from '@/components/evaluations/scanner/ScannerOverlay';
@@ -153,7 +153,6 @@ const EvaluationScannerPage = () => {
     setScannerOpen(false);
     setIsAnalyzing(true);
 
-    // Perform perspective correction immediately to show the user the captured image
     const srcPoints = corners;
     const dstWidth = 827;
     const dstHeight = 1169;
@@ -161,16 +160,16 @@ const EvaluationScannerPage = () => {
     const transform = getPerspectiveTransform(srcPoints, dstPoints);
     const warpedImageData = warpPerspective(imageData, transform, dstWidth, dstHeight);
 
-    // Set initial review data with just the image
     setReviewData({ warpedImageData });
 
-    // Process answers in the background
     setTimeout(() => {
       try {
         const [, , rowLabel] = scannedQrData!.split('|');
         const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
         const processedAnswers: any[] = [];
         
+        const balancedAlternativesMap = generateBalancedShuffledAlternatives(allQuestions, seed, rowLabel);
+
         const questionsPerColumn = Math.ceil(allQuestions.length / 3);
         const colWidth = 230;
         const rowHeight = 28;
@@ -179,7 +178,9 @@ const EvaluationScannerPage = () => {
         const bubbleRadius = 7;
 
         allQuestions.forEach(q => {
-          const shuffledAlts = seededShuffle(q.item_alternativas, `${seed}-${rowLabel}-${q.id}`);
+          const shuffledAlts = balancedAlternativesMap[q.id];
+          if (!shuffledAlts) return;
+
           let minBrightness = 255;
           let selectedIndex = -1;
 
@@ -226,7 +227,7 @@ const EvaluationScannerPage = () => {
       } finally {
         setIsAnalyzing(false);
       }
-    }, 100); // Short delay to allow UI to update
+    }, 100);
   }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo]);
 
   const handleConfirmReview = async () => {
