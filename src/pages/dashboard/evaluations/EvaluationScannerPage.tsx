@@ -22,6 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import ScanReview from '@/components/evaluations/scanner/ScanReview';
+import { calculateGrade } from '@/utils/evaluationUtils';
 
 const EvaluationScannerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -38,6 +40,8 @@ const EvaluationScannerPage = () => {
 
   const [isOverwriteConfirmOpen, setOverwriteConfirmOpen] = useState(false);
   const [overwritePayload, setOverwritePayload] = useState<{ answers: { itemId: string; selectedAlternativeId: string }[] } | null>(null);
+
+  const [reviewData, setReviewData] = useState<any | null>(null);
 
   useEffect(() => {
     if (evaluationId) {
@@ -57,6 +61,7 @@ const EvaluationScannerPage = () => {
     setScannedQrData(null);
     setLockedStudentInfo(null);
     setIsProcessing(false);
+    setReviewData(null);
   };
 
   const handleQrScanned = (qrData: string) => {
@@ -105,10 +110,10 @@ const EvaluationScannerPage = () => {
   };
 
   const processAndSubmit = async (submitFunction: typeof submitEvaluationResponse | typeof replaceEvaluationResponse, answers: { itemId: string; selectedAlternativeId: string }[]) => {
-    await submitFunction(evaluationId!, answers);
+    const responseId = await submitFunction(evaluationId!, answers);
     dismissToast();
     showSuccess(`Respuestas de ${lockedStudentInfo?.studentName} guardadas.`);
-    setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas guardadas con éxito.', isError: false, score: `${answers.length}/${evaluation!.evaluation_content_blocks.flatMap(b => b.evaluacion_items).length}` });
+    setScanResult({ studentName: lockedStudentInfo!.studentName, message: 'Respuestas guardadas con éxito.', isError: false, score: `${answers.length}/${evaluation!.evaluation_content_blocks.flatMap(b => b.evaluacion_items).length}`, responseId });
   };
 
   const handleConfirmOverwrite = async () => {
@@ -145,7 +150,7 @@ const EvaluationScannerPage = () => {
       const warpedImageData = warpPerspective(imageData, transform, dstWidth, dstHeight);
 
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
-      const answers: { itemId: string; selectedAlternativeId: string }[] = [];
+      const processedAnswers: any[] = [];
       
       const questionsPerColumn = Math.ceil(allQuestions.length / 3);
       const colWidth = 230;
@@ -173,22 +178,50 @@ const EvaluationScannerPage = () => {
         }
         
         if (selectedIndex > -1 && minBrightness < 150) {
-          answers.push({ itemId: q.id, selectedAlternativeId: shuffledAlts[selectedIndex].id });
+          const selectedAlternative = shuffledAlts[selectedIndex];
+          processedAnswers.push({ 
+            itemId: q.id, 
+            selectedAlternativeId: selectedAlternative.id,
+            isCorrect: selectedAlternative.es_correcta,
+            questionOrder: q.orden,
+            selectedIndex: selectedIndex,
+            alternativesCount: q.item_alternativas.length,
+            score: selectedAlternative.es_correcta ? q.puntaje : 0,
+          });
         }
       });
 
-      if (answers.length < allQuestions.length * 0.9) {
-        throw new Error(`Solo se leyeron ${answers.length} de ${allQuestions.length} respuestas. Intenta de nuevo con mejor iluminación y alineación.`);
+      if (processedAnswers.length < allQuestions.length * 0.9) {
+        throw new Error(`Solo se leyeron ${processedAnswers.length} de ${allQuestions.length} respuestas. Intenta de nuevo con mejor iluminación y alineación.`);
       }
 
-      await processAndSubmit(submitEvaluationResponse, answers);
-      resetScanner();
+      const score = processedAnswers.reduce((acc, ans) => acc + ans.score, 0);
+      const total = allQuestions.reduce((acc, q) => acc + q.puntaje, 0);
+      const grade = calculateGrade(score, total);
+
+      setReviewData({ warpedImageData, processedAnswers, score, total, grade });
+      setScannerOpen(false);
+      dismissToast(toastId);
 
     } catch (error: any) {
       dismissToast(toastId);
+      showError(error.message);
+      setScanResult({ studentName: 'Error', message: error.message, isError: true });
+      resetScanner();
+    }
+  }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo]);
+
+  const handleConfirmReview = async () => {
+    if (!reviewData) return;
+    const toastId = showLoading(`Guardando respuestas de ${lockedStudentInfo?.studentName}...`);
+    const answersToSubmit = reviewData.processedAnswers.map((a: any) => ({ itemId: a.itemId, selectedAlternativeId: a.selectedAlternativeId }));
+    try {
+      await processAndSubmit(submitEvaluationResponse, answersToSubmit);
+      resetScanner();
+    } catch (error: any) {
+      dismissToast(toastId);
       if (error.message.includes('User has already submitted a response')) {
-        const answers = JSON.parse(error.config.body).p_answers;
-        setOverwritePayload({ answers });
+        setOverwritePayload({ answers: answersToSubmit });
         setOverwriteConfirmOpen(true);
       } else {
         showError(error.message);
@@ -196,7 +229,7 @@ const EvaluationScannerPage = () => {
         resetScanner();
       }
     }
-  }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo, evaluationId]);
+  };
 
   return (
     <>
@@ -205,45 +238,61 @@ const EvaluationScannerPage = () => {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver a la Evaluación
         </Link>
-        <Card>
-          <CardHeader>
-            <CardTitle>Corrección Rápida con Cámara</CardTitle>
-            <CardDescription>Apunta la cámara a la hoja de respuestas para corregir automáticamente.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
-              <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={isScannerOpen || isProcessing} />
-              <p className="text-xs text-muted-foreground">Debe ser la misma que usaste para generar las hojas.</p>
-            </div>
-            <Button onClick={() => setScannerOpen(true)} className="w-full" disabled={isScannerOpen || isProcessing}>
-              <Camera className="mr-2 h-4 w-4" /> Iniciar Escáner
-            </Button>
-            {scanResult && (
-              <div className={cn("p-4 rounded-md flex items-center justify-between", scanResult.isError ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-700')}>
-                <div className="flex items-center">
-                  {scanResult.isError ? <XCircle className="h-6 w-6 mr-3" /> : <CheckCircle className="h-6 w-6 mr-3" />}
-                  <div>
-                    <p className="font-bold">{scanResult.studentName} {scanResult.score && `(${scanResult.score})`}</p>
-                    <p>{scanResult.message}</p>
+
+        {reviewData ? (
+          <ScanReview 
+            imageData={reviewData.warpedImageData}
+            evaluation={evaluation!}
+            processedAnswers={reviewData.processedAnswers}
+            score={reviewData.score}
+            total={reviewData.total}
+            grade={reviewData.grade}
+            studentName={lockedStudentInfo!.studentName}
+            onConfirm={handleConfirmReview}
+            onCancel={resetScanner}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Corrección Rápida con Cámara</CardTitle>
+              <CardDescription>Apunta la cámara a la hoja de respuestas para corregir automáticamente.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
+                <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={isScannerOpen || isProcessing} />
+                <p className="text-xs text-muted-foreground">Debe ser la misma que usaste para generar las hojas.</p>
+              </div>
+              <Button onClick={() => setScannerOpen(true)} className="w-full" disabled={isScannerOpen || isProcessing}>
+                <Camera className="mr-2 h-4 w-4" /> Iniciar Escáner
+              </Button>
+              {scanResult && (
+                <div className={cn("p-4 rounded-md flex items-center justify-between", scanResult.isError ? 'bg-destructive/10 text-destructive' : 'bg-green-500/10 text-green-700')}>
+                  <div className="flex items-center">
+                    {scanResult.isError ? <XCircle className="h-6 w-6 mr-3" /> : <CheckCircle className="h-6 w-6 mr-3" />}
+                    <div>
+                      <p className="font-bold">{scanResult.studentName} {scanResult.score && `(${scanResult.score})`}</p>
+                      <p>{scanResult.message}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {scanResult.responseId && (
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={`/dashboard/evaluacion/${evaluationId}/resultados/${scanResult.responseId}`}>
+                          Ver Respuestas
+                        </Link>
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => setScanResult(null)}>
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {scanResult.responseId && (
-                    <Button asChild variant="outline" size="sm">
-                      <Link to={`/dashboard/evaluacion/${evaluationId}/resultados/${scanResult.responseId}`}>
-                        Ver Respuestas
-                      </Link>
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="icon" onClick={() => setScanResult(null)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        
         {isScannerOpen && (
           <ScannerOverlay 
             onClose={resetScanner} 
