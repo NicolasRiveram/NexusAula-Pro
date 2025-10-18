@@ -35,38 +35,24 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
       ctx.strokeRect(x, y, boxSize, boxSize);
       ctx.fillText("Enfoca el código QR dentro del recuadro", w / 2, y / 2);
     } else {
-      const margin = 0.05; // 5% margin
-      const cornerSize = 0.05; // 5% of width/height
+      ctx.fillText("Alinea la hoja de respuestas con el recuadro", w / 2, h * 0.1);
       
-      ctx.fillText("Alinea las 4 marcas de las esquinas con las guías", w / 2, h * 0.1);
+      const a4AspectRatio = 1 / Math.sqrt(2);
+      const padding = 0.1; // 10% padding
 
-      // Top-left
-      ctx.beginPath();
-      ctx.moveTo(w * margin, h * (margin + cornerSize));
-      ctx.lineTo(w * margin, h * margin);
-      ctx.lineTo(w * (margin + cornerSize), h * margin);
-      ctx.stroke();
+      let rectW, rectH;
+      if ((h * (1 - padding * 2)) * a4AspectRatio < w * (1 - padding * 2)) {
+        rectH = h * (1 - padding * 2);
+        rectW = rectH * a4AspectRatio;
+      } else {
+        rectW = w * (1 - padding * 2);
+        rectH = rectW / a4AspectRatio;
+      }
 
-      // Top-right
-      ctx.beginPath();
-      ctx.moveTo(w * (1 - margin), h * (margin + cornerSize));
-      ctx.lineTo(w * (1 - margin), h * margin);
-      ctx.lineTo(w * (1 - (margin + cornerSize)), h * margin);
-      ctx.stroke();
-
-      // Bottom-left
-      ctx.beginPath();
-      ctx.moveTo(w * margin, h * (1 - (margin + cornerSize)));
-      ctx.lineTo(w * margin, h * (1 - margin));
-      ctx.lineTo(w * (margin + cornerSize), h * (1 - margin));
-      ctx.stroke();
-
-      // Bottom-right
-      ctx.beginPath();
-      ctx.moveTo(w * (1 - margin), h * (1 - (margin + cornerSize)));
-      ctx.lineTo(w * (1 - margin), h * (1 - margin));
-      ctx.lineTo(w * (1 - (margin + cornerSize)), h * (1 - margin));
-      ctx.stroke();
+      const rectX = (w - rectW) / 2;
+      const rectY = (h - rectH) / 2;
+      
+      ctx.strokeRect(rectX, rectY, rectW, rectH);
     }
   };
 
@@ -96,7 +82,6 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
     let guideColor = 'rgba(255, 255, 255, 0.5)';
     
     if (code) {
-      // Draw a polygon around the detected QR code for immediate feedback
       const { topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner } = code.location;
       overlayCtx.beginPath();
       overlayCtx.moveTo(topLeftCorner.x, topLeftCorner.y);
@@ -112,7 +97,7 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
     if (scanMode === 'qr') {
       if (code) {
         onQrScanned(code.data);
-        return; // Stop loop, parent will change mode
+        return;
       }
     } else if (scanMode === 'align') {
       if (code) {
@@ -123,19 +108,30 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
         const heightRight = Math.hypot(bottomRightCorner.x - topRightCorner.x, bottomRightCorner.y - topRightCorner.y);
         const distortion = Math.abs(1 - widthTop / widthBottom) + Math.abs(1 - heightLeft / heightRight);
         
-        if (distortion < 0.15) { // Stricter threshold for better alignment
+        if (distortion < 0.15) {
           guideColor = 'rgba(74, 222, 128, 0.9)';
-          const w = video.videoWidth;
-          const h = video.videoHeight;
-          const margin = 0.05;
+          
+          const a4AspectRatio = 1 / Math.sqrt(2);
+          const padding = 0.1;
+          let rectW, rectH;
+          if ((video.videoHeight * (1 - padding * 2)) * a4AspectRatio < video.videoWidth * (1 - padding * 2)) {
+            rectH = video.videoHeight * (1 - padding * 2);
+            rectW = rectH * a4AspectRatio;
+          } else {
+            rectW = video.videoWidth * (1 - padding * 2);
+            rectH = rectW / a4AspectRatio;
+          }
+          const rectX = (video.videoWidth - rectW) / 2;
+          const rectY = (video.videoHeight - rectH) / 2;
+
           const corners = [
-            { x: w * margin, y: h * margin }, // Top-left
-            { x: w * (1 - margin), y: h * margin }, // Top-right
-            { x: w * (1 - margin), y: h * (1 - margin) }, // Bottom-right
-            { x: w * margin, y: h * (1 - margin) }, // Bottom-left
+            { x: rectX, y: rectY },
+            { x: rectX + rectW, y: rectY },
+            { x: rectX + rectW, y: rectY + rectH },
+            { x: rectX, y: rectY + rectH },
           ];
           onAligned(imageData, code, corners);
-          return; // Stop loop
+          return;
         } else {
           guideColor = 'rgba(239, 68, 68, 0.9)';
         }
