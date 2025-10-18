@@ -176,7 +176,7 @@ const EvaluationScannerPage = () => {
         
         const balancedAlternativesMap = generateBalancedShuffledAlternatives(allQuestions, seed, rowLabel);
 
-        const questionsPerColumn = 10;
+        const QUESTIONS_PER_COLUMN = 10;
         const colWidth = 230;
         const rowHeight = 28;
         const startX = 100; // Adjusted for new layout with fiducials
@@ -190,8 +190,8 @@ const EvaluationScannerPage = () => {
           let minBrightness = 255;
           let selectedIndex = -1;
 
-          const colIndex = Math.floor((q.orden - 1) / questionsPerColumn);
-          const rowIndex = (q.orden - 1) % questionsPerColumn;
+          const colIndex = Math.floor((q.orden - 1) / QUESTIONS_PER_COLUMN);
+          const rowIndex = (q.orden - 1) % QUESTIONS_PER_COLUMN;
 
           for (let i = 0; i < q.item_alternativas.length; i++) {
             const bubbleX = startX + colIndex * colWidth + i * 45;

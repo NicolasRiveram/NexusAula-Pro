@@ -26,17 +26,24 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
   qrCodeData,
   questions,
 }) => {
-  const alternatives = ['A', 'B', 'C', 'D'];
+  const alternatives = ['A', 'B', 'C', 'D', 'E'];
   const fullLogoUrl = logoUrl ? getLogoPublicUrl(logoUrl) : null;
 
   const sortedQuestions = [...questions].sort((a, b) => a.orden - b.orden);
+  const QUESTIONS_PER_COLUMN = 10;
+  const numColumns = Math.ceil(sortedQuestions.length / QUESTIONS_PER_COLUMN);
+  const columns = Array.from({ length: numColumns }, (_, colIndex) => {
+    return sortedQuestions.slice(colIndex * QUESTIONS_PER_COLUMN, (colIndex + 1) * QUESTIONS_PER_COLUMN);
+  });
 
   return (
     <div className="printable-container answer-sheet-container">
-      <div className="fiducial-marker fm-top-left"></div>
-      <div className="fiducial-marker fm-top-right"></div>
-      <div className="fiducial-marker fm-bottom-left"></div>
-      <div className="fiducial-marker fm-bottom-right"></div>
+      <div className="solid-fiducial fm-s-top-left"></div>
+      <div className="solid-fiducial fm-s-top-right"></div>
+      <div className="solid-fiducial fm-s-bottom-left"></div>
+      <div className="solid-fiducial fm-s-bottom-right"></div>
+      <div className="solid-fiducial fm-s-middle-left"></div>
+      <div className="solid-fiducial fm-s-middle-right"></div>
 
       <header className="omr-header">
         {fullLogoUrl && <img src={fullLogoUrl} alt={establishmentName} className="logo" />}
@@ -45,7 +52,7 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
           <h2>{evaluationTitle}</h2>
         </div>
         <div className="omr-qr-container">
-          <QRCodeSVG value={qrCodeData} size={60} />
+          <QRCodeSVG value={qrCodeData} size={80} />
           <p>Fila {rowLabel}</p>
         </div>
       </header>
@@ -64,17 +71,30 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
       </p>
 
       <main className="omr-grid">
-        {sortedQuestions.map(q => (
-          <div key={q.orden} className="omr-question-row">
-            <div className="q-number">{q.orden}</div>
-            <div className="bubbles">
-              {alternatives.map((alt, index) => (
-                <div key={alt} className="bubble-container">
-                  <span className="alt-label">{alt}</span>
-                  {index < q.alternativesCount ? <div className="bubble"></div> : <div style={{width: '18px', height: '18px'}}></div>}
-                </div>
-              ))}
+        {columns.map((column, colIndex) => (
+          <div key={colIndex} className="omr-column">
+            <div className="omr-question-row">
+              <div className="q-number"></div>
+              <div className="bubbles">
+                {alternatives.map(alt => (
+                  <div key={alt} className="bubble-container">
+                    <span className="alt-label">{alt}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+            {column.map(q => (
+              <div key={q.orden} className="omr-question-row">
+                <div className="q-number">{q.orden}</div>
+                <div className="bubbles">
+                  {alternatives.map((alt, index) => (
+                    <div key={alt} className="bubble-container">
+                      {index < q.alternativesCount ? <div className="bubble"></div> : <div style={{width: '18px', height: '18px'}}></div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </main>
