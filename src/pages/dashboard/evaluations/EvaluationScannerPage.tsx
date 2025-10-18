@@ -177,11 +177,11 @@ const EvaluationScannerPage = () => {
         const balancedAlternativesMap = generateBalancedShuffledAlternatives(allQuestions, seed, rowLabel);
 
         const QUESTIONS_PER_COLUMN = 10;
-        const colWidth = 230;
-        const rowHeight = 28;
-        const startX = 100; // Adjusted for new layout with fiducials
-        const startY = 380;
-        const bubbleRadius = 8;
+        const colWidth = 250;
+        const rowHeight = 30;
+        const startX = 70;
+        const startY = 300;
+        const bubbleRadius = 9;
 
         allQuestions.forEach(q => {
           const shuffledAlts = balancedAlternativesMap[q.id];

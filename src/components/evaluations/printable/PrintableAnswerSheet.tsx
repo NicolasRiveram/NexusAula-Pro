@@ -26,7 +26,7 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
   qrCodeData,
   questions,
 }) => {
-  const alternatives = ['A', 'B', 'C', 'D', 'E'];
+  const alternatives = ['A', 'B', 'C', 'D'];
   const fullLogoUrl = logoUrl ? getLogoPublicUrl(logoUrl) : null;
 
   const sortedQuestions = [...questions].sort((a, b) => a.orden - b.orden);
