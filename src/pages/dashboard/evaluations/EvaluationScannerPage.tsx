@@ -25,6 +25,7 @@ import {
 import ScanReview from '@/components/evaluations/scanner/ScanReview';
 import { calculateGrade } from '@/utils/evaluationUtils';
 import { useQueryClient } from '@tanstack/react-query';
+import jsQR from 'jsqr';
 
 const EvaluationScannerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -146,16 +147,16 @@ const EvaluationScannerPage = () => {
     }
   };
 
-  const handleAligned = useCallback(async (imageData: ImageData, qrCode: any, corners: {x: number, y: number}[]) => {
-    if (isProcessing || !evaluation || qrCode.data !== scannedQrData) return;
+  const handleAligned = useCallback(async (imageData: ImageData, _: any, corners: {x: number, y: number}[]) => {
+    if (isProcessing || !evaluation) return;
 
     setIsProcessing(true);
     setScannerOpen(false);
     setIsAnalyzing(true);
 
     const srcPoints = corners;
-    const dstWidth = 827;
-    const dstHeight = 1169;
+    const dstWidth = 827; // A4 width at 96 DPI
+    const dstHeight = 1169; // A4 height at 96 DPI
     const dstPoints = [{x:0, y:0}, {x:dstWidth, y:0}, {x:dstWidth, y:dstHeight}, {x:0, y:dstHeight}];
     const transform = getPerspectiveTransform(srcPoints, dstPoints);
     const warpedImageData = warpPerspective(imageData, transform, dstWidth, dstHeight);
@@ -164,18 +165,23 @@ const EvaluationScannerPage = () => {
 
     setTimeout(() => {
       try {
+        const code = jsQR(warpedImageData.data, warpedImageData.width, warpedImageData.height);
+        if (!code || code.data !== scannedQrData) {
+          throw new Error("No se pudo verificar el código QR en la hoja alineada. Intenta de nuevo.");
+        }
+
         const [, , rowLabel] = scannedQrData!.split('|');
         const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
         const processedAnswers: any[] = [];
         
         const balancedAlternativesMap = generateBalancedShuffledAlternatives(allQuestions, seed, rowLabel);
 
-        const questionsPerColumn = Math.ceil(allQuestions.length / 3);
+        const questionsPerColumn = 10;
         const colWidth = 230;
         const rowHeight = 28;
-        const startX = 60;
+        const startX = 100; // Adjusted for new layout with fiducials
         const startY = 380;
-        const bubbleRadius = 7;
+        const bubbleRadius = 8;
 
         allQuestions.forEach(q => {
           const shuffledAlts = balancedAlternativesMap[q.id];

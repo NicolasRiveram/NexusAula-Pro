@@ -93,7 +93,7 @@
 
   .scanner-feedback {
     position: absolute;
-    bottom: 2rem;
+    bottom: 8rem; /* Increased to make space for capture button */
     left: 50%;
     transform: translateX(-50%);
     background-color: rgba(0, 0, 0, 0.7);
@@ -103,5 +103,13 @@
     text-align: center;
     z-index: 60;
     max-width: 90%;
+  }
+
+  .scanner-capture-button {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
   }
 }

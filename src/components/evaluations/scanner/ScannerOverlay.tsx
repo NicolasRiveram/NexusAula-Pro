@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import jsQR from 'jsqr';
-import { X } from 'lucide-react';
+import { X, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ScannerOverlayProps {
@@ -18,13 +18,13 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameId = useRef<number>();
 
-  const drawGuides = (ctx: CanvasRenderingContext2D, color: string) => {
+  const drawGuides = (ctx: CanvasRenderingContext2D) => {
     const w = ctx.canvas.width;
     const h = ctx.canvas.height;
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.lineWidth = 4;
     ctx.font = "16px sans-serif";
-    ctx.fillStyle = color;
+    ctx.fillStyle = 'white';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -35,24 +35,38 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
       ctx.strokeRect(x, y, boxSize, boxSize);
       ctx.fillText("Enfoca el código QR dentro del recuadro", w / 2, y / 2);
     } else {
-      ctx.fillText("Alinea la hoja de respuestas con el recuadro", w / 2, h * 0.1);
+      ctx.fillText("Alinea las 4 marcas negras de la hoja con las guías", w / 2, h * 0.1);
       
-      const a4AspectRatio = 1 / Math.sqrt(2);
-      const padding = 0.1; // 10% padding
-
-      let rectW, rectH;
-      if ((h * (1 - padding * 2)) * a4AspectRatio < w * (1 - padding * 2)) {
-        rectH = h * (1 - padding * 2);
-        rectW = rectH * a4AspectRatio;
-      } else {
-        rectW = w * (1 - padding * 2);
-        rectH = rectW / a4AspectRatio;
-      }
-
-      const rectX = (w - rectW) / 2;
-      const rectY = (h - rectH) / 2;
+      const margin = 0.05; // 5% margin
+      const cornerSize = 0.05; // 5% of width/height
       
-      ctx.strokeRect(rectX, rectY, rectW, rectH);
+      // Top-left
+      ctx.beginPath();
+      ctx.moveTo(w * margin, h * (margin + cornerSize));
+      ctx.lineTo(w * margin, h * margin);
+      ctx.lineTo(w * (margin + cornerSize), h * margin);
+      ctx.stroke();
+
+      // Top-right
+      ctx.beginPath();
+      ctx.moveTo(w * (1 - margin), h * (margin + cornerSize));
+      ctx.lineTo(w * (1 - margin), h * margin);
+      ctx.lineTo(w * (1 - (margin + cornerSize)), h * margin);
+      ctx.stroke();
+
+      // Bottom-left
+      ctx.beginPath();
+      ctx.moveTo(w * margin, h * (1 - (margin + cornerSize)));
+      ctx.lineTo(w * margin, h * (1 - margin));
+      ctx.lineTo(w * (margin + cornerSize), h * (1 - margin));
+      ctx.stroke();
+
+      // Bottom-right
+      ctx.beginPath();
+      ctx.moveTo(w * (1 - margin), h * (1 - (margin + cornerSize)));
+      ctx.lineTo(w * (1 - margin), h * (1 - margin));
+      ctx.lineTo(w * (1 - (margin + cornerSize)), h * (1 - margin));
+      ctx.stroke();
     }
   };
 
@@ -66,81 +80,52 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
     const overlayCanvas = overlayCanvasRef.current!;
     const overlayCtx = overlayCanvas.getContext('2d')!;
     
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = video.videoWidth;
-    tempCanvas.height = video.videoHeight;
-    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true })!;
-
-    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-
     overlayCanvas.width = video.videoWidth;
     overlayCanvas.height = video.videoHeight;
     overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-    let guideColor = 'rgba(255, 255, 255, 0.5)';
-    
-    if (code) {
-      const { topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner } = code.location;
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(topLeftCorner.x, topLeftCorner.y);
-      overlayCtx.lineTo(topRightCorner.x, topRightCorner.y);
-      overlayCtx.lineTo(bottomRightCorner.x, bottomRightCorner.y);
-      overlayCtx.lineTo(bottomLeftCorner.x, bottomLeftCorner.y);
-      overlayCtx.closePath();
-      overlayCtx.lineWidth = 4;
-      overlayCtx.strokeStyle = 'yellow';
-      overlayCtx.stroke();
-    }
+    drawGuides(overlayCtx);
 
     if (scanMode === 'qr') {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = video.videoWidth;
+      tempCanvas.height = video.videoHeight;
+      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true })!;
+      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+
       if (code) {
         onQrScanned(code.data);
         return;
       }
-    } else if (scanMode === 'align') {
-      if (code) {
-        const { topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner } = code.location;
-        const widthTop = Math.hypot(topRightCorner.x - topLeftCorner.x, topRightCorner.y - topLeftCorner.y);
-        const widthBottom = Math.hypot(bottomRightCorner.x - bottomLeftCorner.x, bottomRightCorner.y - bottomLeftCorner.y);
-        const heightLeft = Math.hypot(bottomLeftCorner.x - topLeftCorner.x, bottomLeftCorner.y - topLeftCorner.y);
-        const heightRight = Math.hypot(bottomRightCorner.x - topRightCorner.x, bottomRightCorner.y - topRightCorner.y);
-        const distortion = Math.abs(1 - widthTop / widthBottom) + Math.abs(1 - heightLeft / heightRight);
-        
-        if (distortion < 0.15) {
-          guideColor = 'rgba(74, 222, 128, 0.9)';
-          
-          const a4AspectRatio = 1 / Math.sqrt(2);
-          const padding = 0.1;
-          let rectW, rectH;
-          if ((video.videoHeight * (1 - padding * 2)) * a4AspectRatio < video.videoWidth * (1 - padding * 2)) {
-            rectH = video.videoHeight * (1 - padding * 2);
-            rectW = rectH * a4AspectRatio;
-          } else {
-            rectW = video.videoWidth * (1 - padding * 2);
-            rectH = rectW / a4AspectRatio;
-          }
-          const rectX = (video.videoWidth - rectW) / 2;
-          const rectY = (video.videoHeight - rectH) / 2;
-
-          const corners = [
-            { x: rectX, y: rectY },
-            { x: rectX + rectW, y: rectY },
-            { x: rectX + rectW, y: rectY + rectH },
-            { x: rectX, y: rectY + rectH },
-          ];
-          onAligned(imageData, code, corners);
-          return;
-        } else {
-          guideColor = 'rgba(239, 68, 68, 0.9)';
-        }
-      }
     }
     
-    drawGuides(overlayCtx, guideColor);
     animationFrameId.current = requestAnimationFrame(tick);
-  }, [isProcessing, onAligned, onQrScanned, scanMode]);
+  }, [isProcessing, onQrScanned, scanMode]);
+
+  const handleCapture = () => {
+    if (!videoRef.current || isProcessing) return;
+
+    const video = videoRef.current;
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = video.videoWidth;
+    tempCanvas.height = video.videoHeight;
+    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true })!;
+    tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    const margin = 0.05;
+    const corners = [
+      { x: w * margin, y: h * margin },
+      { x: w * (1 - margin), y: h * margin },
+      { x: w * (1 - margin), y: h * (1 - margin) },
+      { x: w * margin, y: h * (1 - margin) },
+    ];
+
+    onAligned(imageData, null, corners);
+  };
 
   useEffect(() => {
     const startCamera = async () => {
@@ -184,6 +169,12 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
           <p className="font-bold">{scanFeedback.studentName}</p>
           <p className="text-sm">{scanFeedback.evalTitle}</p>
         </div>
+      )}
+      {scanMode === 'align' && (
+        <Button onClick={handleCapture} disabled={isProcessing} size="lg" className="scanner-capture-button">
+          <Camera className="mr-2 h-5 w-5" />
+          Capturar Hoja
+        </Button>
       )}
     </div>
   );

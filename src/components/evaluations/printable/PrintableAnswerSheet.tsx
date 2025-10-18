@@ -31,20 +31,12 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
 
   const sortedQuestions = [...questions].sort((a, b) => a.orden - b.orden);
 
-  const questionsPerColumn = Math.ceil(sortedQuestions.length / 3);
-  const columns = [
-    sortedQuestions.slice(0, questionsPerColumn),
-    sortedQuestions.slice(questionsPerColumn, questionsPerColumn * 2),
-    sortedQuestions.slice(questionsPerColumn * 2),
-  ];
-
   return (
     <div className="printable-container answer-sheet-container">
-      {/* Subtle corner fiducials for alignment */}
-      <div className="corner-fiducial top-left"></div>
-      <div className="corner-fiducial top-right"></div>
-      <div className="corner-fiducial bottom-left"></div>
-      <div className="corner-fiducial bottom-right"></div>
+      <div className="fiducial-marker fm-top-left"></div>
+      <div className="fiducial-marker fm-top-right"></div>
+      <div className="fiducial-marker fm-bottom-left"></div>
+      <div className="fiducial-marker fm-bottom-right"></div>
 
       <header className="omr-header">
         {fullLogoUrl && <img src={fullLogoUrl} alt={establishmentName} className="logo" />}
@@ -52,9 +44,9 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
           <h1>{establishmentName}</h1>
           <h2>{evaluationTitle}</h2>
         </div>
-        <div className="fila-indicator">
-          <span>FILA</span>
-          <span className="fila-letter">{rowLabel}</span>
+        <div className="omr-qr-container">
+          <QRCodeSVG value={qrCodeData} size={60} />
+          <p>Fila {rowLabel}</p>
         </div>
       </header>
 
@@ -65,9 +57,6 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
           <div className="field"><label>Fecha:</label><span /></div>
           <div className="field"><label>Puntaje:</label><span /></div>
         </div>
-        <div className="omr-qr-container">
-          <QRCodeSVG value={qrCodeData} size={80} />
-        </div>
       </section>
 
       <p className="omr-instructions">
@@ -75,22 +64,17 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
       </p>
 
       <main className="omr-grid">
-        {columns.map((column, colIndex) => (
-          <div key={colIndex} className="omr-column">
-            <h3>Preguntas {column.length > 0 ? column[0].orden : ''} - {column.length > 0 ? column[column.length - 1].orden : ''}</h3>
-            {column.map(q => (
-              <div key={q.orden} className="omr-question-row">
-                <div className="q-number">{q.orden}</div>
-                <div className="bubbles">
-                  {alternatives.map((alt, index) => (
-                    <div key={alt} className="bubble-container">
-                      <span className="alt-label">{alt}</span>
-                      {index < q.alternativesCount ? <div className="bubble"></div> : <div style={{width: '18px', height: '18px'}}></div>}
-                    </div>
-                  ))}
+        {sortedQuestions.map(q => (
+          <div key={q.orden} className="omr-question-row">
+            <div className="q-number">{q.orden}</div>
+            <div className="bubbles">
+              {alternatives.map((alt, index) => (
+                <div key={alt} className="bubble-container">
+                  <span className="alt-label">{alt}</span>
+                  {index < q.alternativesCount ? <div className="bubble"></div> : <div style={{width: '18px', height: '18px'}}></div>}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ))}
       </main>
