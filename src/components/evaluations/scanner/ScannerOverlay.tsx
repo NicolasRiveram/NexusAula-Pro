@@ -95,6 +95,20 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
 
     let guideColor = 'rgba(255, 255, 255, 0.5)';
     
+    if (code) {
+      // Draw a polygon around the detected QR code for immediate feedback
+      const { topLeftCorner, topRightCorner, bottomRightCorner, bottomLeftCorner } = code.location;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(topLeftCorner.x, topLeftCorner.y);
+      overlayCtx.lineTo(topRightCorner.x, topRightCorner.y);
+      overlayCtx.lineTo(bottomRightCorner.x, bottomRightCorner.y);
+      overlayCtx.lineTo(bottomLeftCorner.x, bottomLeftCorner.y);
+      overlayCtx.closePath();
+      overlayCtx.lineWidth = 4;
+      overlayCtx.strokeStyle = 'yellow';
+      overlayCtx.stroke();
+    }
+
     if (scanMode === 'qr') {
       if (code) {
         onQrScanned(code.data);
