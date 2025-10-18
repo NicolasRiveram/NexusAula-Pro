@@ -54,19 +54,23 @@ export function generateBalancedShuffledAlternatives(
   // 1. Generate initial shuffled alternatives and answer key
   const answerKey: { questionId: string; answer: string; order: number }[] = [];
   questions.forEach(q => {
-    const shuffled = seededShuffle(q.item_alternativas, `${seed}-${q.id}`);
+    const alternatives = q.item_alternativas || [];
+    const shuffled = seededShuffle(alternatives, `${seed}-${q.id}`);
     finalShuffledAlternatives[q.id] = shuffled;
     const correctIndex = shuffled.findIndex(alt => alt.es_correcta);
-    answerKey.push({
-      questionId: q.id,
-      answer: String.fromCharCode(65 + correctIndex),
-      order: q.orden
-    });
+    
+    if (correctIndex !== -1) { // Safeguard against questions with no correct answer
+      answerKey.push({
+        questionId: q.id,
+        answer: String.fromCharCode(65 + correctIndex),
+        order: q.orden
+      });
+    }
   });
   answerKey.sort((a, b) => a.order - b.order);
 
   // 2. Balance the answer key
-  const numQuestions = questions.length;
+  const numQuestions = answerKey.length; // Use answerKey length as it's the reliable source
   const numOptions = 4; // Assuming A,B,C,D
   const idealCount = Math.floor(numQuestions / numOptions);
   const remainder = numQuestions % numOptions;

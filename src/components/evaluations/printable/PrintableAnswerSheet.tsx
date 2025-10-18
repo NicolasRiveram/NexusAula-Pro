@@ -40,21 +40,11 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
 
   return (
     <div className="printable-container answer-sheet-container">
-      {/* Outer solid fiducials */}
-      <div className="solid-fiducial fm-s-top-left"></div>
-      <div className="solid-fiducial fm-s-top-center"></div>
-      <div className="solid-fiducial fm-s-top-right"></div>
-      <div className="solid-fiducial fm-s-middle-left"></div>
-      <div className="solid-fiducial fm-s-middle-right"></div>
-      <div className="solid-fiducial fm-s-bottom-left"></div>
-      <div className="solid-fiducial fm-s-bottom-center"></div>
-      <div className="solid-fiducial fm-s-bottom-right"></div>
-
-      {/* Inner solid fiducials */}
-      <div className="solid-fiducial fm-i-top-left"></div>
-      <div className="solid-fiducial fm-i-top-right"></div>
-      <div className="solid-fiducial fm-i-bottom-left"></div>
-      <div className="solid-fiducial fm-i-bottom-right"></div>
+      {/* Subtle corner fiducials for alignment */}
+      <div className="corner-fiducial top-left"></div>
+      <div className="corner-fiducial top-right"></div>
+      <div className="corner-fiducial bottom-left"></div>
+      <div className="corner-fiducial bottom-right"></div>
 
       <header className="omr-header">
         {fullLogoUrl && <img src={fullLogoUrl} alt={establishmentName} className="logo" />}
