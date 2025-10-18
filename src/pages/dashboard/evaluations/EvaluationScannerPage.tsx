@@ -181,7 +181,8 @@ const EvaluationScannerPage = () => {
         const rowHeight = 30;
         const startX = 70;
         const startY = 300;
-        const bubbleRadius = 9;
+        const bubbleRadius = 8;
+        const bubbleXOffset = 30; // Corresponds to 24px width + 6px gap
 
         allQuestions.forEach(q => {
           const shuffledAlts = balancedAlternativesMap[q.id];
@@ -194,7 +195,7 @@ const EvaluationScannerPage = () => {
           const rowIndex = (q.orden - 1) % QUESTIONS_PER_COLUMN;
 
           for (let i = 0; i < q.item_alternativas.length; i++) {
-            const bubbleX = startX + colIndex * colWidth + i * 45;
+            const bubbleX = startX + colIndex * colWidth + i * bubbleXOffset;
             const bubbleY = startY + rowIndex * rowHeight;
             const brightness = getBubbleDarkness(warpedImageData, bubbleX, bubbleY, bubbleRadius);
             if (brightness < minBrightness) {
