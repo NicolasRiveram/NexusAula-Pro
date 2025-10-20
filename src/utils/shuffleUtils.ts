@@ -55,34 +55,40 @@ export function generateBalancedShuffledAlternatives(
 
   const finalShuffledAlternatives: { [questionId: string]: ItemAlternative[] } = {};
 
-  // 1. Generate initial shuffled alternatives and answer key
+  // 1. Generate initial shuffled alternatives and answer key ONLY for multiple choice questions
   const answerKey: { questionId: string; answer: string; order: number }[] = [];
   questions.forEach(q => {
     const alternatives = q.item_alternativas || [];
-    const shuffled = seededShuffle(alternatives, `${seed}-${q.id}`);
-    finalShuffledAlternatives[q.id] = shuffled;
-    const correctIndex = shuffled.findIndex(alt => alt.es_correcta);
-    
-    if (correctIndex !== -1) { // Safeguard against questions with no correct answer
-      answerKey.push({
-        questionId: q.id,
-        answer: String.fromCharCode(65 + correctIndex),
-        order: q.orden
-      });
+    if (q.tipo_item === 'seleccion_multiple' && alternatives.length > 0) {
+      const shuffled = seededShuffle(alternatives, `${seed}-${q.id}`);
+      finalShuffledAlternatives[q.id] = shuffled;
+      const correctIndex = shuffled.findIndex(alt => alt.es_correcta);
+      
+      if (correctIndex !== -1) {
+        answerKey.push({
+          questionId: q.id,
+          answer: String.fromCharCode(65 + correctIndex),
+          order: q.orden
+        });
+      }
+    } else {
+      // For non-multiple choice, just pass them through
+      finalShuffledAlternatives[q.id] = alternatives as ItemAlternative[];
     }
   });
   answerKey.sort((a, b) => a.order - b.order);
 
+  // If there are no multiple choice questions, no balancing is needed.
   if (answerKey.length === 0) {
     return finalShuffledAlternatives;
   }
 
   // 2. Balance the answer key
-  const numQuestions = answerKey.length; // Use answerKey length as it's the reliable source
-  const numOptions = 4; // Assuming A,B,C,D
+  const numQuestions = answerKey.length;
+  const numOptions = 5; // A,B,C,D,E
   const idealCount = Math.floor(numQuestions / numOptions);
   const remainder = numQuestions % numOptions;
-  const options = ['A', 'B', 'C', 'D'];
+  const options = ['A', 'B', 'C', 'D', 'E'];
   const targetCounts: { [key: string]: number } = {};
   options.forEach((opt, i) => {
     targetCounts[opt] = idealCount + (i < remainder ? 1 : 0);
@@ -143,9 +149,9 @@ export function generateBalancedShuffledAlternatives(
   for (let i = 0; i <= answerKey.length - 4; i++) {
     const currentAnswer = answerKey[i].answer;
     if (
-      answerKey[i+1].answer === currentAnswer &&
-      answerKey[i+2].answer === currentAnswer &&
-      answerKey[i+3].answer === currentAnswer
+      answerKey[i+1] && answerKey[i+1].answer === currentAnswer &&
+      answerKey[i+2] && answerKey[i+2].answer === currentAnswer &&
+      answerKey[i+3] && answerKey[i+3].answer === currentAnswer
     ) {
       const itemToChange = answerKey[i + 3];
       const questionId = itemToChange.questionId;
