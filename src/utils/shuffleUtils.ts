@@ -49,6 +49,10 @@ export function generateBalancedShuffledAlternatives(
   rowLabel: string
 ): { [questionId: string]: ItemAlternative[] } {
   
+  if (!questions || questions.length === 0) {
+    return {};
+  }
+
   const finalShuffledAlternatives: { [questionId: string]: ItemAlternative[] } = {};
 
   // 1. Generate initial shuffled alternatives and answer key
@@ -68,6 +72,10 @@ export function generateBalancedShuffledAlternatives(
     }
   });
   answerKey.sort((a, b) => a.order - b.order);
+
+  if (answerKey.length === 0) {
+    return finalShuffledAlternatives;
+  }
 
   // 2. Balance the answer key
   const numQuestions = answerKey.length; // Use answerKey length as it's the reliable source
