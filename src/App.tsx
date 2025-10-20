@@ -28,6 +28,7 @@ const EvaluationResultsPage = lazy(() => import("./pages/dashboard/evaluations/E
 const EvaluationTakerPage = lazy(() => import("./pages/dashboard/evaluations/EvaluationTakerPage"));
 const EvaluationScannerPage = lazy(() => import("./pages/dashboard/evaluations/EvaluationScannerPage"));
 const AdaptPIEPage = lazy(() => import("./pages/dashboard/evaluations/AdaptPIEPage"));
+const ManualEntryPage = lazy(() => import("./pages/dashboard/evaluations/ManualEntryPage"));
 const ProjectsPage = lazy(() => import("./pages/dashboard/ProjectsPage"));
 const ProjectDetailPage = lazy(() => import("./pages/dashboard/ProjectDetailPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
@@ -104,6 +105,7 @@ const App = () => {
                         <Route path="evaluacion/:evaluationId/resultados" element={<EvaluationResultsPage />} />
                         <Route path="evaluacion/:evaluationId/resultados/:responseId" element={<StudentResponseDetailPage />} />
                         <Route path="evaluacion/:evaluationId/corregir" element={<EvaluationScannerPage />} />
+                        <Route path="evaluacion/:evaluationId/ingreso-manual" element={<ManualEntryPage />} />
                         <Route path="evaluacion/adaptar/:evaluationId" element={<AdaptPIEPage />} />
                         <Route path="rubricas" element={<RubricsPage />} />
                         <Route path="rubricas/crear" element={<RubricBuilderPage />} />

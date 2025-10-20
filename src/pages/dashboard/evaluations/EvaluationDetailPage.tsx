@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, MoreVertical, Pencil } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
@@ -209,8 +209,7 @@ const EvaluationDetailPage = () => {
 
         allQuestions.forEach(q => {
           if (q.tipo_item === 'seleccion_multiple') {
-            const sortedAlts = [...q.item_alternativas].sort((a, b) => a.orden - b.orden);
-            const shuffledAlts = seededShuffle(sortedAlts, `${formData.seed}-${rowLabel}-${q.id}`);
+            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
             const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
             answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
           }
@@ -310,6 +309,9 @@ const EvaluationDetailPage = () => {
                     <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/adaptar/${evaluation.id}`)}>
                       <BrainCircuit className="mr-2 h-4 w-4" /> Adaptar para PIE
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/ingreso-manual`)}>
+                      <Pencil className="mr-2 h-4 w-4" /> Ingreso Manual de Respuestas
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => { setPrintMode('regular'); setPrintModalOpen(true); }}>
                       <Download className="mr-2 h-4 w-4" /> Descargar Evaluación
@@ -318,7 +320,7 @@ const EvaluationDetailPage = () => {
                       <Download className="mr-2 h-4 w-4" /> Descargar Versión PIE
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
-                      <FileText className="mr-2 h-4 w-4" /> Imprimir Hojas de Respuesta
+                      <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setAnswerKeyDialogOpen(true)}>
                       <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta de Corrección
