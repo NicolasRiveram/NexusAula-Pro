@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical, School } from 'lucide-react';
+import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical, School, BookCopy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const teacherNavItems = [
@@ -14,6 +14,7 @@ const teacherNavItems = [
   { to: '/dashboard/analiticas', icon: BarChart, label: 'Analíticas' },
   { to: '/dashboard/informes', icon: ClipboardList, label: 'Informes' },
   { to: '/dashboard/bitacora', icon: BookOpen, label: 'Bitácora' },
+  { to: '/dashboard/classbook', icon: BookCopy, label: 'Libro de Clases' },
 ];
 
 const studentNavItems = [

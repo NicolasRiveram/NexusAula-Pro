@@ -56,6 +56,7 @@ const ExpertGeneratorPage = lazy(() => import("./pages/dashboard/super-admin/Exp
 const SuccessPage = lazy(() => import("./pages/dashboard/payment/SuccessPage"));
 const FailurePage = lazy(() => import("./pages/dashboard/payment/FailurePage"));
 const PendingPage = lazy(() => import("./pages/dashboard/payment/PendingPage"));
+const ClassbookPage = lazy(() => import("./pages/dashboard/ClassbookPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -115,6 +116,7 @@ const App = () => {
                         <Route path="informes/generar" element={<GenerateReportPage />} />
                         <Route path="informes/:reportId" element={<ViewReportPage />} />
                         <Route path="bitacora" element={<BitacoraPage />} />
+                        <Route path="classbook" element={<ClassbookPage />} />
                         <Route path="mi-horario" element={<StudentSchedulePage />} />
                         <Route path="mi-progreso" element={<MyProgressPage />} />
                         <Route path="gestion/cursos" element={<ManageCoursesPage />} />
