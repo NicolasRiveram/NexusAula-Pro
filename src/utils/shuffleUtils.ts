@@ -96,7 +96,7 @@ export function generateBalancedShuffledAlternatives(
 
   const currentCounts = options.reduce((acc, opt) => ({ ...acc, [opt]: 0 }), {} as { [key: string]: number });
   answerKey.forEach(item => {
-    if (currentCounts[item.answer] !== undefined) {
+    if (item && item.answer && currentCounts[item.answer] !== undefined) {
       currentCounts[item.answer]++;
     }
   });
@@ -118,7 +118,7 @@ export function generateBalancedShuffledAlternatives(
 
       for (let i = 0; i < answerKey.length; i++) {
         const checkIndex = (startIndex + i) % answerKey.length;
-        if (answerKey[checkIndex].answer === overOpt) {
+        if (answerKey[checkIndex] && answerKey[checkIndex].answer === overOpt) {
           swapItemIndex = checkIndex;
           break;
         }
@@ -147,11 +147,14 @@ export function generateBalancedShuffledAlternatives(
 
   // 3. Correct streaks
   for (let i = 0; i <= answerKey.length - 4; i++) {
+    if (!answerKey[i] || !answerKey[i+1] || !answerKey[i+2] || !answerKey[i+3]) {
+      continue; // Skip if any item in the sequence is undefined
+    }
     const currentAnswer = answerKey[i].answer;
     if (
-      answerKey[i+1] && answerKey[i+1].answer === currentAnswer &&
-      answerKey[i+2] && answerKey[i+2].answer === currentAnswer &&
-      answerKey[i+3] && answerKey[i+3].answer === currentAnswer
+      answerKey[i+1].answer === currentAnswer &&
+      answerKey[i+2].answer === currentAnswer &&
+      answerKey[i+3].answer === currentAnswer
     ) {
       const itemToChange = answerKey[i + 3];
       const questionId = itemToChange.questionId;
