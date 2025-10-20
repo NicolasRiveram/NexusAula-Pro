@@ -12,7 +12,11 @@ interface ClassbookTableProps {
 const ClassbookTable: React.FC<ClassbookTableProps> = ({ data }) => {
   const { students, evaluations, grades } = data;
 
-  const sortedEvaluations = [...evaluations].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const sortedEvaluations = [...evaluations].sort((a, b) => {
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return new Date(a.date).getTime() - new Date(b.date).getTime()
+  });
 
   const gradesMap = new Map<string, number>();
   grades.forEach(grade => {
@@ -36,7 +40,9 @@ const ClassbookTable: React.FC<ClassbookTableProps> = ({ data }) => {
             {sortedEvaluations.map(ev => (
               <TableHead key={ev.id} className="text-center min-w-[150px] align-middle">
                 <p className="font-semibold whitespace-normal">{ev.title}</p>
-                <p className="text-xs text-muted-foreground mt-1">{format(parseISO(ev.date), 'dd MMM', { locale: es })}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {ev.date ? format(parseISO(ev.date), 'dd MMM', { locale: es }) : 'Sin fecha'}
+                </p>
               </TableHead>
             ))}
           </TableRow>
