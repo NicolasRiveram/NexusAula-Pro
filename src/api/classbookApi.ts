@@ -10,6 +10,7 @@ export interface ClassbookEvaluation {
   title: string;
   type: 'standard' | 'rubric';
   date: string;
+  momento_evaluativo: 'diagnostica' | 'formativa' | 'sumativa' | null;
 }
 
 export interface ClassbookGrade {
