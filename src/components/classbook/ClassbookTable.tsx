@@ -34,9 +34,9 @@ const ClassbookTable: React.FC<ClassbookTableProps> = ({ data }) => {
           <TableRow>
             <TableHead className="sticky left-0 bg-card z-10 min-w-[250px] border-r">Estudiante</TableHead>
             {sortedEvaluations.map(ev => (
-              <TableHead key={ev.id} className="text-center min-w-[150px] align-bottom">
+              <TableHead key={ev.id} className="text-center min-w-[150px] align-bottom h-48">
                 <div className="flex flex-col items-center h-full justify-end">
-                  <span className="font-semibold writing-mode-vertical-rl rotate-180 whitespace-nowrap">{ev.title}</span>
+                  <span className="font-semibold [writing-mode:vertical-rl] whitespace-nowrap transform rotate-180">{ev.title}</span>
                   <span className="text-xs text-muted-foreground mt-2">{format(parseISO(ev.date), 'dd MMM', { locale: es })}</span>
                 </div>
               </TableHead>
