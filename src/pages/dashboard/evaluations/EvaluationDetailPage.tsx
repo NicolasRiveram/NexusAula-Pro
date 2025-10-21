@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, MoreVertical, Pencil, Calculator } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations, saveStudentAssignments, StudentEvaluationAssignment } from '@/api/evaluationsApi';
-import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
+import { ArrowLeft, Download, Edit, Loader2, BrainCircuit, FileText, Image as ImageIcon, BarChart, Camera, ClipboardList, MoreVertical, Pencil } from 'lucide-react';
+import { fetchEvaluationDetails, EvaluationDetail, getPublicImageUrl, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
+import { showError, showLoading, dismissToast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import GeoGebraApplet from '@/components/geogebra/GeoGebraApplet';
 
 const formatTeacherNameForPrint = (fullName: string | null): string => {
   if (!fullName || fullName.trim() === '') {
@@ -203,79 +202,11 @@ const EvaluationDetailPage = () => {
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
       const answerKey: { [row: string]: { [q: number]: string } } = {};
       const printableComponents: React.ReactElement[] = [];
-      const assignmentsToSave: Omit<StudentEvaluationAssignment, 'id' | 'created_at'>[] = [];
 
-      // Group students by course
-      const studentsByCourse = students.reduce((acc, student) => {
-        const courseName = student.curso_nombre;
-        if (!acc[courseName]) {
-          acc[courseName] = [];
-        }
-        acc[courseName].push(student);
-        return acc;
-      }, {} as Record<string, typeof students>);
-
-      // Distribute rows within each course
-      for (const courseName in studentsByCourse) {
-        const courseStudents = studentsByCourse[courseName];
-        const midIndex = Math.ceil(courseStudents.length / 2);
-        
-        const studentsA = formData.rows === 1 ? courseStudents : courseStudents.slice(0, midIndex);
-        const studentsB = formData.rows === 1 ? [] : courseStudents.slice(midIndex);
-
-        studentsA.forEach(student => {
-          const rowLabel = 'A';
-          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
-          printableComponents.push(
-            <PrintableAnswerSheet
-              key={`${student.id}-${rowLabel}`}
-              evaluationTitle={evaluation.titulo}
-              establishmentName={activeEstablishment.nombre}
-              logoUrl={activeEstablishment.logo_url}
-              studentName={student.nombre_completo}
-              courseName={student.curso_nombre}
-              rowLabel={rowLabel}
-              qrCodeData={qrCodeData}
-              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
-            />
-          );
-          assignmentsToSave.push({
-            student_id: student.id,
-            evaluation_id: evaluation.id,
-            assigned_row: rowLabel,
-            seed: formData.seed,
-          });
-        });
-
-        studentsB.forEach(student => {
-          const rowLabel = 'B';
-          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
-          printableComponents.push(
-            <PrintableAnswerSheet
-              key={`${student.id}-${rowLabel}`}
-              evaluationTitle={evaluation.titulo}
-              establishmentName={activeEstablishment.nombre}
-              logoUrl={activeEstablishment.logo_url}
-              studentName={student.nombre_completo}
-              courseName={student.curso_nombre}
-              rowLabel={rowLabel}
-              qrCodeData={qrCodeData}
-              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
-            />
-          );
-          assignmentsToSave.push({
-            student_id: student.id,
-            evaluation_id: evaluation.id,
-            assigned_row: rowLabel,
-            seed: formData.seed,
-          });
-        });
-      }
-
-      // Now, generate the answer key for all rows
       for (let i = 0; i < formData.rows; i++) {
         const rowLabel = String.fromCharCode(65 + i);
         answerKey[rowLabel] = {};
+
         allQuestions.forEach(q => {
           if (q.tipo_item === 'seleccion_multiple') {
             const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
@@ -283,6 +214,23 @@ const EvaluationDetailPage = () => {
             answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
           }
         });
+
+        for (const student of students) {
+          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
+          printableComponents.push(
+            <PrintableAnswerSheet
+              key={`${student.id}-${rowLabel}`}
+              evaluationTitle={evaluation.titulo}
+              establishmentName={activeEstablishment.nombre}
+              logoUrl={activeEstablishment.logo_url}
+              studentName={student.nombre_completo}
+              courseName={student.curso_nombre}
+              rowLabel={rowLabel}
+              qrCodeData={qrCodeData}
+              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+            />
+          );
+        }
       }
 
       printableComponents.push(
@@ -292,9 +240,6 @@ const EvaluationDetailPage = () => {
           answerKey={answerKey}
         />
       );
-
-      // Save assignments to the database
-      await saveStudentAssignments(assignmentsToSave);
 
       printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`, 'portrait');
       dismissToast(toastId);
@@ -429,15 +374,13 @@ const EvaluationDetailPage = () => {
             {(evaluation.evaluation_content_blocks || []).map(block => (
               <div key={block.id}>
                 <div className="flex items-center text-lg font-semibold mb-4">
-                  {block.block_type === 'text' || block.block_type === 'syllabus' ? <FileText className="mr-3 h-5 w-5" /> : block.block_type === 'geogebra' ? <Calculator className="mr-3 h-5 w-5" /> : <ImageIcon className="mr-3 h-5 w-5" />}
+                  {block.block_type === 'text' || block.block_type === 'syllabus' ? <FileText className="mr-3 h-5 w-5" /> : <ImageIcon className="mr-3 h-5 w-5" />}
                   <h3>{block.title || `Sección ${block.orden}`}</h3>
                   {!block.visible_en_evaluacion && <Badge variant="outline" className="ml-3">Oculto para estudiantes</Badge>}
                 </div>
                 <div className="p-4 border rounded-md bg-muted/30">
                   {block.block_type === 'text' || block.block_type === 'syllabus' ? (
                     <p className="text-sm whitespace-pre-wrap">{block.content.text}</p>
-                  ) : block.block_type === 'geogebra' ? (
-                    <GeoGebraApplet materialId={block.content.geogebraId} />
                   ) : (
                     <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido de la sección ${block.orden}`} />
                   )}
@@ -487,7 +430,6 @@ const EvaluationDetailPage = () => {
         onClose={() => setAnswerSheetModalOpen(false)}
         onConfirm={handleConfirmPrintAnswerSheets}
         isPrinting={isPrinting}
-        evaluationId={evaluationForAnswerSheet}
       />
       <AnswerKeyDialog
         isOpen={isAnswerKeyDialogOpen}

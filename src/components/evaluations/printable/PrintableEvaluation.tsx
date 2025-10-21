@@ -68,13 +68,6 @@ const PrintableEvaluation: React.FC<PrintableEvaluationProps> = ({ evaluation, e
               contentElement = <p>{block.content.text}</p>;
             } else if (block.block_type === 'image' && typeof block.content.imageUrl === 'string') {
               contentElement = <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido ${block.orden}`} />;
-            } else if (block.block_type === 'geogebra' && typeof block.content.geogebraId === 'string') {
-                contentElement = (
-                    <div style={{ border: '1px dashed #ccc', padding: '20px', textAlign: 'center', color: '#555', fontSize: '0.9em' }}>
-                        <p><strong>Actividad Interactiva de GeoGebra</strong></p>
-                        <p>Esta actividad se realizará en línea. ID: {block.content.geogebraId}</p>
-                    </div>
-                );
             }
           }
 

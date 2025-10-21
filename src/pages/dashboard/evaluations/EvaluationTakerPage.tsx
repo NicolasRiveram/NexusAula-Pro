@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle, AlertTriangle, Target } from 'lucide-react';
 import { showError, showSuccess } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import GeoGebraApplet from '@/components/geogebra/GeoGebraApplet';
 
 const EvaluationTakerPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
@@ -120,8 +119,6 @@ const EvaluationTakerPage = () => {
               {block.visible_en_evaluacion && (
                 block.block_type === 'text' ? (
                   <p className="text-base whitespace-pre-wrap p-4 bg-muted/50 rounded-md">{block.content.text}</p>
-                ) : block.block_type === 'geogebra' ? (
-                  <GeoGebraApplet materialId={block.content.geogebraId} />
                 ) : (
                   <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Contenido ${block.orden}`} className="rounded-md max-w-full mx-auto" />
                 )

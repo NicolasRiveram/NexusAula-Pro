@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy, ChevronDown, Calculator } from 'lucide-react';
+import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy, ChevronDown } from 'lucide-react';
 import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails, deleteEvaluationItem, decreaseQuestionDifficulty } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
@@ -21,8 +21,6 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import AddSyllabusBlockDialog from './AddSyllabusBlockDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import AddGeoGebraBlockDialog from './AddGeoGebraBlockDialog';
-import GeoGebraApplet from '@/components/geogebra/GeoGebraApplet';
 
 interface Step2ContentBlocksProps {
   evaluationId: string;
@@ -174,7 +172,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
   const [isAddSyllabusDialogOpen, setAddSyllabusDialogOpen] = useState(false);
   const [isAddImageDialogOpen, setAddImageDialogOpen] = useState(false);
-  const [isAddGeoGebraDialogOpen, setAddGeoGebraDialogOpen] = useState(false);
   const [isAddQuestionDialogOpen, setAddQuestionDialogOpen] = useState(false);
   const [isUsePlanDialogOpen, setUsePlanDialogOpen] = useState(false);
   const [isUseResourceDialogOpen, setUseResourceDialogOpen] = useState(false);
@@ -424,8 +421,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       setAddImageDialogOpen(true);
     } else if (block.block_type === 'syllabus') {
       setAddSyllabusDialogOpen(true);
-    } else if (block.block_type === 'geogebra') {
-      setAddGeoGebraDialogOpen(true);
     }
   };
 
@@ -457,7 +452,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
         <Button onClick={() => setAddSyllabusDialogOpen(true)}><ClipboardList className="mr-2 h-4 w-4" /> Añadir Temario</Button>
         <Button onClick={() => setAddTextDialogOpen(true)}><FileText className="mr-2 h-4 w-4" /> Añadir Texto</Button>
         <Button onClick={() => setAddImageDialogOpen(true)}><ImageIcon className="mr-2 h-4 w-4" /> Añadir Imagen</Button>
-        <Button onClick={() => setAddGeoGebraDialogOpen(true)}><Calculator className="mr-2 h-4 w-4" /> Añadir GeoGebra</Button>
         <Button onClick={() => setUsePlanDialogOpen(true)} variant="outline"><BookCopy className="mr-2 h-4 w-4" /> Usar Plan Didáctico</Button>
         <Button onClick={() => setUseResourceDialogOpen(true)} variant="outline"><CopyPlus className="mr-2 h-4 w-4" /> Reutilizar Recurso</Button>
       </div>
@@ -478,7 +472,7 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                             <div {...attributes} {...listeners} className="cursor-grab touch-none p-2 -ml-2">
                               <GripVertical className="h-5 w-5 text-muted-foreground" />
                             </div>
-                            {block.block_type === 'text' ? <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : block.block_type === 'syllabus' ? <ClipboardList className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : block.block_type === 'geogebra' ? <Calculator className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : <ImageIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                            {block.block_type === 'text' ? <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : block.block_type === 'syllabus' ? <ClipboardList className="h-5 w-5 text-muted-foreground flex-shrink-0" /> : <ImageIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
                             <div className="flex-grow" onClick={() => toggleBlockExpansion(block.id)}>
                               <Input
                                 defaultValue={block.title || ''}
@@ -523,8 +517,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                             <CardContent>
                                 {block.block_type === 'text' || block.block_type === 'syllabus' ? (
                                     <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-2">{block.content.text}</p>
-                                ) : block.block_type === 'geogebra' ? (
-                                    <p className="text-sm text-muted-foreground">Actividad interactiva de GeoGebra: ID {block.content.geogebraId}</p>
                                 ) : (
                                     <img src={getPublicImageUrl(block.content.imageUrl)} alt={`Bloque ${block.orden}`} className="rounded-md max-h-24 object-contain" />
                                 )}
@@ -594,7 +586,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
       <AddTextBlockDialog isOpen={isAddTextDialogOpen} onClose={() => { setAddTextDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
       <AddSyllabusBlockDialog isOpen={isAddSyllabusDialogOpen} onClose={() => { setAddSyllabusDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
       <AddImageBlockDialog isOpen={isAddImageDialogOpen} onClose={() => { setAddImageDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
-      <AddGeoGebraBlockDialog isOpen={isAddGeoGebraDialogOpen} onClose={() => { setAddGeoGebraDialogOpen(false); setEditingBlock(null); }} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} currentOrder={blocks.length + 1} blockToEdit={editingBlock} />
       {activeBlockId && <AddQuestionDialog isOpen={isAddQuestionDialogOpen} onClose={() => setAddQuestionDialogOpen(false)} onSave={loadBlocksAndQuestions} evaluationId={evaluationId} blockId={activeBlockId} />}
       <UseDidacticPlanDialog isOpen={isUsePlanDialogOpen} onClose={() => setUsePlanDialogOpen(false)} onPlanSelected={handlePlanSelected} />
       <UseExistingResourceDialog isOpen={isUseResourceDialogOpen} onClose={() => setUseResourceDialogOpen(false)} onResourceSelected={handleResourceSelected} currentEvaluationId={evaluationId} />
