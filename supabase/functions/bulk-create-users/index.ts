@@ -28,16 +28,16 @@ serve(async (req) => {
     for (const email of emails) {
       try {
         let userId: string;
-        let userStatus = 'existing_user';
+        let userStatus: 'existing_user' | 'created' = 'existing_user';
 
-        const { data: existingAuthUser, error: getAuthUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
-        
-        if (getAuthUserError && getAuthUserError.message !== 'User not found') {
-            throw getAuthUserError;
+        const { data: { user: existingUser }, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+
+        if (getUserError && getUserError.message !== 'User not found') {
+          throw getUserError;
         }
 
-        if (existingAuthUser?.user) {
-          userId = existingAuthUser.user.id;
+        if (existingUser) {
+          userId = existingUser.id;
         } else {
           const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
             email: email,
@@ -51,7 +51,6 @@ serve(async (req) => {
 
           if (createUserError) throw createUserError;
           userId = newUser.user.id;
-          results.created++;
           userStatus = 'created';
         }
 
@@ -64,10 +63,21 @@ serve(async (req) => {
             estado: 'aprobado'
           }, { onConflict: 'perfil_id, establecimiento_id' });
 
-        if (linkError) throw linkError;
+        if (linkError) {
+          // If linking fails and we just created the user, roll back user creation.
+          if (userStatus === 'created') {
+            await supabaseAdmin.auth.admin.deleteUser(userId);
+          }
+          throw linkError;
+        }
         
-        results.linked++;
-        results.details.push({ email, status: `${userStatus}_linked` });
+        if (userStatus === 'created') {
+          results.created++;
+          results.details.push({ email, status: 'creado_y_vinculado' });
+        } else {
+          results.linked++;
+          results.details.push({ email, status: 'existente_y_vinculado' });
+        }
 
       } catch (error) {
         results.errors++;

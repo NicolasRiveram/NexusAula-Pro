@@ -77,9 +77,7 @@ const UserRoleInEstablishmentDialog: React.FC<UserRoleInEstablishmentDialogProps
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-            </Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
