@@ -2,19 +2,21 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical, School, BookCopy, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEstablishment } from '@/contexts/EstablishmentContext';
 
 const teacherNavItems = [
-  { to: '/dashboard', icon: Home, label: 'Inicio' },
-  { to: '/dashboard/cursos', icon: Book, label: 'Mis Cursos' },
-  { to: '/dashboard/horario', icon: Clock, label: 'Horario' },
-  { to: '/dashboard/planificacion', icon: Calendar, label: 'Planificación' },
-  { to: '/dashboard/evaluacion', icon: FileText, label: 'Evaluación' },
-  { to: '/dashboard/rubricas', icon: FileSignature, label: 'Rúbricas' },
-  { to: '/dashboard/proyectos', icon: Briefcase, label: 'Proyectos' },
-  { to: '/dashboard/analiticas', icon: BarChart, label: 'Analíticas' },
-  { to: '/dashboard/informes', icon: ClipboardList, label: 'Informes' },
-  { to: '/dashboard/bitacora', icon: BookOpen, label: 'Bitácora' },
-  { to: '/dashboard/classbook', icon: BookCopy, label: 'Libro de Clases' },
+  { to: '/dashboard', icon: Home, label: 'Inicio', featureKey: null },
+  { to: '/dashboard/cursos', icon: Book, label: 'Mis Cursos', featureKey: null },
+  { to: '/dashboard/horario', icon: Clock, label: 'Horario', featureKey: null },
+  { to: '/dashboard/planificacion', icon: Calendar, label: 'Planificación', featureKey: 'planning' },
+  { to: '/dashboard/evaluacion', icon: FileText, label: 'Evaluación', featureKey: 'evaluation' },
+  { to: '/dashboard/rubricas', icon: FileSignature, label: 'Rúbricas', featureKey: 'rubrics' },
+  { to: '/dashboard/proyectos', icon: Briefcase, label: 'Proyectos', featureKey: 'projects' },
+  { to: '/dashboard/analiticas', icon: BarChart, label: 'Analíticas', featureKey: 'analytics' },
+  { to: '/dashboard/informes', icon: ClipboardList, label: 'Informes', featureKey: 'reports' },
+  { to: '/dashboard/bitacora', icon: BookOpen, label: 'Bitácora', featureKey: 'logbook' },
+  { to: '/dashboard/classbook', icon: BookCopy, label: 'Libro de Clases', featureKey: 'classbook' },
 ];
 
 const studentNavItems = [
@@ -41,29 +43,59 @@ const superAdminNavItems = [
 ];
 
 interface NavLinksProps {
-  profile: {
-    rol: string;
-  };
-  onLinkClick?: () => void; // Optional callback for mobile to close the sheet
+  onLinkClick?: () => void;
 }
 
-const NavLinks: React.FC<NavLinksProps> = ({ profile, onLinkClick }) => {
+const NavLinks: React.FC<NavLinksProps> = ({ onLinkClick }) => {
+  const { profile } = useAuth();
+  const { features } = useEstablishment();
+
+  if (!profile) return null;
+
   const isSuperAdmin = profile.rol === 'super_administrador';
   const isAdmin = profile.rol === 'administrador_establecimiento' || profile.rol === 'coordinador';
   const isStudent = profile.rol === 'estudiante';
 
-  const navItems = isStudent ? studentNavItems : teacherNavItems;
+  let navItems;
+  if (isSuperAdmin) {
+    navItems = superAdminNavItems;
+  } else if (isStudent) {
+    navItems = studentNavItems;
+  } else {
+    navItems = teacherNavItems.filter(item => !item.featureKey || features.includes(item.featureKey));
+  }
 
   return (
     <>
       <nav className="flex-1 space-y-2" data-tour="sidebar-nav">
-        {isSuperAdmin ? (
+        {navItems.map((item) => (
+          <NavLink
+            key={item.label}
+            to={item.to}
+            end={item.to === '/dashboard'}
+            onClick={onLinkClick}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
+                isActive && 'bg-primary text-primary-foreground'
+              )
+            }
+          >
+            <item.icon className="w-5 h-5 mr-3" />
+            {item.label}
+          </NavLink>
+        ))}
+        {isAdmin && !isSuperAdmin && (
           <>
-            {superAdminNavItems.map((item) => (
+            <div className="px-4 pt-6 pb-2">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
+                <Shield className="w-4 h-4 mr-2" /> Gestión
+              </h2>
+            </div>
+            {adminNavItems.map((item) => (
               <NavLink
                 key={item.label}
                 to={item.to}
-                end={item.to === '/dashboard'}
                 onClick={onLinkClick}
                 className={({ isActive }) =>
                   cn(
@@ -76,51 +108,6 @@ const NavLinks: React.FC<NavLinksProps> = ({ profile, onLinkClick }) => {
                 {item.label}
               </NavLink>
             ))}
-          </>
-        ) : (
-          <>
-            {navItems.map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.to}
-                end={item.to === '/dashboard'}
-                onClick={onLinkClick}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
-                    isActive && 'bg-primary text-primary-foreground'
-                  )
-                }
-              >
-                <item.icon className="w-5 h-5 mr-3" />
-                {item.label}
-              </NavLink>
-            ))}
-            {isAdmin && (
-              <>
-                <div className="px-4 pt-6 pb-2">
-                  <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
-                    <Shield className="w-4 h-4 mr-2" /> Gestión
-                  </h2>
-                </div>
-                {adminNavItems.map((item) => (
-                  <NavLink
-                    key={item.label}
-                    to={item.to}
-                    onClick={onLinkClick}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
-                        isActive && 'bg-primary text-primary-foreground'
-                      )
-                    }
-                  >
-                    <item.icon className="w-5 h-5 mr-3" />
-                    {item.label}
-                  </NavLink>
-                ))}
-              </>
-            )}
           </>
         )}
       </nav>

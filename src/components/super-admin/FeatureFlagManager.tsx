@@ -5,17 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { fetchEstablishmentFeatures, saveEstablishmentFeature, Feature } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
-
-const ALL_FEATURES = [
-  { key: 'planning', label: 'Planificación' },
-  { key: 'evaluation', label: 'Evaluación' },
-  { key: 'rubrics', label: 'Rúbricas' },
-  { key: 'projects', label: 'Proyectos ABP' },
-  { key: 'analytics', label: 'Analíticas' },
-  { key: 'reports', label: 'Informes' },
-  { key: 'logbook', label: 'Bitácora' },
-  { key: 'classbook', label: 'Libro de Clases' },
-];
+import { ALL_FEATURES } from '@/config/features';
 
 interface FeatureFlagManagerProps {
   establishmentId: string;

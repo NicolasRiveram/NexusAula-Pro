@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { ALL_FEATURES } from '@/config/features';
 
 // Tipos para el establecimiento
 export interface Establishment {
@@ -20,6 +21,7 @@ interface EstablishmentContextType {
   setActiveEstablishment: (establishment: Establishment | null) => void;
   userEstablishments: Establishment[];
   loadingEstablishments: boolean;
+  features: string[];
 }
 
 const EstablishmentContext = createContext<EstablishmentContextType | undefined>(undefined);
@@ -29,10 +31,11 @@ interface EstablishmentProviderProps {
 }
 
 export const EstablishmentProvider = ({ children }: EstablishmentProviderProps) => {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [activeEstablishment, setActiveEstablishment] = useState<Establishment | null>(null);
   const [userEstablishments, setUserEstablishments] = useState<Establishment[]>([]);
   const [loadingEstablishments, setLoadingEstablishments] = useState(true);
+  const [features, setFeatures] = useState<string[]>([]);
 
   useEffect(() => {
     const loadEstablishments = async () => {
@@ -77,6 +80,37 @@ export const EstablishmentProvider = ({ children }: EstablishmentProviderProps) 
     loadEstablishments();
   }, [session]);
 
+  useEffect(() => {
+    const loadFeatures = async () => {
+      if (profile?.rol === 'super_administrador') {
+        setFeatures(ALL_FEATURES.map(f => f.key));
+        return;
+      }
+
+      if (activeEstablishment) {
+        try {
+          const { data, error } = await supabase
+            .from('establishment_features')
+            .select('feature_key')
+            .eq('establishment_id', activeEstablishment.id)
+            .eq('is_enabled', true);
+
+          if (error) throw error;
+
+          const enabledFeatures = data.map(f => f.feature_key);
+          setFeatures(enabledFeatures);
+        } catch (error) {
+          console.error('Error fetching establishment features:', error);
+          setFeatures([]);
+        }
+      } else {
+        setFeatures([]);
+      }
+    };
+
+    loadFeatures();
+  }, [activeEstablishment, profile?.rol]);
+
   // Persistir el establecimiento activo en localStorage
   useEffect(() => {
     if (activeEstablishment) {
@@ -91,6 +125,7 @@ export const EstablishmentProvider = ({ children }: EstablishmentProviderProps) 
     setActiveEstablishment,
     userEstablishments,
     loadingEstablishments,
+    features,
   };
 
   return (
