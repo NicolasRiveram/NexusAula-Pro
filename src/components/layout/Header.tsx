@@ -37,6 +37,8 @@ import { getLogoPublicUrl } from '@/api/settingsApi';
 import { useDesign } from '@/contexts/DesignContext';
 import { ThemeToggle } from '../theme-toggle';
 import NavLinks from './NavLinks';
+import { useQueryClient } from '@tanstack/react-query';
+import { showError } from '@/utils/toast';
 
 interface HeaderProps {
   profile: {
@@ -53,6 +55,7 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
     loadingEstablishments 
   } = useEstablishment();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const today = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const [openPopover, setOpenPopover] = React.useState(false);
   const [openSheet, setOpenSheet] = React.useState(false);
@@ -61,8 +64,15 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
   const headerLogoUrl = settings['dashboard_header_logo_url'];
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error logging out:', error);
+      showError('Error al cerrar sesión.');
+    } else {
+      queryClient.clear();
+      // For a clean state reset, a full page navigation is best for logout.
+      window.location.href = '/login';
+    }
   };
 
   const EstablishmentSelector = () => {
@@ -150,7 +160,7 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
                 <span className="text-2xl font-bold ml-2 text-foreground">NexusAula</span>
               </div>
             </SheetHeader>
-            <NavLinks profile={profile} onLinkClick={() => setOpenSheet(false)} />
+            <NavLinks onLinkClick={() => setOpenSheet(false)} />
           </SheetContent>
         </Sheet>
 
