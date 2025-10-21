@@ -7,6 +7,7 @@ import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast
 import { Loader2, Save, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 interface StudentAnswerRowProps {
   student: { id: string; nombre_completo: string };
@@ -15,9 +16,11 @@ interface StudentAnswerRowProps {
   shuffledAlternativesMap: { [questionId: string]: any[] };
   selectedRow: string;
   onRowChange: (studentId: string, row: string) => void;
+  isRowLocked: boolean;
+  existingAnswers?: { [itemId: string]: string };
 }
 
-const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation, questions, shuffledAlternativesMap, selectedRow, onRowChange }) => {
+const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation, questions, shuffledAlternativesMap, selectedRow, onRowChange, isRowLocked, existingAnswers }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<'pending' | 'saving' | 'saved' | 'error'>('pending');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -27,11 +30,35 @@ const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation
     inputRefs.current = inputRefs.current.slice(0, questions.length);
   }, [questions]);
 
-  // Reset answers when row changes
   useEffect(() => {
-    setAnswers({});
-    setStatus('pending');
-  }, [selectedRow]);
+    if (existingAnswers && Object.keys(shuffledAlternativesMap).length > 0) {
+      const initialAnswers: Record<string, string> = {};
+      let allFound = true;
+      for (const itemId in existingAnswers) {
+        const selectedAltId = existingAnswers[itemId];
+        const shuffledAlts = shuffledAlternativesMap[itemId];
+        if (shuffledAlts) {
+          const answerIndex = shuffledAlts.findIndex(alt => alt.id === selectedAltId);
+          if (answerIndex !== -1) {
+            initialAnswers[itemId] = String.fromCharCode(97 + answerIndex);
+          } else {
+            allFound = false;
+          }
+        } else {
+          allFound = false;
+        }
+      }
+      setAnswers(initialAnswers);
+      if (Object.keys(initialAnswers).length > 0 && allFound) {
+        setStatus('saved');
+      } else {
+        setStatus('pending');
+      }
+    } else {
+      setAnswers({});
+      setStatus('pending');
+    }
+  }, [existingAnswers, shuffledAlternativesMap, selectedRow]);
 
   const handleInputChange = (itemId: string, index: number, value: string) => {
     const lastChar = value.slice(-1).toLowerCase();
@@ -94,15 +121,19 @@ const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation
     <TableRow>
       <TableCell className="font-medium sticky left-0 bg-card z-10 border-r">{student.nombre_completo}</TableCell>
       <TableCell>
-        <Select value={selectedRow} onValueChange={(value) => onRowChange(student.id, value)}>
-          <SelectTrigger className="w-[100px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="A">Fila A</SelectItem>
-            <SelectItem value="B">Fila B</SelectItem>
-          </SelectContent>
-        </Select>
+        {isRowLocked ? (
+          <Badge variant="secondary">Fila {selectedRow}</Badge>
+        ) : (
+          <Select value={selectedRow} onValueChange={(value) => onRowChange(student.id, value)}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="A">Fila A</SelectItem>
+              <SelectItem value="B">Fila B</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </TableCell>
       {questions.map((q, index) => (
         <TableCell key={q.id}>

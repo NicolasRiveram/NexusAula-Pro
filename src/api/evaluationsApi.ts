@@ -1025,6 +1025,41 @@ export const fetchStudentResponseForEvaluation = async (evaluationId: string, st
   return data;
 };
 
+export const fetchExistingResponsesForEvaluation = async (evaluationId: string): Promise<Map<string, { [itemId: string]: string }>> => {
+  const { data: responses, error: responsesError } = await supabase
+    .from('respuestas_estudiante')
+    .select('id, estudiante_perfil_id')
+    .eq('evaluacion_id', evaluationId);
+
+  if (responsesError) throw new Error(`Error fetching responses: ${responsesError.message}`);
+  if (!responses || responses.length === 0) return new Map();
+
+  const responseIds = responses.map(r => r.id);
+  const studentResponseMap = new Map(responses.map(r => [r.id, r.estudiante_perfil_id]));
+
+  const { data: details, error: detailsError } = await supabase
+    .from('desempeno_item_estudiante')
+    .select('respuesta_estudiante_id, evaluacion_item_id, alternativa_seleccionada_id')
+    .in('respuesta_estudiante_id', responseIds);
+
+  if (detailsError) throw new Error(`Error fetching response details: ${detailsError.message}`);
+
+  const results = new Map<string, { [itemId: string]: string }>();
+
+  details.forEach(detail => {
+    const studentId = studentResponseMap.get(detail.respuesta_estudiante_id);
+    if (studentId && detail.evaluacion_item_id && detail.alternativa_seleccionada_id) {
+      if (!results.has(studentId)) {
+        results.set(studentId, {});
+      }
+      const studentAnswers = results.get(studentId)!;
+      studentAnswers[detail.evaluacion_item_id] = detail.alternativa_seleccionada_id;
+    }
+  });
+
+  return results;
+};
+
 export const deleteEvaluationItem = async (itemId: string) => {
   const { error } = await supabase
     .from('evaluacion_items')

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, fetchStudentsForEvaluation } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, EvaluationDetail, fetchStudentsForEvaluation, fetchExistingResponsesForEvaluation, fetchStudentAssignmentsForEvaluation, StudentEvaluationAssignment } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import ManualEntryTable from '@/components/evaluations/manual-entry/ManualEntryTable';
 
@@ -12,6 +12,8 @@ const ManualEntryPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [students, setStudents] = useState<{ id: string; nombre_completo: string }[]>([]);
+  const [existingResponses, setExistingResponses] = useState<Map<string, { [itemId: string]: string }>>(new Map());
+  const [assignments, setAssignments] = useState<StudentEvaluationAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [seed, setSeed] = useState('nexus-2024');
 
@@ -20,10 +22,18 @@ const ManualEntryPage = () => {
       setLoading(true);
       Promise.all([
         fetchEvaluationDetails(evaluationId),
-        fetchStudentsForEvaluation(evaluationId)
-      ]).then(([evalData, studentData]) => {
+        fetchStudentsForEvaluation(evaluationId),
+        fetchExistingResponsesForEvaluation(evaluationId),
+        fetchStudentAssignmentsForEvaluation(evaluationId),
+      ]).then(([evalData, studentData, responsesData, assignmentsData]) => {
         setEvaluation(evalData);
         setStudents(studentData.map(s => ({ id: s.id, nombre_completo: s.nombre_completo })));
+        setExistingResponses(responsesData);
+        setAssignments(assignmentsData);
+        // Set default seed from the first assignment if available
+        if (assignmentsData.length > 0) {
+          setSeed(assignmentsData[0].seed);
+        }
       }).catch(err => {
         showError(`Error al cargar datos: ${err.message}`);
       }).finally(() => {
@@ -66,6 +76,8 @@ const ManualEntryPage = () => {
         evaluation={evaluation}
         students={students}
         seed={seed}
+        existingResponses={existingResponses}
+        assignments={assignments}
       />
     </div>
   );
