@@ -2,19 +2,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { EvaluationDetail, EvaluationItem, replaceEvaluationResponse, fetchStudentResponseForEvaluation, fetchStudentResponseDetails } from '@/api/evaluationsApi';
+import { EvaluationDetail, EvaluationItem, replaceEvaluationResponse } from '@/api/evaluationsApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { Loader2, Save, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface StudentAnswerRowProps {
   student: { id: string; nombre_completo: string };
   evaluation: EvaluationDetail;
   questions: EvaluationItem[];
   shuffledAlternativesMap: { [questionId: string]: any[] };
+  selectedRow: string;
+  onRowChange: (studentId: string, row: string) => void;
 }
 
-const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation, questions, shuffledAlternativesMap }) => {
+const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation, questions, shuffledAlternativesMap, selectedRow, onRowChange }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<'pending' | 'saving' | 'saved' | 'error'>('pending');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -24,37 +27,11 @@ const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation
     inputRefs.current = inputRefs.current.slice(0, questions.length);
   }, [questions]);
 
+  // Reset answers when row changes
   useEffect(() => {
-    const loadExistingAnswers = async () => {
-      try {
-        const response = await fetchStudentResponseForEvaluation(evaluation.id, student.id);
-        if (response) {
-          const details = await fetchStudentResponseDetails(response.id);
-          const loadedAnswers: Record<string, string> = {};
-          details.forEach(detail => {
-            const question = questions.find(q => q.id === detail.evaluacion_item_id);
-            if (question) {
-              const shuffledAlts = shuffledAlternativesMap[question.id];
-              const selectedIndex = shuffledAlts?.findIndex(alt => alt.id === detail.alternativa_seleccionada_id);
-              if (selectedIndex !== -1) {
-                loadedAnswers[question.id] = String.fromCharCode(97 + selectedIndex);
-              }
-            }
-          });
-          setAnswers(loadedAnswers);
-          setStatus('saved');
-        } else {
-          setAnswers({});
-          setStatus('pending');
-        }
-      } catch (error) {
-        // No need to show error, just means no previous answers
-        setAnswers({});
-        setStatus('pending');
-      }
-    };
-    loadExistingAnswers();
-  }, [evaluation.id, student.id, questions, shuffledAlternativesMap]);
+    setAnswers({});
+    setStatus('pending');
+  }, [selectedRow]);
 
   const handleInputChange = (itemId: string, index: number, value: string) => {
     const lastChar = value.slice(-1).toLowerCase();
@@ -116,6 +93,17 @@ const StudentAnswerRow: React.FC<StudentAnswerRowProps> = ({ student, evaluation
   return (
     <TableRow>
       <TableCell className="font-medium sticky left-0 bg-card z-10 border-r">{student.nombre_completo}</TableCell>
+      <TableCell>
+        <Select value={selectedRow} onValueChange={(value) => onRowChange(student.id, value)}>
+          <SelectTrigger className="w-[100px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="A">Fila A</SelectItem>
+            <SelectItem value="B">Fila B</SelectItem>
+          </SelectContent>
+        </Select>
+      </TableCell>
       {questions.map((q, index) => (
         <TableCell key={q.id}>
           <Input

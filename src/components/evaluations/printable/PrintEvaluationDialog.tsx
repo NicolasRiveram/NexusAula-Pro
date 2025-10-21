@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const schema = z.object({
-  rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(5, "Máximo 5 filas."),
+  rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(2, "Máximo 2 filas."),
   seed: z.string().min(3, "La semilla debe tener al menos 3 caracteres."),
   fontSize: z.enum(['text-sm', 'text-base', 'text-lg']),
 });
@@ -48,7 +48,7 @@ const PrintEvaluationDialog: React.FC<PrintEvaluationDialogProps> = ({ isOpen, o
                 <Select onValueChange={(val) => field.onChange(Number(val))} value={String(field.value)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {[1, 2, 3, 4, 5].map(num => <SelectItem key={num} value={String(num)}>{num} Fila{num > 1 ? 's' : ''}</SelectItem>)}
+                    {[1, 2].map(num => <SelectItem key={num} value={String(num)}>{num} Fila{num > 1 ? 's' : ''}</SelectItem>)}
                   </SelectContent>
                 </Select>
               )}
