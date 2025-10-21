@@ -50,8 +50,6 @@ export const bulkCreateUsers = async (establishmentId: string, emails: string[],
   return data;
 };
 
-// --- Existing Functions (with modifications) ---
-
 export const saveEstablishment = async (establishmentData: Partial<EstablishmentData>, establishmentId?: string) => {
   if (establishmentId) {
     const { error } = await supabase
@@ -67,7 +65,6 @@ export const saveEstablishment = async (establishmentData: Partial<Establishment
   }
 };
 
-// --- Keep all other existing functions from superAdminApi.ts ---
 export interface Nivel {
   id: string;
   nombre: string;
@@ -242,8 +239,6 @@ export const deleteEstablishment = async (establishmentId: string) => {
   if (error) throw new Error(`Error deleting establishment: ${error.message}`);
 };
 
-// --- Curriculum Management ---
-
 export const fetchAllNiveles = async (): Promise<Nivel[]> => {
   const { data, error } = await supabase.from('niveles').select('*').order('orden');
   if (error) throw new Error(`Error fetching niveles: ${error.message}`);
@@ -375,4 +370,29 @@ export const deleteObjetivoAprendizaje = async (oaId: string) => {
 export const deleteMultipleObjetivosAprendizaje = async (oaIds: string[]) => {
   const { error } = await supabase.from('objetivos_aprendizaje').delete().in('id', oaIds);
   if (error) throw new Error(`Error deleting OAs: ${error.message}`);
+};
+
+export const fetchEstablishmentUsersSuperAdmin = async (establishmentId: string) => {
+  const { data, error } = await supabase.rpc('get_establishment_users_super_admin', {
+    p_establecimiento_id: establishmentId,
+  });
+  if (error) throw new Error(`Error fetching establishment users: ${error.message}`);
+  return data || [];
+};
+
+export const superAdminUpdateUserRoleInEstablishment = async (perfilId: string, establecimientoId: string, newRole: string) => {
+  const { error } = await supabase.rpc('super_admin_update_user_role_in_establishment', {
+    p_perfil_id: perfilId,
+    p_establecimiento_id: establecimientoId,
+    p_new_role: newRole,
+  });
+  if (error) throw new Error(`Error updating user role: ${error.message}`);
+};
+
+export const superAdminRemoveUserFromEstablishment = async (perfilId: string, establecimientoId: string) => {
+  const { error } = await supabase.rpc('super_admin_remove_user_from_establishment', {
+    p_perfil_id: perfilId,
+    p_establecimiento_id: establecimientoId,
+  });
+  if (error) throw new Error(`Error removing user: ${error.message}`);
 };

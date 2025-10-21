@@ -17,7 +17,6 @@ serve(async (req) => {
       throw new Error("establishment_id, emails (array), y initial_password son requeridos.");
     }
 
-    // Cliente de Supabase con privilegios de administrador
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -29,8 +28,8 @@ serve(async (req) => {
     for (const email of emails) {
       try {
         let userId: string;
+        let userStatus = 'existing_user';
 
-        // 1. Verificar si el usuario ya existe en 'auth.users'
         const { data: existingAuthUser, error: getAuthUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
         
         if (getAuthUserError && getAuthUserError.message !== 'User not found') {
@@ -39,15 +38,13 @@ serve(async (req) => {
 
         if (existingAuthUser?.user) {
           userId = existingAuthUser.user.id;
-          results.details.push({ email, status: 'existing_user' });
         } else {
-          // 2. Si no existe, crear el usuario
           const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
             email: email,
             password: initial_password,
             email_confirm: true,
             user_metadata: {
-              full_name: email.split('@')[0], // Nombre por defecto
+              full_name: email.split('@')[0],
               intended_role: 'docente',
             }
           });
@@ -55,32 +52,22 @@ serve(async (req) => {
           if (createUserError) throw createUserError;
           userId = newUser.user.id;
           results.created++;
-          results.details.push({ email, status: 'created' });
+          userStatus = 'created';
         }
 
-        // 3. Vincular el perfil al establecimiento (si no está ya vinculado)
-        const { data: existingLink } = await supabaseAdmin
+        const { error: linkError } = await supabaseAdmin
           .from('perfil_establecimientos')
-          .select('perfil_id')
-          .eq('perfil_id', userId)
-          .eq('establecimiento_id', establishment_id)
-          .single();
+          .upsert({
+            perfil_id: userId,
+            establecimiento_id: establishment_id,
+            rol_en_establecimiento: 'docente',
+            estado: 'aprobado'
+          }, { onConflict: 'perfil_id, establecimiento_id' });
 
-        if (!existingLink) {
-          const { error: linkError } = await supabaseAdmin
-            .from('perfil_establecimientos')
-            .insert({
-              perfil_id: userId,
-              establecimiento_id: establishment_id,
-              rol_en_establecimiento: 'docente',
-              estado: 'aprobado' // Aprobado directamente por el superadmin
-            });
-          if (linkError) throw linkError;
-          results.linked++;
-          results.details.find(d => d.email === email)!.status += '_linked';
-        } else {
-            results.details.find(d => d.email === email)!.status += '_already_linked';
-        }
+        if (linkError) throw linkError;
+        
+        results.linked++;
+        results.details.push({ email, status: `${userStatus}_linked` });
 
       } catch (error) {
         results.errors++;

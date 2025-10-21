@@ -6,39 +6,40 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { updateUserSubscriptionPlan, GlobalUser } from '@/api/superAdminApi';
+import { superAdminUpdateUserRoleInEstablishment } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 
 const schema = z.object({
-  subscription_plan: z.string().min(1, "Debes seleccionar un plan."),
+  newRole: z.string().min(1, "Debes seleccionar un rol."),
 });
 
 type FormData = z.infer<typeof schema>;
 
-interface SubscriptionEditDialogProps {
+interface UserRoleInEstablishmentDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  user: GlobalUser | null;
-  onSaved: () => void;
+  user: { perfil_id: string; nombre_completo: string; rol_en_establecimiento: string } | null;
+  establishmentId: string;
+  onUserUpdated: () => void;
 }
 
-const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen, onClose, user, onSaved }) => {
+const UserRoleInEstablishmentDialog: React.FC<UserRoleInEstablishmentDialogProps> = ({ isOpen, onClose, user, establishmentId, onUserUpdated }) => {
   const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   useEffect(() => {
     if (user) {
-      reset({ subscription_plan: user.subscription_plan });
+      reset({ newRole: user.rol_en_establecimiento });
     }
   }, [user, reset]);
 
   const onSubmit = async (data: FormData) => {
-    if (!user) return;
+    if (!user || !establishmentId) return;
     try {
-      await updateUserSubscriptionPlan(user.id, data.subscription_plan);
-      showSuccess(`La suscripción de ${user.nombre_completo} ha sido actualizada.`);
-      onSaved();
+      await superAdminUpdateUserRoleInEstablishment(user.perfil_id, establishmentId, data.newRole);
+      showSuccess(`El rol de ${user.nombre_completo} ha sido actualizado.`);
+      onUserUpdated();
       onClose();
     } catch (error: any) {
       showError(error.message);
@@ -49,33 +50,36 @@ const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen,
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Cambiar Plan de Suscripción</DialogTitle>
+          <DialogTitle>Editar Rol en Establecimiento</DialogTitle>
           <DialogDescription>
-            Modifica el plan de <span className="font-semibold">{user?.nombre_completo}</span>.
+            Cambia el rol de <span className="font-semibold">{user?.nombre_completo}</span>.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
           <div>
-            <Label htmlFor="subscription_plan">Nuevo Plan</Label>
+            <Label htmlFor="newRole">Nuevo Rol</Label>
             <Controller
-              name="subscription_plan"
+              name="newRole"
               control={control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona un plan" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Selecciona un rol" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="prueba">Prueba</SelectItem>
-                    <SelectItem value="pro">Pro</SelectItem>
-                    <SelectItem value="establecimiento">Establecimiento</SelectItem>
+                    <SelectItem value="docente">Docente</SelectItem>
+                    <SelectItem value="estudiante">Estudiante</SelectItem>
+                    <SelectItem value="administrador_establecimiento">Administrador</SelectItem>
+                    <SelectItem value="coordinador">Coordinador</SelectItem>
                   </SelectContent>
                 </Select>
               )}
             />
-            {errors.subscription_plan && <p className="text-red-500 text-sm mt-1">{errors.subscription_plan.message}</p>}
+            {errors.newRole && <p className="text-red-500 text-sm mt-1">{errors.newRole.message}</p>}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -83,4 +87,4 @@ const SubscriptionEditDialog: React.FC<SubscriptionEditDialogProps> = ({ isOpen,
   );
 };
 
-export default SubscriptionEditDialog;
+export default UserRoleInEstablishmentDialog;

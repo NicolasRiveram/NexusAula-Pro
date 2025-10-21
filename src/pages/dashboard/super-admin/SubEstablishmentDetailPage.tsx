@@ -6,6 +6,7 @@ import { Establishment, fetchAllEstablishments } from '@/api/superAdminApi';
 import { showError } from '@/utils/toast';
 import BulkUserCreator from '@/components/super-admin/BulkUserCreator';
 import FeatureFlagManager from '@/components/super-admin/FeatureFlagManager';
+import EstablishmentUserList from '@/components/super-admin/EstablishmentUserList';
 
 const SubEstablishmentDetailPage = () => {
   const { establishmentId } = useParams<{ establishmentId: string }>();
@@ -46,6 +47,8 @@ const SubEstablishmentDetailPage = () => {
         <BulkUserCreator establishmentId={establishment.id} />
         <FeatureFlagManager establishmentId={establishment.id} />
       </div>
+
+      <EstablishmentUserList establishmentId={establishment.id} />
     </div>
   );
 };
