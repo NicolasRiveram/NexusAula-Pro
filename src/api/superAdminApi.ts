@@ -9,10 +9,65 @@ export interface Establishment {
   telefono: string | null;
   email_contacto: string | null;
   created_at: string;
+  parent_id: string | null;
 }
 
 export type EstablishmentData = Omit<Establishment, 'id' | 'created_at'>;
 
+export interface Feature {
+  feature_key: string;
+  is_enabled: boolean;
+}
+
+export const fetchEstablishmentFeatures = async (establishmentId: string): Promise<Feature[]> => {
+  const { data, error } = await supabase
+    .from('establishment_features')
+    .select('feature_key, is_enabled')
+    .eq('establishment_id', establishmentId);
+  if (error) throw new Error(`Error fetching features: ${error.message}`);
+  return data || [];
+};
+
+export const saveEstablishmentFeature = async (establishmentId: string, featureKey: string, isEnabled: boolean) => {
+  const { error } = await supabase
+    .from('establishment_features')
+    .upsert(
+      { establishment_id: establishmentId, feature_key: featureKey, is_enabled: isEnabled },
+      { onConflict: 'establishment_id, feature_key' }
+    );
+  if (error) throw new Error(`Error saving feature: ${error.message}`);
+};
+
+export const bulkCreateUsers = async (establishmentId: string, emails: string[], initialPassword: string) => {
+  const { data, error } = await supabase.functions.invoke('bulk-create-users', {
+    body: {
+      establishment_id: establishmentId,
+      emails,
+      initial_password: initialPassword,
+    },
+  });
+  if (error) throw new Error(error.message);
+  return data;
+};
+
+// --- Existing Functions (with modifications) ---
+
+export const saveEstablishment = async (establishmentData: Partial<EstablishmentData>, establishmentId?: string) => {
+  if (establishmentId) {
+    const { error } = await supabase
+      .from('establecimientos')
+      .update(establishmentData)
+      .eq('id', establishmentId);
+    if (error) throw new Error(`Error updating establishment: ${error.message}`);
+  } else {
+    const { error } = await supabase
+      .from('establecimientos')
+      .insert(establishmentData as EstablishmentData);
+    if (error) throw new Error(`Error creating establishment: ${error.message}`);
+  }
+};
+
+// --- Keep all other existing functions from superAdminApi.ts ---
 export interface Nivel {
   id: string;
   nombre: string;
@@ -177,21 +232,6 @@ export const fetchAllEstablishments = async (): Promise<Establishment[]> => {
     .order('nombre', { ascending: true });
   if (error) throw new Error(`Error fetching establishments: ${error.message}`);
   return data || [];
-};
-
-export const saveEstablishment = async (establishmentData: Partial<EstablishmentData>, establishmentId?: string) => {
-  if (establishmentId) {
-    const { error } = await supabase
-      .from('establecimientos')
-      .update(establishmentData)
-      .eq('id', establishmentId);
-    if (error) throw new Error(`Error updating establishment: ${error.message}`);
-  } else {
-    const { error } = await supabase
-      .from('establecimientos')
-      .insert(establishmentData as EstablishmentData);
-    if (error) throw new Error(`Error creating establishment: ${error.message}`);
-  }
 };
 
 export const deleteEstablishment = async (establishmentId: string) => {

@@ -1,0 +1,53 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Establishment, fetchAllEstablishments } from '@/api/superAdminApi';
+import { showError } from '@/utils/toast';
+import BulkUserCreator from '@/components/super-admin/BulkUserCreator';
+import FeatureFlagManager from '@/components/super-admin/FeatureFlagManager';
+
+const SubEstablishmentDetailPage = () => {
+  const { establishmentId } = useParams<{ establishmentId: string }>();
+  const [establishment, setEstablishment] = useState<Establishment | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (establishmentId) {
+      setLoading(true);
+      fetchAllEstablishments()
+        .then(all => {
+          const found = all.find(e => e.id === establishmentId);
+          setEstablishment(found || null);
+        })
+        .catch(err => showError(err.message))
+        .finally(() => setLoading(false));
+    }
+  }, [establishmentId]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+
+  if (!establishment) {
+    return <p>Establecimiento no encontrado.</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <Link to="/dashboard/super-admin/establishments" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Volver a la Gestión de Establecimientos
+      </Link>
+      
+      <h1 className="text-3xl font-bold">Gestionar: {establishment.nombre}</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <BulkUserCreator establishmentId={establishment.id} />
+        <FeatureFlagManager establishmentId={establishment.id} />
+      </div>
+    </div>
+  );
+};
+
+export default SubEstablishmentDetailPage;

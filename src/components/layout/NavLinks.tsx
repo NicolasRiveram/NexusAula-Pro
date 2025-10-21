@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical, School, BookCopy } from 'lucide-react';
+import { Home, Book, Calendar, FileText, Briefcase, Settings, Clock, ClipboardList, FileSignature, BarChart, Shield, CalendarOff, Building, BookOpen, Palette, FlaskConical, School, BookCopy, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const teacherNavItems = [
@@ -32,9 +32,12 @@ const adminNavItems = [
 ];
 
 const superAdminNavItems = [
-    { to: '/dashboard', icon: Building, label: 'Establecimientos' },
-    { to: '/dashboard/gestion/diseno', icon: Palette, label: 'Diseño' },
-    { to: '/dashboard/generador-experto', icon: FlaskConical, label: 'Generador Experto' },
+    { to: '/dashboard', icon: Home, label: 'Inicio' },
+    { to: '/dashboard/super-admin/establishments', icon: Building, label: 'Establecimientos' },
+    { to: '/dashboard/super-admin/users', icon: Users, label: 'Usuarios Globales' },
+    { to: '/dashboard/super-admin/curriculum', icon: BookCheck, label: 'Currículum Base' },
+    { to: '/dashboard/super-admin/design', icon: Palette, label: 'Diseño' },
+    { to: '/dashboard/super-admin/ai-tools', icon: FlaskConical, label: 'Herramientas IA' },
 ];
 
 interface NavLinksProps {
@@ -56,11 +59,6 @@ const NavLinks: React.FC<NavLinksProps> = ({ profile, onLinkClick }) => {
       <nav className="flex-1 space-y-2" data-tour="sidebar-nav">
         {isSuperAdmin ? (
           <>
-            <div className="px-4 pt-2 pb-2">
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
-                <Shield className="w-4 h-4 mr-2" /> Super Admin
-              </h2>
-            </div>
             {superAdminNavItems.map((item) => (
               <NavLink
                 key={item.label}

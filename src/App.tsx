@@ -58,6 +58,10 @@ const SuccessPage = lazy(() => import("./pages/dashboard/payment/SuccessPage"));
 const FailurePage = lazy(() => import("./pages/dashboard/payment/FailurePage"));
 const PendingPage = lazy(() => import("./pages/dashboard/payment/PendingPage"));
 const ClassbookPage = lazy(() => import("./pages/dashboard/ClassbookPage"));
+const EstablishmentsPage = lazy(() => import("./pages/dashboard/super-admin/EstablishmentsPage"));
+const SubEstablishmentDetailPage = lazy(() => import("./pages/dashboard/super-admin/SubEstablishmentDetailPage"));
+const UsersManagement = lazy(() => import("./components/super-admin/UsersManagement"));
+const CurriculumManagement = lazy(() => import("./components/super-admin/CurriculumManagement"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -128,6 +132,13 @@ const App = () => {
                         <Route path="payment/success" element={<SuccessPage />} />
                         <Route path="payment/failure" element={<FailurePage />} />
                         <Route path="payment/pending" element={<PendingPage />} />
+                        {/* Super Admin Routes */}
+                        <Route path="super-admin/establishments" element={<EstablishmentsPage />} />
+                        <Route path="super-admin/establishment/:establishmentId" element={<SubEstablishmentDetailPage />} />
+                        <Route path="super-admin/users" element={<UsersManagement />} />
+                        <Route path="super-admin/curriculum" element={<CurriculumManagement />} />
+                        <Route path="super-admin/design" element={<DesignManagementPage />} />
+                        <Route path="super-admin/ai-tools" element={<ExpertGeneratorPage />} />
                       </Route>
                       <Route path="*" element={<NotFound />} />
                     </Routes>

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { saveEstablishment, Establishment } from '@/api/superAdminApi';
+import { saveEstablishment, Establishment, EstablishmentData } from '@/api/superAdminApi';
 import { showSuccess, showError } from '@/utils/toast';
 
 const schema = z.object({
@@ -25,9 +25,10 @@ interface EstablishmentEditDialogProps {
   onClose: () => void;
   onSaved: () => void;
   establishment?: Establishment | null;
+  parentId?: string | null;
 }
 
-const EstablishmentEditDialog: React.FC<EstablishmentEditDialogProps> = ({ isOpen, onClose, onSaved, establishment }) => {
+const EstablishmentEditDialog: React.FC<EstablishmentEditDialogProps> = ({ isOpen, onClose, onSaved, establishment, parentId }) => {
   const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -58,7 +59,8 @@ const EstablishmentEditDialog: React.FC<EstablishmentEditDialogProps> = ({ isOpe
 
   const onSubmit = async (data: FormData) => {
     try {
-      await saveEstablishment(data, establishment?.id);
+      const payload: Partial<EstablishmentData> = { ...data, parent_id: parentId };
+      await saveEstablishment(payload, establishment?.id);
       showSuccess(`Establecimiento ${establishment ? 'actualizado' : 'creado'} correctamente.`);
       onSaved();
       onClose();
@@ -71,7 +73,7 @@ const EstablishmentEditDialog: React.FC<EstablishmentEditDialogProps> = ({ isOpe
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{establishment ? 'Editar' : 'Crear'} Establecimiento</DialogTitle>
+          <DialogTitle>{establishment ? 'Editar' : (parentId ? 'Crear Sub-Establecimiento' : 'Crear Grupo de Establecimientos')}</DialogTitle>
           <DialogDescription>
             Completa la información del establecimiento educativo.
           </DialogDescription>
