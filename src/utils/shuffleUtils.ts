@@ -60,7 +60,7 @@ export function generateBalancedShuffledAlternatives(
   questions.forEach(q => {
     const alternatives = q.item_alternativas || [];
     if (q.tipo_item === 'seleccion_multiple' && alternatives.length > 0) {
-      const shuffled = seededShuffle(alternatives, `${seed}-${q.id}`);
+      const shuffled = seededShuffle(alternatives, `${seed}-${rowLabel}-${q.id}`);
       finalShuffledAlternatives[q.id] = shuffled;
       const correctIndex = shuffled.findIndex(alt => alt.es_correcta);
       

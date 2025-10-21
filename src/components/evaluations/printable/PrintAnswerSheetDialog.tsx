@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,13 +20,22 @@ interface PrintAnswerSheetDialogProps {
   onClose: () => void;
   onConfirm: (data: AnswerSheetFormData) => void;
   isPrinting: boolean;
+  evaluationId: string | null;
 }
 
-const PrintAnswerSheetDialog: React.FC<PrintAnswerSheetDialogProps> = ({ isOpen, onClose, onConfirm, isPrinting }) => {
-  const { control, handleSubmit, formState: { errors } } = useForm<AnswerSheetFormData>({
+const PrintAnswerSheetDialog: React.FC<PrintAnswerSheetDialogProps> = ({ isOpen, onClose, onConfirm, isPrinting, evaluationId }) => {
+  const { control, handleSubmit, formState: { errors }, reset } = useForm<AnswerSheetFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { rows: 2, seed: 'nexus-2024' },
   });
+
+  useEffect(() => {
+    if (evaluationId) {
+      reset({
+        rows: 2,
+        seed: `eval-${evaluationId.substring(0, 8)}`,
+      });
+    }
+  }, [evaluationId, reset]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

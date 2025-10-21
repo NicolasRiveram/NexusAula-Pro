@@ -32,7 +32,7 @@ const EvaluationScannerPage = () => {
   const queryClient = useQueryClient();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [students, setStudents] = useState<{ id: string; nombre_completo: string }[]>([]);
-  const [seed, setSeed] = useState('nexus-2024');
+  const [seed, setSeed] = useState(evaluationId ? `eval-${evaluationId.substring(0, 8)}` : 'nexus-2024');
   const [isScannerOpen, setScannerOpen] = useState(false);
   const [scanResult, setScanResult] = useState<{ studentName: string; message: string; isError: boolean; score?: string; responseId?: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);

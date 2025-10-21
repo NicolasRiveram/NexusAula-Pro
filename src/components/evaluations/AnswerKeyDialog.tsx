@@ -16,7 +16,7 @@ import { generateBalancedShuffledAlternatives } from '@/utils/shuffleUtils';
 import { Switch } from '@/components/ui/switch';
 
 const schema = z.object({
-  rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(5, "Máximo 5 filas."),
+  rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(2, "Máximo 2 filas."),
   seed: z.string().min(3, "La semilla debe tener al menos 3 caracteres."),
 });
 
@@ -40,24 +40,30 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
   const [answerKey, setAnswerKey] = useState<AnswerKey | null>(null);
   const [usePieVersion, setUsePieVersion] = useState(false);
 
-  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { rows: 1, seed: 'nexus-2024' },
   });
 
   useEffect(() => {
     if (isOpen && evaluationId) {
       setLoading(true);
       fetchEvaluationDetails(evaluationId)
-        .then(setEvaluation)
+        .then(data => {
+          setEvaluation(data);
+          reset({
+            rows: 1,
+            seed: `eval-${evaluationId.substring(0, 8)}`,
+          });
+        })
         .catch(err => showError(`Error al cargar la pauta: ${err.message}`))
         .finally(() => setLoading(false));
     } else {
       setEvaluation(null);
       setAnswerKey(null);
       setUsePieVersion(false);
+      reset({ rows: 1, seed: 'nexus-2024' });
     }
-  }, [isOpen, evaluationId]);
+  }, [isOpen, evaluationId, reset]);
 
   const generateKey = (data: FormData) => {
     if (!evaluation) return;
@@ -129,7 +135,7 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
                       <Select onValueChange={(val) => field.onChange(Number(val))} value={String(field.value)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {[1, 2, 3, 4, 5].map(num => <SelectItem key={num} value={String(num)}>{num} Fila{num > 1 ? 's' : ''}</SelectItem>)}
+                          {[1, 2].map(num => <SelectItem key={num} value={String(num)}>{num} Fila{num > 1 ? 's' : ''}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     )}

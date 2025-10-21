@@ -164,6 +164,22 @@ export interface CreateEvaluationData {
   habilidades?: string[];
 }
 
+export interface StudentEvaluationAssignment {
+  student_id: string;
+  evaluation_id: string;
+  assigned_row: string;
+  seed: string;
+}
+
+export const fetchStudentAssignmentsForEvaluation = async (evaluationId: string): Promise<StudentEvaluationAssignment[]> => {
+  const { data, error } = await supabase
+    .from('student_evaluation_assignments')
+    .select('student_id, evaluation_id, assigned_row, seed')
+    .eq('evaluation_id', evaluationId);
+  if (error) throw new Error(`Error fetching student assignments: ${error.message}`);
+  return data || [];
+};
+
 export const updateEvaluationItemDetails = async (itemId: string, updates: { puntaje: number }) => {
   const { error } = await supabase
     .from('evaluacion_items')
