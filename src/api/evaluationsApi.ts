@@ -173,6 +173,13 @@ export interface StudentEvaluationAssignment {
   seed: string;
 }
 
+export const saveStudentAssignments = async (assignments: Omit<StudentEvaluationAssignment, 'id' | 'created_at'>[]) => {
+  const { error } = await supabase
+    .from('student_evaluation_assignments')
+    .upsert(assignments, { onConflict: 'student_id, evaluation_id' });
+  if (error) throw new Error(`Error saving student assignments: ${error.message}`);
+};
+
 export const fetchStudentAssignmentsForEvaluation = async (evaluationId: string): Promise<StudentEvaluationAssignment[]> => {
   const { data, error } = await supabase
     .from('student_evaluation_assignments')
