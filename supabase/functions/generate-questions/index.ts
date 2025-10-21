@@ -69,7 +69,11 @@ serve(async (req) => {
     if (block_type === 'text') {
       contentPrompt = `el siguiente texto: "${block_content.text}"`;
     } else if (block_type === 'image') {
-      contentPrompt = `una imagen (no puedo ver la imagen, pero asume que es relevante para generar preguntas educativas).`;
+      if (block_content.context && block_content.context.trim() !== '') {
+        contentPrompt = `una imagen descrita con el siguiente contexto: "${block_content.context}". Basa tus preguntas en este contexto.`;
+      } else {
+        contentPrompt = `una imagen (no puedo ver la imagen, pero asume que es relevante para generar preguntas educativas).`;
+      }
     } else if (block_type === 'syllabus') {
       contentPrompt = `los siguientes temas o conceptos: "${block_content.text}". Las preguntas deben ser conceptuales sobre estos temas, no preguntas literales sobre el texto proporcionado.`;
     } else {

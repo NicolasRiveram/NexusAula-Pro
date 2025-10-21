@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createContentBlock, uploadEvaluationImage, EvaluationContentBlock, getPublicImageUrl, updateContentBlock } from '@/api/evaluationsApi';
+import { Textarea } from '@/components/ui/textarea';
+import { createContentBlock, updateContentBlock, EvaluationContentBlock, getPublicImageUrl } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -14,6 +15,7 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/web
 
 const createSchema = (isEditMode: boolean) => z.object({
   title: z.string().optional(),
+  context: z.string().optional(),
   image: z
     .any()
     .refine((files) => isEditMode || (files && files.length === 1), "Debes seleccionar una imagen.")
@@ -58,10 +60,13 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
   React.useEffect(() => {
     if (isOpen) {
       if (isEditMode && blockToEdit) {
-        reset({ title: blockToEdit.title || '' });
+        reset({
+          title: blockToEdit.title || '',
+          context: blockToEdit.content.context || '',
+        });
         setPreview(getPublicImageUrl(blockToEdit.content.imageUrl));
       } else {
-        reset({ title: '', image: undefined });
+        reset({ title: '', image: undefined, context: '' });
         setPreview(null);
       }
     }
@@ -77,12 +82,12 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
         }
         await updateContentBlock(blockToEdit.id, {
           title: data.title,
-          content: { imageUrl },
+          content: { imageUrl, context: data.context },
         });
         showSuccess("Bloque de imagen actualizado.");
       } else {
         const imageUrl = await uploadEvaluationImage(evaluationId, data.image[0]);
-        await createContentBlock(evaluationId, 'image', { imageUrl }, currentOrder, data.title);
+        await createContentBlock(evaluationId, 'image', { imageUrl, context: data.context }, currentOrder, data.title);
         showSuccess("Bloque de imagen añadido.");
       }
       onSave();
@@ -122,6 +127,17 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
             <Label htmlFor="image">{isEditMode ? 'Reemplazar Imagen (Opcional)' : 'Archivo de Imagen'}</Label>
             <Input id="image" type="file" accept="image/*" {...register("image")} />
             {errors.image && <p className="text-red-500 text-sm mt-1">{errors.image.message as string}</p>}
+          </div>
+          <div>
+            <Label htmlFor="context">Contexto para la IA (Opcional)</Label>
+            <Controller
+              name="context"
+              control={control}
+              render={({ field }) => <Textarea id="context" placeholder="Describe la imagen o indica qué aspectos evaluar. Ej: 'Esta es una célula animal. Preguntar por sus organelos principales.'" {...field} />}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Este texto no será visible para el estudiante, solo guiará a la IA.
+            </p>
           </div>
           {preview && (
             <div className="mt-4">
