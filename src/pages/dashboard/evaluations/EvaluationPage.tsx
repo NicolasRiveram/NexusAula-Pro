@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
-import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations } from '@/api/evaluationsApi';
+import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations, saveStudentAssignments, StudentEvaluationAssignment } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -237,26 +237,28 @@ const EvaluationPage = () => {
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
       const answerKey: { [row: string]: { [q: number]: string } } = {};
       const printableComponents: React.ReactElement[] = [];
+      const assignmentsToSave: Omit<StudentEvaluationAssignment, 'id' | 'created_at'>[] = [];
 
-      const midIndex = Math.ceil(students.length / 2);
-      const studentsA = students.slice(0, midIndex);
-      const studentsB = students.slice(midIndex);
+      // Group students by course
+      const studentsByCourse = students.reduce((acc, student) => {
+        const courseName = student.curso_nombre;
+        if (!acc[courseName]) {
+          acc[courseName] = [];
+        }
+        acc[courseName].push(student);
+        return acc;
+      }, {} as Record<string, typeof students>);
 
-      for (let i = 0; i < formData.rows; i++) {
-        const rowLabel = String.fromCharCode(65 + i);
-        answerKey[rowLabel] = {};
+      // Distribute rows within each course
+      for (const courseName in studentsByCourse) {
+        const courseStudents = studentsByCourse[courseName];
+        const midIndex = Math.ceil(courseStudents.length / 2);
+        
+        const studentsA = formData.rows === 1 ? courseStudents : courseStudents.slice(0, midIndex);
+        const studentsB = formData.rows === 1 ? [] : courseStudents.slice(midIndex);
 
-        allQuestions.forEach(q => {
-          if (q.tipo_item === 'seleccion_multiple') {
-            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
-            const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
-            answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
-          }
-        });
-
-        const studentsForRow = formData.rows === 1 ? students : (rowLabel === 'A' ? studentsA : studentsB);
-
-        for (const student of studentsForRow) {
+        studentsA.forEach(student => {
+          const rowLabel = 'A';
           const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
           printableComponents.push(
             <PrintableAnswerSheet
@@ -271,7 +273,50 @@ const EvaluationPage = () => {
               questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
             />
           );
-        }
+          assignmentsToSave.push({
+            student_id: student.id,
+            evaluation_id: evaluation.id,
+            assigned_row: rowLabel,
+            seed: formData.seed,
+          });
+        });
+
+        studentsB.forEach(student => {
+          const rowLabel = 'B';
+          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
+          printableComponents.push(
+            <PrintableAnswerSheet
+              key={`${student.id}-${rowLabel}`}
+              evaluationTitle={evaluation.titulo}
+              establishmentName={activeEstablishment.nombre}
+              logoUrl={activeEstablishment.logo_url}
+              studentName={student.nombre_completo}
+              courseName={student.curso_nombre}
+              rowLabel={rowLabel}
+              qrCodeData={qrCodeData}
+              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+            />
+          );
+          assignmentsToSave.push({
+            student_id: student.id,
+            evaluation_id: evaluation.id,
+            assigned_row: rowLabel,
+            seed: formData.seed,
+          });
+        });
+      }
+
+      // Now, generate the answer key for all rows
+      for (let i = 0; i < formData.rows; i++) {
+        const rowLabel = String.fromCharCode(65 + i);
+        answerKey[rowLabel] = {};
+        allQuestions.forEach(q => {
+          if (q.tipo_item === 'seleccion_multiple') {
+            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
+            const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
+            answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
+          }
+        });
       }
 
       printableComponents.push(
@@ -281,6 +326,9 @@ const EvaluationPage = () => {
           answerKey={answerKey}
         />
       );
+
+      // Save assignments to the database
+      await saveStudentAssignments(assignmentsToSave);
 
       printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`, 'portrait');
       dismissToast(toastId);
