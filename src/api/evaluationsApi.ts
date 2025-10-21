@@ -93,6 +93,8 @@ export interface EvaluationResultSummary {
   response_id: string | null;
   score: number | null;
   status: 'Completado' | 'Pendiente';
+  curso_id: string;
+  curso_nombre: string;
 }
 
 export interface EvaluationStatistics {
