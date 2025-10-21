@@ -65,14 +65,12 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    // We will ignore the AuthSessionMissingError, as it means the user is already logged out.
     if (error && error.name !== 'AuthSessionMissingError') {
       console.error('Error logging out:', error);
       showError('Error al cerrar sesión.');
     } else {
       queryClient.clear();
-      // For a clean state reset, a full page navigation is best for logout.
-      window.location.href = '/login';
+      navigate('/login');
     }
   };
 
