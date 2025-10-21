@@ -65,7 +65,8 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
+    // We will ignore the AuthSessionMissingError, as it means the user is already logged out.
+    if (error && error.name !== 'AuthSessionMissingError') {
       console.error('Error logging out:', error);
       showError('Error al cerrar sesión.');
     } else {
