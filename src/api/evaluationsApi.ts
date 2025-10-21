@@ -40,7 +40,7 @@ export interface StudentEvaluation extends Omit<Evaluation, 'curso_asignaturas'>
 export interface EvaluationContentBlock {
   id: string;
   evaluation_id: string;
-  block_type: 'text' | 'image' | 'syllabus';
+  block_type: 'text' | 'image' | 'syllabus' | 'geogebra';
   content: any;
   orden: number;
   title: string | null;
