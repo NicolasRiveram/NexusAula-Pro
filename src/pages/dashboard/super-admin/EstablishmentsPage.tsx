@@ -62,7 +62,7 @@ const EstablishmentsPage = () => {
     }
   };
 
-  const groups = establishments.filter(e => !e.parent_id);
+  const topLevelEstablishments = establishments.filter(e => !e.parent_id);
   const subEstablishments = establishments.filter(e => e.parent_id);
 
   return (
@@ -71,46 +71,82 @@ const EstablishmentsPage = () => {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Gestión de Establecimientos</CardTitle>
-            <CardDescription>Administra grupos y sub-establecimientos.</CardDescription>
+            <CardDescription>Administra grupos y establecimientos educativos.</CardDescription>
           </div>
-          <Button onClick={handleAddGroup}><PlusCircle className="mr-2 h-4 w-4" /> Crear Grupo</Button>
+          <Button onClick={handleAddGroup}><PlusCircle className="mr-2 h-4 w-4" /> Crear Grupo o Establecimiento</Button>
         </CardHeader>
         <CardContent>
           {loading ? <p>Cargando...</p> : (
-            <Accordion type="multiple" className="w-full">
-              {groups.map(group => (
-                <AccordionItem key={group.id} value={group.id}>
-                  <AccordionTrigger className="text-lg font-semibold">
-                    <div className="flex items-center gap-2">
-                      <Building className="h-5 w-5" /> {group.nombre}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pl-6 pt-4">
-                    <div className="flex justify-end mb-4">
-                      <Button size="sm" onClick={() => handleAddSub(group.id)}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Añadir Sub-Establecimiento
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {subEstablishments.filter(sub => sub.parent_id === group.id).map(sub => (
-                        <div key={sub.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-                          <Link to={`/dashboard/super-admin/establishment/${sub.id}`} className="flex items-center gap-2 hover:underline">
-                            <School className="h-4 w-4" /> {sub.nombre}
-                          </Link>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEdit(sub)}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDelete(sub)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
+            <div className="space-y-2">
+              {topLevelEstablishments.map(topLevelEst => {
+                const children = subEstablishments.filter(sub => sub.parent_id === topLevelEst.id);
+                
+                // If it has children, render as an Accordion (Group)
+                if (children.length > 0) {
+                  return (
+                    <Accordion type="single" collapsible key={topLevelEst.id}>
+                      <AccordionItem value={topLevelEst.id}>
+                        <AccordionTrigger className="text-lg font-semibold hover:no-underline p-3 bg-muted/30 rounded-md">
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              <Building className="h-5 w-5" /> {topLevelEst.nombre}
+                            </div>
+                            <DropdownMenu onOpenChange={(open) => open && event?.stopPropagation()}>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreVertical className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEdit(topLevelEst)}><Edit className="mr-2 h-4 w-4" /> Editar Grupo</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDelete(topLevelEst)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Grupo</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-6 pt-4">
+                          <div className="flex justify-end mb-4">
+                            <Button size="sm" onClick={() => handleAddSub(topLevelEst.id)}>
+                              <PlusCircle className="mr-2 h-4 w-4" /> Añadir Establecimiento
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            {children.map(sub => (
+                              <div key={sub.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                                <Link to={`/dashboard/super-admin/establishment/${sub.id}`} className="flex items-center gap-2 hover:underline">
+                                  <School className="h-4 w-4" /> {sub.nombre}
+                                </Link>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleEdit(sub)}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDelete(sub)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  );
+                }
+                
+                // If it has no children, render as a standalone item
+                return (
+                  <div key={topLevelEst.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+                    <Link to={`/dashboard/super-admin/establishment/${topLevelEst.id}`} className="flex items-center gap-2 hover:underline font-semibold">
+                      <School className="h-5 w-5" /> {topLevelEst.nombre}
+                    </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEdit(topLevelEst)}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDelete(topLevelEst)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </CardContent>
       </Card>
