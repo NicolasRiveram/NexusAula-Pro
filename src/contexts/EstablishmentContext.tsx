@@ -91,14 +91,21 @@ export const EstablishmentProvider = ({ children }: EstablishmentProviderProps) 
         try {
           const { data, error } = await supabase
             .from('establishment_features')
-            .select('feature_key')
-            .eq('establishment_id', activeEstablishment.id)
-            .eq('is_enabled', true);
+            .select('feature_key, is_enabled')
+            .eq('establishment_id', activeEstablishment.id);
 
           if (error) throw error;
 
-          const enabledFeatures = data.map(f => f.feature_key);
-          setFeatures(enabledFeatures);
+          if (!data || data.length === 0) {
+            // Si no hay configuraciones de features para este establecimiento, se habilitan todas por defecto.
+            setFeatures(ALL_FEATURES.map(f => f.key));
+          } else {
+            // Si hay configuraciones, se usan solo las habilitadas.
+            const enabledFeatures = data
+              .filter(f => f.is_enabled)
+              .map(f => f.feature_key);
+            setFeatures(enabledFeatures);
+          }
         } catch (error) {
           console.error('Error fetching establishment features:', error);
           setFeatures([]);
