@@ -64,7 +64,7 @@ const BulkUserCreator: React.FC<BulkUserCreatorProps> = ({ establishmentId }) =>
             <Controller
               name="emails"
               control={control}
-              render={({ field }) => <Textarea id="emails" rows={8} placeholder="un_correo@ejemplo.com&#10;otro_correo@ejemplo.com" {...field} />}
+              render={({ field }) => <Textarea id="emails" rows={8} placeholder="un_correo@ejemplo.com&#10;otro_correo@ejemplo.com" {...field} value={field.value || ''} />}
             />
             <p className="text-xs text-muted-foreground mt-1">Separa los correos por coma, punto y coma, o salto de línea.</p>
             {errors.emails && <p className="text-red-500 text-sm mt-1">{errors.emails.message}</p>}
@@ -74,7 +74,7 @@ const BulkUserCreator: React.FC<BulkUserCreatorProps> = ({ establishmentId }) =>
             <Controller
               name="initial_password"
               control={control}
-              render={({ field }) => <Input id="initial_password" type="password" {...field} />}
+              render={({ field }) => <Input id="initial_password" type="password" {...field} value={field.value || ''} />}
             />
             {errors.initial_password && <p className="text-red-500 text-sm mt-1">{errors.initial_password.message}</p>}
           </div>
