@@ -8,6 +8,7 @@ export interface Profile {
   rol: string;
   perfil_completo: boolean;
   subscription_plan?: string;
+  subscription_status?: string;
   trial_ends_at?: string | null;
   quick_actions_prefs?: string[];
   dashboard_widgets_prefs?: { order: string[], visible: Record<string, boolean> };
@@ -41,17 +42,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        const { data, error } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('perfiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
         
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Error fetching profile:', profileError);
           setProfile(null);
         } else {
-          setProfile(data as Profile);
+          let finalProfile = { ...profileData };
+
+          // Check for establishment subscription override
+          const { data: establishmentLinks, error: estError } = await supabase
+            .from('perfil_establecimientos')
+            .select('establecimientos!inner(id, suscripciones_establecimiento(*))')
+            .eq('perfil_id', session.user.id)
+            .eq('estado', 'aprobado');
+
+          if (!estError && establishmentLinks) {
+            const hasActiveEstablishmentPlan = establishmentLinks.some((link: any) => {
+              const sub = link.establecimientos?.suscripciones_establecimiento?.[0];
+              return sub && (sub.plan_type === 'establecimiento' || sub.plan_type === 'pro') && sub.expires_at && new Date(sub.expires_at) > new Date();
+            });
+
+            if (hasActiveEstablishmentPlan) {
+              finalProfile.subscription_plan = 'establecimiento';
+              finalProfile.subscription_status = 'active';
+              finalProfile.trial_ends_at = null;
+            }
+          }
+          
+          setProfile(finalProfile as Profile);
         }
       } else {
         setProfile(null);

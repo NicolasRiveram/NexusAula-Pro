@@ -10,9 +10,17 @@ export interface Establishment {
   email_contacto: string | null;
   created_at: string;
   parent_id: string | null;
+  suscripciones_establecimiento: EstablishmentSubscription[] | null;
 }
 
-export type EstablishmentData = Omit<Establishment, 'id' | 'created_at'>;
+export type EstablishmentData = Omit<Establishment, 'id' | 'created_at' | 'suscripciones_establecimiento'>;
+
+export interface EstablishmentSubscription {
+  establecimiento_id: string;
+  plan_type: 'prueba' | 'pro' | 'establecimiento';
+  status: 'trialing' | 'active' | 'expired';
+  expires_at: string | null;
+}
 
 export interface Feature {
   feature_key: string;
@@ -225,7 +233,7 @@ export const updateUserSubscriptionPlan = async (userId: string, newPlan: string
 export const fetchAllEstablishments = async (): Promise<Establishment[]> => {
   const { data, error } = await supabase
     .from('establecimientos')
-    .select('*')
+    .select('*, suscripciones_establecimiento(*)')
     .order('nombre', { ascending: true });
   if (error) throw new Error(`Error fetching establishments: ${error.message}`);
   return data || [];
@@ -395,4 +403,12 @@ export const superAdminRemoveUserFromEstablishment = async (perfilId: string, es
     p_establecimiento_id: establecimientoId,
   });
   if (error) throw new Error(`Error removing user: ${error.message}`);
+};
+
+export const updateEstablishmentSubscription = async (establishmentId: string, planType: string) => {
+  const { error } = await supabase.rpc('update_establishment_subscription', {
+    p_establecimiento_id: establishmentId,
+    p_plan_type: planType,
+  });
+  if (error) throw new Error(`Error updating subscription: ${error.message}`);
 };
