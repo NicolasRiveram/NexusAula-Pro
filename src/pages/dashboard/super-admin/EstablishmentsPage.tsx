@@ -171,8 +171,8 @@ const EstablishmentsPage = () => {
         </CardContent>
       </Card>
       <EstablishmentEditDialog
-        isOpen={isDialogOpen}
-        onClose={() => setDialogOpen(false)}
+        isOpen={isEditDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
         onSaved={loadData}
         establishment={selectedEstablishment}
         parentId={parentId}
