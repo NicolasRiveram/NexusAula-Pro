@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { PlusCircle, Building, School, MoreVertical, Edit, Trash2, Star } from 'lucide-react';
+import { PlusCircle, Building, School, MoreVertical, Edit, Trash2, Star, Move } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { fetchAllEstablishments, deleteEstablishment, Establishment } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import EstablishmentEditDialog from '@/components/super-admin/EstablishmentEditDialog';
 import EstablishmentSubscriptionDialog from '@/components/super-admin/EstablishmentSubscriptionDialog';
+import MoveEstablishmentDialog from '@/components/super-admin/MoveEstablishmentDialog';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,9 +17,11 @@ import { es } from 'date-fns/locale';
 const EstablishmentsPage = () => {
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isSubDialogOpen, setSubDialogOpen] = useState(false);
+  const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
   const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
+  const [establishmentToMove, setEstablishmentToMove] = useState<Establishment | null>(null);
   const [parentId, setParentId] = useState<string | null>(null);
 
   const loadData = async () => {
@@ -40,19 +43,19 @@ const EstablishmentsPage = () => {
   const handleAddGroup = () => {
     setSelectedEstablishment(null);
     setParentId(null);
-    setDialogOpen(true);
+    setEditDialogOpen(true);
   };
 
   const handleAddSub = (pId: string) => {
     setSelectedEstablishment(null);
     setParentId(pId);
-    setDialogOpen(true);
+    setEditDialogOpen(true);
   };
 
   const handleEdit = (est: Establishment) => {
     setSelectedEstablishment(est);
     setParentId(est.parent_id);
-    setDialogOpen(true);
+    setEditDialogOpen(true);
   };
 
   const handleDelete = async (est: Establishment) => {
@@ -70,6 +73,11 @@ const EstablishmentsPage = () => {
   const handleManageSubscription = (est: Establishment) => {
     setSelectedEstablishment(est);
     setSubDialogOpen(true);
+  };
+
+  const handleMove = (est: Establishment) => {
+    setEstablishmentToMove(est);
+    setMoveDialogOpen(true);
   };
 
   const topLevelEstablishments = establishments.filter(e => !e.parent_id);
@@ -98,6 +106,7 @@ const EstablishmentsPage = () => {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => handleManageSubscription(est)}><Star className="mr-2 h-4 w-4" /> Gestionar Suscripción</DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleEdit(est)}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+            {!est.parent_id && <DropdownMenuItem onClick={() => handleMove(est)}><Move className="mr-2 h-4 w-4" /> Mover a un grupo</DropdownMenuItem>}
             <DropdownMenuItem onClick={() => handleDelete(est)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -174,6 +183,13 @@ const EstablishmentsPage = () => {
         establishmentId={selectedEstablishment?.id || null}
         establishmentName={selectedEstablishment?.nombre || null}
         currentSubscription={selectedEstablishment?.suscripciones_establecimiento?.[0] || null}
+      />
+      <MoveEstablishmentDialog
+        isOpen={isMoveDialogOpen}
+        onClose={() => setMoveDialogOpen(false)}
+        onSaved={loadData}
+        establishmentToMove={establishmentToMove}
+        potentialParents={topLevelEstablishments.filter(e => e.id !== establishmentToMove?.id)}
       />
     </>
   );
