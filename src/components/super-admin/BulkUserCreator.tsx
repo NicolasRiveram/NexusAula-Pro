@@ -26,6 +26,10 @@ const BulkUserCreator: React.FC<BulkUserCreatorProps> = ({ establishmentId }) =>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      emails: '',
+      initial_password: '',
+    },
   });
 
   const onSubmit = async (data: FormData) => {

@@ -30,15 +30,42 @@ serve(async (req) => {
         let userId: string;
         let userStatus: 'existing_user' | 'created' = 'existing_user';
 
-        const { data: { user: existingUser }, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+        const { data: { user: existingAuthUser }, error: getAuthUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
 
-        if (getUserError && getUserError.message !== 'User not found') {
-          throw getUserError;
+        if (getAuthUserError && getAuthUserError.message !== 'User not found') {
+          throw getAuthUserError;
         }
 
-        if (existingUser) {
-          userId = existingUser.id;
+        if (existingAuthUser) {
+          userId = existingAuthUser.id;
+          // Check if profile exists
+          const { data: existingProfile, error: getProfileError } = await supabaseAdmin
+            .from('perfiles')
+            .select('id')
+            .eq('id', userId)
+            .single();
+          
+          if (getProfileError && getProfileError.code !== 'PGRST116') { // PGRST116 = no rows found
+            throw getProfileError;
+          }
+
+          if (!existingProfile) {
+            // Profile doesn't exist, create it manually
+            const { error: createProfileError } = await supabaseAdmin
+              .from('perfiles')
+              .insert({
+                id: userId,
+                nombre_completo: existingAuthUser.user_metadata?.full_name || email.split('@')[0],
+                email: email,
+                rol: existingAuthUser.user_metadata?.intended_role || 'docente',
+                subscription_plan: 'prueba',
+                subscription_status: 'trialing',
+                trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+              });
+            if (createProfileError) throw createProfileError;
+          }
         } else {
+          // User does not exist, create them (trigger will handle profile creation)
           const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
             email: email,
             password: initial_password,
@@ -64,7 +91,6 @@ serve(async (req) => {
           }, { onConflict: 'perfil_id, establecimiento_id' });
 
         if (linkError) {
-          // If linking fails and we just created the user, roll back user creation.
           if (userStatus === 'created') {
             await supabaseAdmin.auth.admin.deleteUser(userId);
           }
