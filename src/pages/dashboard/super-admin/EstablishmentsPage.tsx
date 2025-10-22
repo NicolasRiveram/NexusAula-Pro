@@ -138,12 +138,13 @@ const EstablishmentsPage = () => {
                             <div className="flex items-center gap-2">
                               <Building className="h-5 w-5" /> {topLevelEst.nombre}
                             </div>
-                            <DropdownMenu onOpenChange={(open) => open && event?.stopPropagation()}>
+                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreVertical className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleEdit(topLevelEst)}><Edit className="mr-2 h-4 w-4" /> Editar Grupo</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleMove(topLevelEst)}><Move className="mr-2 h-4 w-4" /> Mover Grupo</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDelete(topLevelEst)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Grupo</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
