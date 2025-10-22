@@ -38,34 +38,22 @@ serve(async (req) => {
 
         if (existingAuthUser) {
           userId = existingAuthUser.id;
-          // Check if profile exists
-          const { data: existingProfile, error: getProfileError } = await supabaseAdmin
-            .from('perfiles')
-            .select('id')
-            .eq('id', userId)
-            .single();
-          
-          if (getProfileError && getProfileError.code !== 'PGRST116') { // PGRST116 = no rows found
-            throw getProfileError;
-          }
-
+          // CRÍTICO: Verificar si el perfil existe, y si no, crearlo.
+          const { data: existingProfile } = await supabaseAdmin.from('perfiles').select('id').eq('id', userId).single();
           if (!existingProfile) {
-            // Profile doesn't exist, create it manually
-            const { error: createProfileError } = await supabaseAdmin
-              .from('perfiles')
-              .insert({
-                id: userId,
-                nombre_completo: existingAuthUser.user_metadata?.full_name || email.split('@')[0],
-                email: email,
-                rol: existingAuthUser.user_metadata?.intended_role || 'docente',
-                subscription_plan: 'prueba',
-                subscription_status: 'trialing',
-                trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-              });
+            const { error: createProfileError } = await supabaseAdmin.from('perfiles').insert({
+              id: userId,
+              nombre_completo: existingAuthUser.user_metadata?.full_name || email.split('@')[0],
+              email: email,
+              rol: 'docente',
+              subscription_plan: 'prueba',
+              subscription_status: 'trialing',
+              trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            });
             if (createProfileError) throw createProfileError;
           }
         } else {
-          // User does not exist, create them (trigger will handle profile creation)
+          // El usuario no existe, crearlo en Auth. El trigger se encargará del perfil.
           const { data: newUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
             email: email,
             password: initial_password,
@@ -81,6 +69,7 @@ serve(async (req) => {
           userStatus = 'created';
         }
 
+        // Vincular el perfil (que ahora garantizamos que existe) al establecimiento.
         const { error: linkError } = await supabaseAdmin
           .from('perfil_establecimientos')
           .upsert({
