@@ -46,6 +46,12 @@ const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubs
       return <Badge variant="secondary">Sin Suscripción</Badge>;
     }
 
+    const planDurations = {
+      prueba: '7 días',
+      pro: '1 mes',
+      establecimiento: '1 año',
+    };
+
     const daysLeft = subscription.expires_at ? differenceInDays(parseISO(subscription.expires_at), new Date()) : null;
     let statusText = subscription.status;
     let statusMessage = '';
@@ -62,7 +68,7 @@ const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubs
     return (
       <div className="flex items-center gap-2">
         <Badge variant={getBadgeVariant(subscription.plan_type, statusText, subscription.expires_at)} className="capitalize text-xs">
-          {subscription.plan_type}
+          {subscription.plan_type} ({planDurations[subscription.plan_type as keyof typeof planDurations]})
         </Badge>
         <span className="text-xs text-muted-foreground">
           {statusMessage} ({subscription.expires_at ? format(parseISO(subscription.expires_at), 'P', { locale: es }) : 'N/A'})
