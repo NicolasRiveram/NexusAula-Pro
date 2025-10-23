@@ -20,7 +20,7 @@ interface MoveUserDialogProps {
   onClose: () => void;
   onMoved: () => void;
   userToMove: GlobalUser | { id: string; nombre_completo: string } | null;
-  fromEstablishment: { id: string; nombre: string };
+  fromEstablishment: { id: string; nombre: string } | null;
   allEstablishments: Establishment[];
 }
 
@@ -36,7 +36,7 @@ const MoveUserDialog: React.FC<MoveUserDialogProps> = ({ isOpen, onClose, onMove
   }, [isOpen, reset]);
 
   const onSubmit = async (data: FormData) => {
-    if (!userToMove) return;
+    if (!userToMove || !fromEstablishment) return;
     try {
       await moveUserToEstablishment(userToMove.id, fromEstablishment.id, data.destinationId);
       showSuccess(`"${userToMove.nombre_completo}" ha sido movido exitosamente.`);
@@ -47,7 +47,7 @@ const MoveUserDialog: React.FC<MoveUserDialogProps> = ({ isOpen, onClose, onMove
     }
   };
 
-  const potentialDestinations = allEstablishments.filter(est => est.id !== fromEstablishment.id);
+  const potentialDestinations = allEstablishments.filter(est => est.id !== fromEstablishment?.id);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
