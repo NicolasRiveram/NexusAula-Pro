@@ -51,6 +51,7 @@ serve(async (req) => {
     const { data: classData, error: classError } = await supabaseAdmin
       .from('planificaciones_clase')
       .select(`
+        guia_estudiante_json,
         titulo,
         objetivo_aprendizaje_texto,
         habilidades,
@@ -70,6 +71,13 @@ serve(async (req) => {
 
     if (classError) throw new Error(`Error al obtener datos de la clase: ${classError.message}`);
     if (!classData) throw new Error('Clase no encontrada.');
+
+    if (classData.guia_estudiante_json) {
+      return new Response(JSON.stringify(classData.guia_estudiante_json), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
@@ -139,6 +147,15 @@ serve(async (req) => {
     }
     const aiText = candidate.content.parts[0].text;
     const aiResponseJson = cleanAndParseJson(aiText);
+
+    const { error: updateError } = await supabaseAdmin
+      .from('planificaciones_clase')
+      .update({ guia_estudiante_json: aiResponseJson })
+      .eq('id', classId);
+
+    if (updateError) {
+      console.error(`Failed to cache student guide for class ${classId}:`, updateError.message);
+    }
 
     return new Response(JSON.stringify(aiResponseJson), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

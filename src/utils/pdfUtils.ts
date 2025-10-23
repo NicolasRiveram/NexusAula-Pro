@@ -22,8 +22,8 @@ interface EstablishmentInfo {
 const addWrappedText = (doc: jsPDF, text: string, x: number, y: number, maxWidth: number, options: any = {}) => {
   const lines = doc.splitTextToSize(text, maxWidth);
   doc.text(lines, x, y, options);
-  const lineHeight = doc.getLineHeight() / doc.getPointUnitRatio();
-  return y + (lines.length * lineHeight);
+  const dimensions = doc.getTextDimensions(lines);
+  return y + dimensions.h;
 };
 
 const checkPageBreak = (doc: jsPDF, currentY: number, neededHeight: number) => {
