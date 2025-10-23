@@ -3,10 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2, UserCog, Book, FileText, FileSignature, RefreshCw } from 'lucide-react';
-import { fetchEstablishmentUsersSuperAdmin, superAdminRemoveUserFromEstablishment } from '@/api/superAdminApi';
+import { MoreHorizontal, Trash2, UserCog, Book, FileText, FileSignature, RefreshCw, Move } from 'lucide-react';
+import { fetchEstablishmentUsersSuperAdmin, superAdminRemoveUserFromEstablishment, fetchAllEstablishments, Establishment } from '@/api/superAdminApi';
 import { showError, showSuccess } from '@/utils/toast';
 import UserRoleInEstablishmentDialog from './UserRoleInEstablishmentDialog';
+import MoveUserDialog from './MoveUserDialog';
 import { cn } from '@/lib/utils';
 
 interface EstablishmentUser {
@@ -27,15 +28,21 @@ interface EstablishmentUserListProps {
 
 const EstablishmentUserList: React.FC<EstablishmentUserListProps> = ({ establishmentId }) => {
   const [users, setUsers] = useState<EstablishmentUser[]>([]);
+  const [allEstablishments, setAllEstablishments] = useState<Establishment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<EstablishmentUser | null>(null);
 
-  const loadUsers = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchEstablishmentUsersSuperAdmin(establishmentId);
-      setUsers(data);
+      const [usersData, establishmentsData] = await Promise.all([
+        fetchEstablishmentUsersSuperAdmin(establishmentId),
+        fetchAllEstablishments()
+      ]);
+      setUsers(usersData);
+      setAllEstablishments(establishmentsData);
     } catch (error: any) {
       showError(error.message);
     } finally {
@@ -44,12 +51,17 @@ const EstablishmentUserList: React.FC<EstablishmentUserListProps> = ({ establish
   }, [establishmentId]);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    loadData();
+  }, [loadData]);
 
   const handleEdit = (user: EstablishmentUser) => {
     setSelectedUser(user);
     setEditDialogOpen(true);
+  };
+
+  const handleMove = (user: EstablishmentUser) => {
+    setSelectedUser(user);
+    setMoveDialogOpen(true);
   };
 
   const handleRemove = async (user: EstablishmentUser) => {
@@ -57,7 +69,7 @@ const EstablishmentUserList: React.FC<EstablishmentUserListProps> = ({ establish
     try {
       await superAdminRemoveUserFromEstablishment(user.perfil_id, establishmentId);
       showSuccess(`${user.nombre_completo} ha sido eliminado del establecimiento.`);
-      loadUsers();
+      loadData();
     } catch (error: any) {
       showError(error.message);
     }
@@ -72,7 +84,7 @@ const EstablishmentUserList: React.FC<EstablishmentUserListProps> = ({ establish
               <CardTitle>Usuarios del Establecimiento</CardTitle>
               <CardDescription>Gestiona los usuarios aprobados.</CardDescription>
             </div>
-            <Button variant="outline" size="icon" onClick={loadUsers} disabled={loading}>
+            <Button variant="outline" size="icon" onClick={loadData} disabled={loading}>
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             </Button>
           </div>
@@ -98,11 +110,10 @@ const EstablishmentUserList: React.FC<EstablishmentUserListProps> = ({ establish
                     <TableCell className="capitalize">{user.rol_en_establecimiento.replace(/_/g, ' ')}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleEdit(user)}><UserCog className="mr-2 h-4 w-4" /> Editar Rol</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleMove(user)}><Move className="mr-2 h-4 w-4" /> Mover Usuario</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleRemove(user)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -120,8 +131,16 @@ const EstablishmentUserList: React.FC<EstablishmentUserListProps> = ({ establish
         isOpen={isEditDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         user={selectedUser}
-        onUserUpdated={loadUsers}
+        onUserUpdated={loadData}
         establishmentId={establishmentId}
+      />
+      <MoveUserDialog
+        isOpen={isMoveDialogOpen}
+        onClose={() => setMoveDialogOpen(false)}
+        onMoved={loadData}
+        userToMove={selectedUser ? { id: selectedUser.perfil_id, nombre_completo: selectedUser.nombre_completo } : null}
+        fromEstablishment={{ id: establishmentId, nombre: allEstablishments.find(e => e.id === establishmentId)?.nombre || '' }}
+        allEstablishments={allEstablishments}
       />
     </>
   );

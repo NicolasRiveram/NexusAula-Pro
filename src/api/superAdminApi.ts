@@ -412,3 +412,12 @@ export const updateEstablishmentSubscription = async (establishmentId: string, p
   });
   if (error) throw new Error(`Error updating subscription: ${error.message}`);
 };
+
+export const moveUserToEstablishment = async (userId: string, oldEstablishmentId: string, newEstablishmentId: string) => {
+  const { error } = await supabase.rpc('super_admin_move_user_content', {
+    p_user_id: userId,
+    p_old_establishment_id: oldEstablishmentId,
+    p_new_establishment_id: newEstablishmentId,
+  });
+  if (error) throw new Error(`Error al mover al usuario: ${error.message}`);
+};

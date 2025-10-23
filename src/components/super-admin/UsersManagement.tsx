@@ -3,12 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Star } from 'lucide-react';
+import { MoreHorizontal, Edit, Star, Move } from 'lucide-react';
 import { fetchAllUsers, GlobalUser, fetchAllEstablishments, Establishment } from '@/api/superAdminApi';
 import { showError } from '@/utils/toast';
 import { Badge } from '@/components/ui/badge';
 import UserEditDialog from './UserEditDialog';
 import SubscriptionEditDialog from './SubscriptionEditDialog';
+import MoveUserDialog from './MoveUserDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
@@ -20,7 +21,9 @@ const UsersManagement = () => {
   const [loading, setLoading] = useState(true);
   const [isUserDialogOpen, setUserDialogOpen] = useState(false);
   const [isSubDialogOpen, setSubDialogOpen] = useState(false);
+  const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<GlobalUser | null>(null);
+  const [fromEstablishment, setFromEstablishment] = useState<{id: string, nombre: string} | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -61,6 +64,12 @@ const UsersManagement = () => {
   const handleEditSub = (user: GlobalUser) => {
     setSelectedUser(user);
     setSubDialogOpen(true);
+  };
+
+  const handleMove = (user: GlobalUser, fromEst: {id: string, nombre: string}) => {
+    setSelectedUser(user);
+    setFromEstablishment(fromEst);
+    setMoveDialogOpen(true);
   };
 
   return (
@@ -132,7 +141,12 @@ const UsersManagement = () => {
                     <TableCell>
                       <div className="flex flex-wrap gap-1 max-w-xs">
                         {user.establecimientos.map((est, index) => (
-                          <Badge key={index} variant="outline">{est.nombre}</Badge>
+                          <div key={index} className="flex items-center gap-1 bg-muted p-1 rounded">
+                            <Badge variant="outline">{est.nombre}</Badge>
+                            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => handleMove(user, est)}>
+                              <Move className="h-3 w-3" />
+                            </Button>
+                          </div>
                         ))}
                       </div>
                     </TableCell>
@@ -163,6 +177,14 @@ const UsersManagement = () => {
         onClose={() => setSubDialogOpen(false)}
         onSaved={loadData}
         user={selectedUser}
+      />
+      <MoveUserDialog
+        isOpen={isMoveDialogOpen}
+        onClose={() => setMoveDialogOpen(false)}
+        onMoved={loadData}
+        userToMove={selectedUser}
+        fromEstablishment={fromEstablishment!}
+        allEstablishments={establishments}
       />
     </>
   );
