@@ -62,6 +62,8 @@ const EstablishmentsPage = lazy(() => import("./pages/dashboard/super-admin/Esta
 const SubEstablishmentDetailPage = lazy(() => import("./pages/dashboard/super-admin/SubEstablishmentDetailPage"));
 const UsersManagement = lazy(() => import("./components/super-admin/UsersManagement"));
 const CurriculumManagement = lazy(() => import("./components/super-admin/CurriculumManagement"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +90,8 @@ const App = () => {
                       <Route path="/start" element={<AppStart />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/configurar-perfil" element={<ProfileSetup />} />
+                      <Route path="/politica-de-privacidad" element={<PrivacyPolicy />} />
+                      <Route path="/terminos-de-servicio" element={<TermsOfService />} />
                       <Route path="/dashboard" element={<Dashboard />}>
                         <Route index element={<DashboardIndex />} />
                         <Route path="cursos" element={<CoursesPage />} />
