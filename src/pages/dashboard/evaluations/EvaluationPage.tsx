@@ -6,9 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2, BrainCircuit, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from '@/components/ui/label';
 import { fetchEvaluations, Evaluation, fetchStudentEvaluations, StudentEvaluation, fetchEvaluationDetails, fetchStudentsForEvaluation, deleteEvaluation, deleteMultipleEvaluations, saveStudentAssignments, StudentEvaluationAssignment } from '@/api/evaluationsApi';
 import { showError, showLoading, dismissToast, showSuccess } from '@/utils/toast';
 import { format, parseISO, isPast } from 'date-fns';
@@ -112,6 +109,7 @@ const EvaluationPage = () => {
     const toastId = showLoading("Preparando evaluación para imprimir...");
     try {
       const evaluationDetails = await fetchEvaluationDetails(evaluationToPrint);
+      const seed = evaluationDetails.id;
 
       if (!evaluationDetails.aspectos_a_evaluar_ia) {
         showError("Falta el resumen 'Aspectos a Evaluar'. Por favor, edita y finaliza la evaluación para generarlo.");
@@ -157,7 +155,7 @@ const EvaluationPage = () => {
 
         if (evaluationCopy.randomizar_preguntas) {
           const allItems = evaluationCopy.evaluation_content_blocks.flatMap((block: any) => block.evaluacion_items);
-          const shuffledItems = seededShuffle(allItems, `${formData.seed}-${rowLabel}`);
+          const shuffledItems = seededShuffle(allItems, `${seed}-${rowLabel}`);
           
           shuffledItems.forEach((item: any, index: number) => {
             item.orden = index + 1;
@@ -182,7 +180,7 @@ const EvaluationPage = () => {
           evaluationCopy.evaluation_content_blocks.forEach((block: any) => {
             block.evaluacion_items.forEach((item: any) => {
               if (item.tipo_item === 'seleccion_multiple' && item.item_alternativas) {
-                item.item_alternativas = seededShuffle(item.item_alternativas, `${formData.seed}-${rowLabel}-${item.id}`);
+                item.item_alternativas = seededShuffle(item.item_alternativas, `${seed}-${rowLabel}-${item.id}`);
               }
             });
           });
@@ -238,6 +236,7 @@ const EvaluationPage = () => {
       const answerKey: { [row: string]: { [q: number]: string } } = {};
       const printableComponents: React.ReactElement[] = [];
       const assignmentsToSave: Omit<StudentEvaluationAssignment, 'id' | 'created_at'>[] = [];
+      const seed = evaluation.id;
 
       // Group students by course
       const studentsByCourse = students.reduce((acc, student) => {
@@ -271,13 +270,14 @@ const EvaluationPage = () => {
               rowLabel={rowLabel}
               qrCodeData={qrCodeData}
               questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+              includeStudentName={formData.includeStudentName}
             />
           );
           assignmentsToSave.push({
             student_id: student.id,
             evaluation_id: evaluation.id,
             assigned_row: rowLabel,
-            seed: formData.seed,
+            seed: seed,
           });
         });
 
@@ -295,13 +295,14 @@ const EvaluationPage = () => {
               rowLabel={rowLabel}
               qrCodeData={qrCodeData}
               questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+              includeStudentName={formData.includeStudentName}
             />
           );
           assignmentsToSave.push({
             student_id: student.id,
             evaluation_id: evaluation.id,
             assigned_row: rowLabel,
-            seed: formData.seed,
+            seed: seed,
           });
         });
       }
@@ -312,7 +313,7 @@ const EvaluationPage = () => {
         answerKey[rowLabel] = {};
         allQuestions.forEach(q => {
           if (q.tipo_item === 'seleccion_multiple') {
-            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
+            const shuffledAlts = seededShuffle(q.item_alternativas, `${seed}-${rowLabel}-${q.id}`);
             const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
             answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
           }

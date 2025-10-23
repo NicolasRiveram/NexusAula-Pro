@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, fetchStudentsForEvaluation, fetchExistingResponsesForEvaluation, fetchStudentAssignmentsForEvaluation, StudentEvaluationAssignment } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
@@ -15,7 +13,6 @@ const ManualEntryPage = () => {
   const [existingResponses, setExistingResponses] = useState<Map<string, { [itemId: string]: string }>>(new Map());
   const [assignments, setAssignments] = useState<StudentEvaluationAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [seed, setSeed] = useState('nexus-2024');
 
   useEffect(() => {
     if (evaluationId) {
@@ -30,10 +27,6 @@ const ManualEntryPage = () => {
         setStudents(studentData.map(s => ({ id: s.id, nombre_completo: s.nombre_completo })));
         setExistingResponses(responsesData);
         setAssignments(assignmentsData);
-        // Set default seed from the first assignment if available
-        if (assignmentsData.length > 0) {
-          setSeed(assignmentsData[0].seed);
-        }
       }).catch(err => {
         showError(`Error al cargar datos: ${err.message}`);
       }).finally(() => {
@@ -61,21 +54,14 @@ const ManualEntryPage = () => {
         <CardHeader>
           <CardTitle>Ingreso Manual de Respuestas: {evaluation.titulo}</CardTitle>
           <CardDescription>
-            Introduce la misma palabra clave que usaste al imprimir. Luego, selecciona la fila para cada estudiante e ingresa sus respuestas.
+            La fila de cada estudiante se carga automáticamente. Ingresa sus respuestas en la tabla.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div>
-            <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
-            <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} />
-          </div>
-        </CardContent>
       </Card>
 
       <ManualEntryTable
         evaluation={evaluation}
         students={students}
-        seed={seed}
         existingResponses={existingResponses}
         assignments={assignments}
       />

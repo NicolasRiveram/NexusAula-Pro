@@ -9,7 +9,6 @@ import { fetchEvaluationDetails, EvaluationDetail } from '@/api/evaluationsApi';
 import { showError } from '@/utils/toast';
 import { Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { generateBalancedShuffledAlternatives } from '@/utils/shuffleUtils';
@@ -17,7 +16,6 @@ import { Switch } from '@/components/ui/switch';
 
 const schema = z.object({
   rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(2, "Máximo 2 filas."),
-  seed: z.string().min(3, "La semilla debe tener al menos 3 caracteres."),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -52,7 +50,6 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
           setEvaluation(data);
           reset({
             rows: 1,
-            seed: `eval-${evaluationId.substring(0, 8)}`,
           });
         })
         .catch(err => showError(`Error al cargar la pauta: ${err.message}`))
@@ -61,7 +58,7 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
       setEvaluation(null);
       setAnswerKey(null);
       setUsePieVersion(false);
-      reset({ rows: 1, seed: 'nexus-2024' });
+      reset({ rows: 1 });
     }
   }, [isOpen, evaluationId, reset]);
 
@@ -70,6 +67,7 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
 
     const allItems = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
     const newKey: AnswerKey = {};
+    const seed = evaluation.id;
 
     for (let i = 0; i < data.rows; i++) {
       const rowLabel = String.fromCharCode(65 + i);
@@ -83,7 +81,7 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
         };
       });
 
-      const balancedAlternativesMap = generateBalancedShuffledAlternatives(itemsToProcess, data.seed, rowLabel);
+      const balancedAlternativesMap = generateBalancedShuffledAlternatives(itemsToProcess, seed, rowLabel);
 
       itemsToProcess.forEach(item => {
         if (item.tipo_item === 'seleccion_multiple') {
@@ -116,7 +114,7 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
         <DialogHeader>
           <DialogTitle>Generar Pauta de Respuestas</DialogTitle>
           <DialogDescription>
-            Introduce los mismos parámetros que usaste al imprimir para generar la pauta de corrección correspondiente.
+            Selecciona el número de filas para generar la pauta de corrección correspondiente.
           </DialogDescription>
         </DialogHeader>
         
@@ -141,14 +139,6 @@ const AnswerKeyDialog: React.FC<AnswerKeyDialogProps> = ({ isOpen, onClose, eval
                     )}
                   />
                   {errors.rows && <p className="text-red-500 text-sm mt-1">{errors.rows.message}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
-                  <Controller name="seed" control={control} render={({ field }) => <Input id="seed" {...field} />} />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Introduce <strong>exactamente la misma palabra clave</strong> que usaste al imprimir.
-                  </p>
-                  {errors.seed && <p className="text-red-500 text-sm mt-1">{errors.seed.message}</p>}
                 </div>
               </div>
               <div className="flex items-center space-x-2">

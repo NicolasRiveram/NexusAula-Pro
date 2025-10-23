@@ -4,13 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 const schema = z.object({
   rows: z.coerce.number().min(1, "Debe haber al menos 1 fila.").max(2, "Máximo 2 filas."),
-  seed: z.string().min(3, "La semilla debe tener al menos 3 caracteres."),
+  includeStudentName: z.boolean().default(true),
 });
 
 export type AnswerSheetFormData = z.infer<typeof schema>;
@@ -20,22 +20,19 @@ interface PrintAnswerSheetDialogProps {
   onClose: () => void;
   onConfirm: (data: AnswerSheetFormData) => void;
   isPrinting: boolean;
-  evaluationId: string | null;
 }
 
-const PrintAnswerSheetDialog: React.FC<PrintAnswerSheetDialogProps> = ({ isOpen, onClose, onConfirm, isPrinting, evaluationId }) => {
+const PrintAnswerSheetDialog: React.FC<PrintAnswerSheetDialogProps> = ({ isOpen, onClose, onConfirm, isPrinting }) => {
   const { control, handleSubmit, formState: { errors }, reset } = useForm<AnswerSheetFormData>({
     resolver: zodResolver(schema),
+    defaultValues: { rows: 2, includeStudentName: true },
   });
 
   useEffect(() => {
-    if (evaluationId) {
-      reset({
-        rows: 2,
-        seed: `eval-${evaluationId.substring(0, 8)}`,
-      });
+    if (!isOpen) {
+      reset({ rows: 2, includeStudentName: true });
     }
-  }, [evaluationId, reset]);
+  }, [isOpen, reset]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -64,17 +61,24 @@ const PrintAnswerSheetDialog: React.FC<PrintAnswerSheetDialogProps> = ({ isOpen,
             />
             {errors.rows && <p className="text-red-500 text-sm mt-1">{errors.rows.message}</p>}
           </div>
-          <div>
-            <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
+          <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+            <div className="space-y-0.5">
+              <Label htmlFor="includeStudentName">Incluir Nombre del Estudiante</Label>
+              <p className="text-xs text-muted-foreground">
+                Desactiva esto para generar hojas de respuesta anónimas.
+              </p>
+            </div>
             <Controller
-              name="seed"
+              name="includeStudentName"
               control={control}
-              render={({ field }) => <Input id="seed" placeholder="Ej: lenguaje-unidad1-mayo" {...field} />}
+              render={({ field }) => (
+                <Switch
+                  id="includeStudentName"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              )}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Usa la misma palabra clave para la pauta de corrección. Esto garantiza que la cámara y la pauta sepan el orden correcto de las alternativas.
-            </p>
-            {errors.seed && <p className="text-red-500 text-sm mt-1">{errors.seed.message}</p>}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>

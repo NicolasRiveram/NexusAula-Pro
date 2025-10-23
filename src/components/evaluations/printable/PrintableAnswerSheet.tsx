@@ -14,6 +14,7 @@ interface PrintableAnswerSheetProps {
     orden: number;
     alternativesCount: number;
   }[];
+  includeStudentName: boolean;
 }
 
 const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
@@ -25,6 +26,7 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
   rowLabel,
   qrCodeData,
   questions,
+  includeStudentName,
 }) => {
   const alternatives = ['A', 'B', 'C', 'D'];
   const fullLogoUrl = logoUrl ? getLogoPublicUrl(logoUrl) : null;
@@ -59,7 +61,7 @@ const PrintableAnswerSheet: React.FC<PrintableAnswerSheetProps> = ({
 
       <section className="omr-student-info">
         <div className="data-fields">
-          <div className="field"><label>Nombre:</label><span>{studentName}</span></div>
+          <div className="field"><label>Nombre:</label><span>{includeStudentName ? studentName : ''}</span></div>
           <div className="field"><label>Curso:</label><span>{courseName}</span></div>
           <div className="field"><label>Fecha:</label><span /></div>
           <div className="field"><label>Puntaje:</label><span /></div>

@@ -7,12 +7,11 @@ import { generateBalancedShuffledAlternatives } from '@/utils/shuffleUtils';
 interface ManualEntryTableProps {
   evaluation: EvaluationDetail;
   students: { id: string; nombre_completo: string }[];
-  seed: string;
   existingResponses: Map<string, { [itemId: string]: string }>;
   assignments: StudentEvaluationAssignment[];
 }
 
-const ManualEntryTable: React.FC<ManualEntryTableProps> = ({ evaluation, students, seed, existingResponses, assignments }) => {
+const ManualEntryTable: React.FC<ManualEntryTableProps> = ({ evaluation, students, existingResponses, assignments }) => {
   const questions = evaluation.evaluation_content_blocks
     .flatMap(b => b.evaluacion_items)
     .sort((a, b) => a.orden - b.orden);
@@ -21,6 +20,7 @@ const ManualEntryTable: React.FC<ManualEntryTableProps> = ({ evaluation, student
 
   useEffect(() => {
     const initialRows: Record<string, string> = {};
+    const seed = evaluation.id; 
     assignments.forEach(a => {
       if (a.seed === seed) {
         initialRows[a.student_id] = a.assigned_row;
@@ -28,17 +28,18 @@ const ManualEntryTable: React.FC<ManualEntryTableProps> = ({ evaluation, student
     });
     students.forEach(s => {
       if (!initialRows[s.id]) {
-        initialRows[s.id] = 'A'; // Default
+        initialRows[s.id] = 'A'; // Default if no assignment found
       }
     });
     setStudentRows(initialRows);
-  }, [assignments, students, seed]);
+  }, [assignments, students, evaluation.id]);
 
   const shuffledMaps = useMemo(() => {
+    const seed = evaluation.id;
     const mapA = generateBalancedShuffledAlternatives(questions, seed, 'A');
     const mapB = generateBalancedShuffledAlternatives(questions, seed, 'B');
     return { A: mapA, B: mapB };
-  }, [questions, seed]);
+  }, [questions, evaluation.id]);
 
   const handleRowChange = (studentId: string, row: string) => {
     setStudentRows(prev => ({ ...prev, [studentId]: row }));
@@ -60,7 +61,7 @@ const ManualEntryTable: React.FC<ManualEntryTableProps> = ({ evaluation, student
         <TableBody>
           {students.map(student => {
             const selectedRow = studentRows[student.id] || 'A';
-            const isRowLocked = assignments.some(a => a.student_id === student.id && a.seed === seed);
+            const isRowLocked = assignments.some(a => a.student_id === student.id && a.seed === evaluation.id);
             
             return (
               <StudentAnswerRow

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ArrowLeft, Camera, CheckCircle, Loader2, XCircle, X } from 'lucide-react';
 import { fetchEvaluationDetails, EvaluationDetail, submitEvaluationResponse, fetchStudentsForEvaluation, replaceEvaluationResponse } from '@/api/evaluationsApi';
 import { generateBalancedShuffledAlternatives } from '@/utils/shuffleUtils';
@@ -32,7 +30,6 @@ const EvaluationScannerPage = () => {
   const queryClient = useQueryClient();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
   const [students, setStudents] = useState<{ id: string; nombre_completo: string }[]>([]);
-  const [seed, setSeed] = useState(evaluationId ? `eval-${evaluationId.substring(0, 8)}` : 'nexus-2024');
   const [isScannerOpen, setScannerOpen] = useState(false);
   const [scanResult, setScanResult] = useState<{ studentName: string; message: string; isError: boolean; score?: string; responseId?: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -170,11 +167,11 @@ const EvaluationScannerPage = () => {
           throw new Error("No se pudo verificar el código QR en la hoja alineada. Intenta de nuevo.");
         }
 
-        const [, , rowLabel] = scannedQrData!.split('|');
+        const [evalId, , rowLabel] = scannedQrData!.split('|');
         const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
         const processedAnswers: any[] = [];
         
-        const balancedAlternativesMap = generateBalancedShuffledAlternatives(allQuestions, seed, rowLabel);
+        const balancedAlternativesMap = generateBalancedShuffledAlternatives(allQuestions, evalId, rowLabel);
 
         const QUESTIONS_PER_COLUMN = 10;
         const colWidth = 250;
@@ -235,7 +232,7 @@ const EvaluationScannerPage = () => {
         setIsAnalyzing(false);
       }
     }, 100);
-  }, [evaluation, seed, isProcessing, scannedQrData, lockedStudentInfo]);
+  }, [evaluation, isProcessing, scannedQrData, lockedStudentInfo]);
 
   const handleConfirmReview = async () => {
     if (!reviewData || isAnalyzing) return;
@@ -285,11 +282,6 @@ const EvaluationScannerPage = () => {
               <CardDescription>Apunta la cámara a la hoja de respuestas para corregir automáticamente.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="seed">Palabra Clave (Semilla)</Label>
-                <Input id="seed" value={seed} onChange={(e) => setSeed(e.target.value)} disabled={isScannerOpen || isProcessing} />
-                <p className="text-xs text-muted-foreground">Debe ser la misma que usaste para generar las hojas.</p>
-              </div>
               <Button onClick={() => setScannerOpen(true)} className="w-full" disabled={isScannerOpen || isProcessing}>
                 <Camera className="mr-2 h-4 w-4" /> Iniciar Escáner
               </Button>
