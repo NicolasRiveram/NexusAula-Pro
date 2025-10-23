@@ -98,16 +98,18 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
             variant="outline"
             role="combobox"
             aria-expanded={openPopover}
-            className="w-full sm:w-[250px] justify-between"
+            className="w-full sm:w-auto sm:max-w-xs justify-between"
             data-tour="establishment-selector"
           >
-            {activeEstablishment
-              ? activeEstablishment.nombre
-              : "Seleccionar"}
+            <span className="truncate">
+              {activeEstablishment
+                ? activeEstablishment.nombre
+                : "Seleccionar"}
+            </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[250px] p-0">
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
           <Command>
             <CommandInput placeholder="Buscar establecimiento..." />
             <CommandList>
@@ -130,7 +132,7 @@ const Header: React.FC<HeaderProps> = ({ profile }) => {
                           : "opacity-0"
                       )}
                     />
-                    {establishment.nombre}
+                    <span className="truncate">{establishment.nombre}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
