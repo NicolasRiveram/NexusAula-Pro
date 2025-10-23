@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Accordion, AccordionContent, AccordionHeader, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { PlusCircle, Building, School, MoreVertical, Edit, Trash2, Star, Move } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { fetchAllEstablishments, deleteEstablishment, Establishment } from '@/api/superAdminApi';
@@ -133,23 +133,23 @@ const EstablishmentsPage = () => {
                   return (
                     <Accordion type="single" collapsible key={topLevelEst.id}>
                       <AccordionItem value={topLevelEst.id}>
-                        <AccordionTrigger className="text-lg font-semibold hover:no-underline p-3 bg-muted/30 rounded-md">
-                          <div className="flex items-center justify-between w-full">
+                        <AccordionHeader className="flex items-center justify-between px-3 bg-muted/30 rounded-md">
+                          <AccordionTrigger className="text-lg font-semibold hover:no-underline flex-grow text-left py-3">
                             <div className="flex items-center gap-2">
                               <Building className="h-5 w-5" /> {topLevelEst.nombre}
                             </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreVertical className="h-4 w-4" /></Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEdit(topLevelEst)}><Edit className="mr-2 h-4 w-4" /> Editar Grupo</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleMove(topLevelEst)}><Move className="mr-2 h-4 w-4" /> Mover Grupo</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDelete(topLevelEst)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Grupo</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </AccordionTrigger>
+                          </AccordionTrigger>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(topLevelEst)}><Edit className="mr-2 h-4 w-4" /> Editar Grupo</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMove(topLevelEst)}><Move className="mr-2 h-4 w-4" /> Mover a un grupo</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDelete(topLevelEst)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Grupo</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </AccordionHeader>
                         <AccordionContent className="pl-6 pt-4">
                           <div className="flex justify-end mb-4">
                             <Button size="sm" onClick={() => handleAddSub(topLevelEst.id)}>
