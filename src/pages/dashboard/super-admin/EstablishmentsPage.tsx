@@ -11,7 +11,7 @@ import EstablishmentEditDialog from '@/components/super-admin/EstablishmentEditD
 import EstablishmentSubscriptionDialog from '@/components/super-admin/EstablishmentSubscriptionDialog';
 import MoveEstablishmentDialog from '@/components/super-admin/MoveEstablishmentDialog';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface EstablishmentItemProps {
@@ -25,8 +25,8 @@ interface EstablishmentItemProps {
 const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubscription, onEdit, onMove, onDelete }) => {
   const subscription = est.suscripciones_establecimiento?.[0];
 
-  const getBadgeVariant = (planType?: string, status?: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    if (status === 'expired' || status === 'cancelled') {
+  const getBadgeVariant = (planType?: string, status?: string, expiresAt?: string | null): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    if (status === 'expired' || status === 'cancelled' || (expiresAt && new Date(expiresAt) < new Date())) {
       return 'destructive';
     }
     switch (planType) {
@@ -41,22 +41,43 @@ const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubs
     }
   };
 
+  const renderSubscriptionInfo = () => {
+    if (!subscription) {
+      return <Badge variant="secondary">Sin Suscripción</Badge>;
+    }
+
+    const daysLeft = subscription.expires_at ? differenceInDays(parseISO(subscription.expires_at), new Date()) : null;
+    let statusText = subscription.status;
+    let statusMessage = '';
+
+    if (daysLeft !== null) {
+      if (daysLeft < 0) {
+        statusText = 'expired';
+        statusMessage = `Venció hace ${Math.abs(daysLeft)} días`;
+      } else {
+        statusMessage = `Vence en ${daysLeft} días`;
+      }
+    }
+
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant={getBadgeVariant(subscription.plan_type, statusText, subscription.expires_at)} className="capitalize text-xs">
+          {subscription.plan_type}
+        </Badge>
+        <span className="text-xs text-muted-foreground">
+          {statusMessage} ({subscription.expires_at ? format(parseISO(subscription.expires_at), 'P', { locale: es }) : 'N/A'})
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
       <Link to={`/dashboard/super-admin/establishment/${est.id}`} className="flex items-center gap-2 hover:underline font-semibold">
         <School className="h-5 w-5" />
         <div>
           <p>{est.nombre}</p>
-          {subscription && (
-            <div className="flex items-center gap-2">
-              <Badge variant={getBadgeVariant(subscription.plan_type, subscription.status)} className="capitalize text-xs">
-                {subscription.plan_type}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                Expira: {subscription.expires_at ? format(parseISO(subscription.expires_at), 'P', { locale: es }) : 'N/A'}
-              </span>
-            </div>
-          )}
+          {renderSubscriptionInfo()}
         </div>
       </Link>
       <DropdownMenu>
