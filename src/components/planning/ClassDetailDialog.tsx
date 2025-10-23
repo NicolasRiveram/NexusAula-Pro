@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { generateStudentGuidePdf } from '@/utils/pdfUtils';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 interface ClassDetailDialogProps {
   isOpen: boolean;
@@ -89,7 +90,14 @@ ${clase.aspectos_valoricos_actitudinales || 'No especificado'}
       dismissToast(toastId);
     } catch (error: any) {
       dismissToast(toastId);
-      showError(`Error al generar la guía: ${error.message}`);
+      if (error instanceof FunctionsHttpError) {
+        const errorMessage = await error.context.json();
+        showError(`Error de la IA: ${errorMessage.error}`);
+      } else if (error.message.includes('Failed to fetch')) {
+        showError('Error de conexión. No se pudo generar la guía.');
+      } else {
+        showError(`Error al generar la guía: ${error.message}`);
+      }
     } finally {
       setIsGeneratingGuide(false);
     }

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createContentBlock, updateContentBlock, EvaluationContentBlock, getPublicImageUrl } from '@/api/evaluationsApi';
+import { createContentBlock, updateContentBlock, EvaluationContentBlock, getPublicImageUrl, uploadEvaluationImage } from '@/api/evaluationsApi';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -93,7 +93,11 @@ const AddImageBlockDialog: React.FC<AddImageBlockDialogProps> = ({ isOpen, onClo
       onSave();
       onClose();
     } catch (error: any) {
-      showError(`Error: ${error.message}`);
+      if (error.message.includes('Failed to fetch')) {
+        showError('Error de conexión. No se pudo subir la imagen.');
+      } else {
+        showError(`Error: ${error.message}`);
+      }
     } finally {
       dismissToast(toastId);
     }
