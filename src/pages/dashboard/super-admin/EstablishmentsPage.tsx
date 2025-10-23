@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import MoveEstablishmentDialog from '@/components/super-admin/MoveEstablishmentD
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface EstablishmentItemProps {
   est: Establishment;
@@ -100,8 +101,13 @@ const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubs
 };
 
 const EstablishmentsPage = () => {
-  const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: establishments = [], isLoading: loading } = useQuery({
+    queryKey: ['establishments'],
+    queryFn: fetchAllEstablishments,
+    onError: (error: any) => showError(error.message),
+  });
+
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isSubDialogOpen, setSubDialogOpen] = useState(false);
   const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -109,21 +115,9 @@ const EstablishmentsPage = () => {
   const [establishmentToMove, setEstablishmentToMove] = useState<Establishment | null>(null);
   const [parentId, setParentId] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAllEstablishments();
-      setEstablishments(data);
-    } catch (error: any) {
-      showError(error.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleDataChange = () => {
+    queryClient.invalidateQueries({ queryKey: ['establishments'] });
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const handleAddGroup = () => {
     setSelectedEstablishment(null);
@@ -148,7 +142,7 @@ const EstablishmentsPage = () => {
       try {
         await deleteEstablishment(est.id);
         showSuccess("Establecimiento eliminado.");
-        loadData();
+        handleDataChange();
       } catch (error: any) {
         showError(error.message);
       }
@@ -165,8 +159,8 @@ const EstablishmentsPage = () => {
     setMoveDialogOpen(true);
   };
 
-  const topLevelEstablishments = establishments.filter(e => !e.parent_id);
-  const subEstablishments = establishments.filter(e => e.parent_id);
+  const topLevelEstablishments = useMemo(() => establishments.filter(e => !e.parent_id), [establishments]);
+  const subEstablishments = useMemo(() => establishments.filter(e => e.parent_id), [establishments]);
 
   return (
     <>
@@ -245,14 +239,14 @@ const EstablishmentsPage = () => {
       <EstablishmentEditDialog
         isOpen={isEditDialogOpen}
         onClose={() => setEditDialogOpen(false)}
-        onSaved={loadData}
+        onSaved={handleDataChange}
         establishment={selectedEstablishment}
         parentId={parentId}
       />
       <EstablishmentSubscriptionDialog
         isOpen={isSubDialogOpen}
         onClose={() => setSubDialogOpen(false)}
-        onSaved={loadData}
+        onSaved={handleDataChange}
         establishmentId={selectedEstablishment?.id || null}
         establishmentName={selectedEstablishment?.nombre || null}
         currentSubscription={selectedEstablishment?.suscripciones_establecimiento?.[0] || null}
@@ -260,7 +254,7 @@ const EstablishmentsPage = () => {
       <MoveEstablishmentDialog
         isOpen={isMoveDialogOpen}
         onClose={() => setMoveDialogOpen(false)}
-        onSaved={loadData}
+        onSaved={handleDataChange}
         establishmentToMove={establishmentToMove}
         potentialParents={topLevelEstablishments.filter(e => e.id !== establishmentToMove?.id)}
       />
