@@ -85,7 +85,7 @@ export const generateStudentGuidePdf = async (
   currentY += 8;
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  currentY = addWrappedText(doc, guideContent.explicacion_detallada, margin, currentY, maxWidth);
+  currentY = addWrappedText(doc, guideContent.explicacion_detallada, margin, currentY, maxWidth, { align: 'justify' });
   currentY += 10;
 
   currentY = checkPageBreak(doc, currentY, 20);
@@ -100,7 +100,7 @@ export const generateStudentGuidePdf = async (
     currentY = addWrappedText(doc, `Ejemplo ${index + 1}: ${item.ejemplo}`, margin, currentY, maxWidth);
     currentY += 2;
     doc.setFont('helvetica', 'normal');
-    currentY = addWrappedText(doc, item.explicacion, margin + 5, currentY, maxWidth - 5);
+    currentY = addWrappedText(doc, item.explicacion, margin + 5, currentY, maxWidth - 5, { align: 'justify' });
     currentY += 6;
   });
 
@@ -130,7 +130,7 @@ export const generateStudentGuidePdf = async (
     const termWidth = doc.getTextWidth(termText);
     doc.text(termText, margin, currentY);
     doc.setFont('helvetica', 'normal');
-    currentY = addWrappedText(doc, item.definicion, margin + termWidth, currentY, maxWidth - termWidth);
+    currentY = addWrappedText(doc, item.definicion, margin + termWidth, currentY, maxWidth - termWidth, { align: 'justify' });
     currentY += 4;
   });
 
