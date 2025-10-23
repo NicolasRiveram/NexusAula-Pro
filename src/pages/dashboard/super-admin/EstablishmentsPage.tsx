@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Accordion, AccordionContent, AccordionHeader, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { PlusCircle, Building, School, MoreVertical, Edit, Trash2, Star, Move } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { fetchAllEstablishments, deleteEstablishment, Establishment } from '@/api/superAdminApi';
@@ -133,7 +133,7 @@ const EstablishmentsPage = () => {
                   return (
                     <Accordion type="single" collapsible key={topLevelEst.id}>
                       <AccordionItem value={topLevelEst.id}>
-                        <AccordionHeader className="flex items-center justify-between px-3 bg-muted/30 rounded-md">
+                        <div className="flex items-center justify-between px-3 bg-muted/30 rounded-md">
                           <AccordionTrigger className="text-lg font-semibold hover:no-underline flex-grow text-left py-3">
                             <div className="flex items-center gap-2">
                               <Building className="h-5 w-5" /> {topLevelEst.nombre}
@@ -149,7 +149,7 @@ const EstablishmentsPage = () => {
                               <DropdownMenuItem onClick={() => handleDelete(topLevelEst)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar Grupo</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        </AccordionHeader>
+                        </div>
                         <AccordionContent className="pl-6 pt-4">
                           <div className="flex justify-end mb-4">
                             <Button size="sm" onClick={() => handleAddSub(topLevelEst.id)}>
