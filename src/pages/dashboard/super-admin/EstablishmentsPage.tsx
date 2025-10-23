@@ -24,6 +24,23 @@ interface EstablishmentItemProps {
 
 const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubscription, onEdit, onMove, onDelete }) => {
   const subscription = est.suscripciones_establecimiento?.[0];
+
+  const getBadgeVariant = (planType?: string, status?: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    if (status === 'expired' || status === 'cancelled') {
+      return 'destructive';
+    }
+    switch (planType) {
+      case 'establecimiento':
+        return 'default';
+      case 'pro':
+        return 'secondary';
+      case 'prueba':
+        return 'outline';
+      default:
+        return 'secondary';
+    }
+  };
+
   return (
     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
       <Link to={`/dashboard/super-admin/establishment/${est.id}`} className="flex items-center gap-2 hover:underline font-semibold">
@@ -32,7 +49,9 @@ const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubs
           <p>{est.nombre}</p>
           {subscription && (
             <div className="flex items-center gap-2">
-              <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">{subscription.plan_type}</Badge>
+              <Badge variant={getBadgeVariant(subscription.plan_type, subscription.status)} className="capitalize text-xs">
+                {subscription.plan_type}
+              </Badge>
               <span className="text-xs text-muted-foreground">
                 Expira: {subscription.expires_at ? format(parseISO(subscription.expires_at), 'P', { locale: es }) : 'N/A'}
               </span>
