@@ -183,7 +183,7 @@ const UsersManagement = () => {
         onClose={() => setMoveDialogOpen(false)}
         onMoved={loadData}
         userToMove={selectedUser}
-        fromEstablishment={fromEstablishment!}
+        fromEstablishment={fromEstablishment}
         allEstablishments={establishments}
       />
     </>
