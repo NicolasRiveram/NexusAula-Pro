@@ -3,10 +3,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EvaluationDetail, StudentEvaluationAssignment } from '@/api/evaluationsApi';
 import StudentAnswerRow from './StudentAnswerRow';
 import { generateBalancedShuffledAlternatives } from '@/utils/shuffleUtils';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface ManualEntryTableProps {
   evaluation: EvaluationDetail;
-  students: { id: string; nombre_completo: string }[];
+  students: { id: string; nombre_completo: string; curso_nombre: string }[];
   existingResponses: Map<string, { [itemId: string]: string }>;
   assignments: StudentEvaluationAssignment[];
 }
@@ -17,6 +18,17 @@ const ManualEntryTable: React.FC<ManualEntryTableProps> = ({ evaluation, student
     .sort((a, b) => a.orden - b.orden);
 
   const [studentRows, setStudentRows] = useState<Record<string, string>>({});
+
+  const groupedStudents = useMemo(() => {
+    return students.reduce((acc, student) => {
+      const courseName = student.curso_nombre || 'Curso Desconocido';
+      if (!acc[courseName]) {
+        acc[courseName] = [];
+      }
+      acc[courseName].push(student);
+      return acc;
+    }, {} as Record<string, typeof students>);
+  }, [students]);
 
   useEffect(() => {
     const initialRows: Record<string, string> = {};
@@ -46,40 +58,51 @@ const ManualEntryTable: React.FC<ManualEntryTableProps> = ({ evaluation, student
   };
 
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <Table className="min-w-full">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="sticky left-0 bg-card z-10 min-w-[250px] border-r">Estudiante</TableHead>
-            <TableHead className="min-w-[120px]">Fila</TableHead>
-            {questions.map(q => (
-              <TableHead key={q.id} className="text-center min-w-[80px]">{q.orden}</TableHead>
-            ))}
-            <TableHead className="sticky right-0 bg-card z-10 min-w-[150px] border-l text-center">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {students.map(student => {
-            const selectedRow = studentRows[student.id] || 'A';
-            const isRowLocked = assignments.some(a => a.student_id === student.id && a.seed === evaluation.id);
-            
-            return (
-              <StudentAnswerRow
-                key={student.id}
-                student={student}
-                evaluation={evaluation}
-                questions={questions}
-                shuffledAlternativesMap={shuffledMaps[selectedRow] || {}}
-                selectedRow={selectedRow}
-                onRowChange={handleRowChange}
-                isRowLocked={isRowLocked}
-                existingAnswers={existingResponses.get(student.id)}
-              />
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <Accordion type="multiple" className="w-full space-y-4" defaultValue={Object.keys(groupedStudents)}>
+      {Object.entries(groupedStudents).map(([courseName, studentsInCourse]) => (
+        <AccordionItem value={courseName} key={courseName}>
+          <AccordionTrigger className="text-lg font-semibold bg-muted/50 px-4 rounded-md">
+            {courseName} ({studentsInCourse.length} estudiantes)
+          </AccordionTrigger>
+          <AccordionContent className="pt-4">
+            <div className="overflow-x-auto border rounded-lg">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="sticky left-0 bg-card z-10 min-w-[250px] border-r">Estudiante</TableHead>
+                    <TableHead className="min-w-[120px]">Fila</TableHead>
+                    {questions.map(q => (
+                      <TableHead key={q.id} className="text-center min-w-[80px]">{q.orden}</TableHead>
+                    ))}
+                    <TableHead className="sticky right-0 bg-card z-10 min-w-[150px] border-l text-center">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studentsInCourse.map(student => {
+                    const selectedRow = studentRows[student.id] || 'A';
+                    const isRowLocked = assignments.some(a => a.student_id === student.id && a.seed === evaluation.id);
+                    
+                    return (
+                      <StudentAnswerRow
+                        key={student.id}
+                        student={student}
+                        evaluation={evaluation}
+                        questions={questions}
+                        shuffledAlternativesMap={shuffledMaps[selectedRow] || {}}
+                        selectedRow={selectedRow}
+                        onRowChange={handleRowChange}
+                        isRowLocked={isRowLocked}
+                        existingAnswers={existingResponses.get(student.id)}
+                      />
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
   );
 };
 

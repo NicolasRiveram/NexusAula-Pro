@@ -9,7 +9,7 @@ import ManualEntryTable from '@/components/evaluations/manual-entry/ManualEntryT
 const ManualEntryPage = () => {
   const { evaluationId } = useParams<{ evaluationId: string }>();
   const [evaluation, setEvaluation] = useState<EvaluationDetail | null>(null);
-  const [students, setStudents] = useState<{ id: string; nombre_completo: string }[]>([]);
+  const [students, setStudents] = useState<{ id: string; nombre_completo: string; curso_nombre: string; apoyo_pie: boolean }[]>([]);
   const [existingResponses, setExistingResponses] = useState<Map<string, { [itemId: string]: string }>>(new Map());
   const [assignments, setAssignments] = useState<StudentEvaluationAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,7 @@ const ManualEntryPage = () => {
         fetchStudentAssignmentsForEvaluation(evaluationId),
       ]).then(([evalData, studentData, responsesData, assignmentsData]) => {
         setEvaluation(evalData);
-        setStudents(studentData.map(s => ({ id: s.id, nombre_completo: s.nombre_completo })));
+        setStudents(studentData);
         setExistingResponses(responsesData);
         setAssignments(assignmentsData);
       }).catch(err => {
