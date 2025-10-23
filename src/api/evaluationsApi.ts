@@ -173,6 +173,18 @@ export interface StudentEvaluationAssignment {
   seed: string;
 }
 
+export const cloneEvaluationAsAdapted = async (originalEvaluationId: string, adaptations: Record<string, any>): Promise<string> => {
+  const { data, error } = await supabase.rpc('clone_evaluation_as_adapted', {
+    p_original_evaluation_id: originalEvaluationId,
+    p_adaptations: adaptations,
+  });
+
+  if (error) {
+    throw new Error(`Error al clonar la evaluación adaptada: ${error.message}`);
+  }
+  return data;
+};
+
 export const saveStudentAssignments = async (assignments: Omit<StudentEvaluationAssignment, 'id' | 'created_at'>[]) => {
   const { error } = await supabase
     .from('student_evaluation_assignments')
@@ -861,35 +873,6 @@ export const generatePIEAdaptation = async (itemId: string) => {
         throw new Error(`Error al generar adaptación PIE: ${error.message}`);
     }
     return data;
-};
-
-export const savePIEAdaptation = async (parentItemId: string, adaptationData: any): Promise<PIEAdaptation> => {
-    const { data: upsertedData, error: upsertError } = await supabase
-        .from('adaptaciones_pie')
-        .upsert({
-            parent_item_id: parentItemId,
-            enunciado_adaptado: adaptationData.enunciado_adaptado,
-            alternativas_adaptadas: adaptationData.alternativas_adaptadas,
-        }, {
-            onConflict: 'parent_item_id'
-        })
-        .select()
-        .single();
-
-    if (upsertError) {
-        throw new Error(`Error al guardar la adaptación PIE: ${upsertError.message}`);
-    }
-
-    const { error: updateError } = await supabase
-        .from('evaluacion_items')
-        .update({ tiene_adaptacion_pie: true })
-        .eq('id', parentItemId);
-
-    if (updateError) {
-        throw new Error(`Error al actualizar el item, pero la adaptación se guardó: ${updateError.message}`);
-    }
-    
-    return upsertedData;
 };
 
 export const updateEvaluationItem = async (itemId: string, data: { enunciado: string; puntaje: number; habilidad_evaluada: string | null; nivel_comprension: string | null; alternativas: any[] }) => {

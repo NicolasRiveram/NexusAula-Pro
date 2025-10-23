@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2, Sparkles, BrainCircuit, CheckCircle, Save } from 'lucide-react';
-import { fetchEvaluationDetails, EvaluationDetail, EvaluationItem, generatePIEAdaptation, savePIEAdaptation } from '@/api/evaluationsApi';
+import { fetchEvaluationDetails, EvaluationDetail, EvaluationItem, generatePIEAdaptation, cloneEvaluationAsAdapted } from '@/api/evaluationsApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -89,26 +89,26 @@ const AdaptPIEPage = () => {
   };
 
   const handleSaveChanges = async () => {
-    const itemsToSave = Object.keys(modifiedItems);
-    if (itemsToSave.length === 0) {
-      navigate(`/dashboard/evaluacion/${evaluationId}`);
+    if (!evaluationId) return;
+
+    // If no changes were made, just navigate back.
+    if (Object.keys(modifiedItems).length === 0) {
+      navigate('/dashboard/evaluacion');
       return;
     }
 
     setIsSaving(true);
-    const toastId = showLoading(`Guardando ${itemsToSave.length} adaptación(es)...`);
+    const toastId = showLoading("Creando evaluación adaptada...");
     try {
-      const savePromises = itemsToSave.map(itemId => 
-        savePIEAdaptation(itemId, modifiedItems[itemId])
-      );
-      await Promise.all(savePromises);
+      await cloneEvaluationAsAdapted(evaluationId, modifiedItems);
+
       dismissToast(toastId);
-      showSuccess("Todas las adaptaciones han sido guardadas exitosamente.");
+      showSuccess("Evaluación adaptada creada exitosamente.");
       setModifiedItems({});
-      navigate(`/dashboard/evaluacion/${evaluationId}`);
+      navigate('/dashboard/evaluacion'); // Navigate to the list to see the new evaluation
     } catch (error: any) {
       dismissToast(toastId);
-      showError(`Error al guardar los cambios: ${error.message}`);
+      showError(`Error al crear la evaluación adaptada: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
