@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2 } from 'lucide-react';
+import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2, BrainCircuit, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -461,8 +461,15 @@ const EvaluationPage = () => {
                               <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
                                 <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setEvaluationForAnswerKey(evaluation.id); setAnswerKeyDialogOpen(true); }}>
-                                <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/adaptar/${evaluation.id}`)}>
+                                <BrainCircuit className="mr-2 h-4 w-4" /> Adaptar para PIE
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/ingreso-manual`)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Ingreso Manual
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
+                                <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
@@ -470,6 +477,9 @@ const EvaluationPage = () => {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
                                 <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setEvaluationForAnswerKey(evaluation.id); setAnswerKeyDialogOpen(true); }}>
+                                <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta de Corrección
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
@@ -494,11 +504,6 @@ const EvaluationPage = () => {
                           </div>
                         </div>
                       </CardContent>
-                      <CardFooter>
-                        <Button onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)} variant="secondary" className="w-full">
-                          <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
-                        </Button>
-                      </CardFooter>
                     </Card>
                   </div>
                 ))}
