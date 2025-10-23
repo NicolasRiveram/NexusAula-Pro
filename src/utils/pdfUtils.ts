@@ -20,8 +20,9 @@ interface EstablishmentInfo {
 }
 
 const addWrappedText = (doc: jsPDF, text: string, x: number, y: number, maxWidth: number, options: any = {}) => {
+  const finalOptions = { ...options, maxWidth };
+  doc.text(text, x, y, finalOptions);
   const lines = doc.splitTextToSize(text, maxWidth);
-  doc.text(lines, x, y, options);
   const dimensions = doc.getTextDimensions(lines);
   return y + dimensions.h;
 };
@@ -68,14 +69,14 @@ export const generateStudentGuidePdf = async (
 
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(classInfo.title, doc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
-  currentY += 8;
+  currentY = addWrappedText(doc, classInfo.title, doc.internal.pageSize.getWidth() / 2, currentY, maxWidth, { align: 'center' });
+  currentY += 4;
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${classInfo.subjectName} - ${classInfo.courseName}`, doc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
-  currentY += 6;
-  doc.text(`Docente: ${teacherName}`, doc.internal.pageSize.getWidth() / 2, currentY, { align: 'center' });
+  currentY = addWrappedText(doc, `${classInfo.subjectName} - ${classInfo.courseName}`, doc.internal.pageSize.getWidth() / 2, currentY, maxWidth, { align: 'center' });
+  currentY += 2;
+  currentY = addWrappedText(doc, `Docente: ${teacherName}`, doc.internal.pageSize.getWidth() / 2, currentY, maxWidth, { align: 'center' });
   currentY += 15;
 
   // Body
