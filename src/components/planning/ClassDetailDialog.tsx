@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ScheduledClass } from '@/api/planningApi';
-import { showSuccess } from '@/utils/toast';
-import { CheckCircle, Copy, Edit, XCircle } from 'lucide-react';
+import { showSuccess, showLoading, dismissToast, showError } from '@/utils/toast';
+import { CheckCircle, Copy, Edit, XCircle, Download, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEstablishment } from '@/contexts/EstablishmentContext';
+import { generateStudentGuidePdf } from '@/utils/pdfUtils';
 
 interface ClassDetailDialogProps {
   isOpen: boolean;
@@ -16,6 +20,10 @@ interface ClassDetailDialogProps {
 }
 
 const ClassDetailDialog: React.FC<ClassDetailDialogProps> = ({ isOpen, onOpenChange, clase, onStatusChange, onEdit }) => {
+  const { profile } = useAuth();
+  const { activeEstablishment } = useEstablishment();
+  const [isGeneratingGuide, setIsGeneratingGuide] = useState(false);
+
   if (!clase) return null;
 
   const handleCopy = () => {
@@ -58,6 +66,33 @@ ${clase.aspectos_valoricos_actitudinales || 'No especificado'}
     `;
     navigator.clipboard.writeText(content.trim());
     showSuccess('Contenido de la clase copiado al portapapeles.');
+  };
+
+  const handleDownloadGuide = async () => {
+    if (!clase) return;
+    setIsGeneratingGuide(true);
+    const toastId = showLoading("Generando guía de estudio con IA...");
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-student-guide', {
+        body: { classId: clase.id },
+      });
+  
+      if (error) throw error;
+  
+      await generateStudentGuidePdf(
+        data,
+        { title: clase.titulo, courseName: `${clase.curso_info.nivel} ${clase.curso_info.nombre}`, subjectName: clase.curso_info.asignatura },
+        { name: activeEstablishment?.nombre || '', logoUrl: activeEstablishment?.logo_url || null },
+        profile?.nombre_completo || ''
+      );
+  
+      dismissToast(toastId);
+    } catch (error: any) {
+      dismissToast(toastId);
+      showError(`Error al generar la guía: ${error.message}`);
+    } finally {
+      setIsGeneratingGuide(false);
+    }
   };
 
   const DetailSection = ({ title, content }: { title: string; content?: string | null }) => (
@@ -113,7 +148,11 @@ ${clase.aspectos_valoricos_actitudinales || 'No especificado'}
               )
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button variant="outline" onClick={handleDownloadGuide} disabled={isGeneratingGuide}>
+              {isGeneratingGuide ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Guía de Estudio
+            </Button>
             <Button variant="secondary" onClick={handleCopy}><Copy className="mr-2 h-4 w-4" /> Copiar</Button>
             <Button onClick={onEdit}><Edit className="mr-2 h-4 w-4" /> Editar</Button>
           </div>
