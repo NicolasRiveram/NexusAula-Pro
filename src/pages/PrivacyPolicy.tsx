@@ -44,7 +44,7 @@ const PrivacyPolicy = () => {
 
             <h2>Contáctenos</h2>
             <p>
-              Si tiene alguna pregunta o sugerencia sobre nuestra Política de Privacidad, no dude en contactarnos.
+              Si tiene alguna pregunta o sugerencia sobre nuestra Política de Privacidad, no dude en contactarnos a través de <a href="mailto:contacto@nexusaula.com" className="text-primary hover:underline">contacto@nexusaula.com</a>.
             </p>
           </div>
         </div>

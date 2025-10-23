@@ -49,7 +49,7 @@ const TermsOfService = () => {
             
             <h2>Contáctenos</h2>
             <p>
-              Si tienes alguna pregunta sobre estos Términos, contáctanos.
+              Si tienes alguna pregunta sobre estos Términos, contáctanos a través de <a href="mailto:contacto@nexusaula.com" className="text-primary hover:underline">contacto@nexusaula.com</a>.
             </p>
           </div>
         </div>
