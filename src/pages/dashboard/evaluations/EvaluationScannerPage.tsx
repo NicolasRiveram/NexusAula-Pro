@@ -162,11 +162,6 @@ const EvaluationScannerPage = () => {
 
     setTimeout(() => {
       try {
-        const code = jsQR(warpedImageData.data, warpedImageData.width, warpedImageData.height);
-        if (!code || code.data !== scannedQrData) {
-          throw new Error("No se pudo verificar el código QR en la hoja alineada. Intenta de nuevo.");
-        }
-
         const [evalId, , rowLabel] = scannedQrData!.split('|');
         const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items).sort((a, b) => a.orden - b.orden);
         const processedAnswers: any[] = [];

@@ -130,7 +130,14 @@ const ScannerOverlay: React.FC<ScannerOverlayProps> = ({ onClose, onQrScanned, o
   useEffect(() => {
     const startCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        const constraints = {
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
