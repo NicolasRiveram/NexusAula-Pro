@@ -14,6 +14,45 @@ import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+interface EstablishmentItemProps {
+  est: Establishment;
+  onManageSubscription: (est: Establishment) => void;
+  onEdit: (est: Establishment) => void;
+  onMove: ((est: Establishment) => void) | null;
+  onDelete: (est: Establishment) => void;
+}
+
+const EstablishmentItem: React.FC<EstablishmentItemProps> = ({ est, onManageSubscription, onEdit, onMove, onDelete }) => {
+  const subscription = est.suscripciones_establecimiento?.[0];
+  return (
+    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
+      <Link to={`/dashboard/super-admin/establishment/${est.id}`} className="flex items-center gap-2 hover:underline font-semibold">
+        <School className="h-5 w-5" />
+        <div>
+          <p>{est.nombre}</p>
+          {subscription && (
+            <div className="flex items-center gap-2">
+              <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">{subscription.plan_type}</Badge>
+              <span className="text-xs text-muted-foreground">
+                Expira: {subscription.expires_at ? format(parseISO(subscription.expires_at), 'P', { locale: es }) : 'N/A'}
+              </span>
+            </div>
+          )}
+        </div>
+      </Link>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => onManageSubscription(est)}><Star className="mr-2 h-4 w-4" /> Gestionar Suscripción</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onEdit(est)}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
+          {onMove && <DropdownMenuItem onClick={() => onMove(est)}><Move className="mr-2 h-4 w-4" /> Mover a un grupo</DropdownMenuItem>}
+          <DropdownMenuItem onClick={() => onDelete(est)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
 const EstablishmentsPage = () => {
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,37 +122,6 @@ const EstablishmentsPage = () => {
   const topLevelEstablishments = establishments.filter(e => !e.parent_id);
   const subEstablishments = establishments.filter(e => e.parent_id);
 
-  const renderEstablishmentItem = (est: Establishment) => {
-    const subscription = est.suscripciones_establecimiento?.[0];
-    return (
-      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-        <Link to={`/dashboard/super-admin/establishment/${est.id}`} className="flex items-center gap-2 hover:underline font-semibold">
-          <School className="h-5 w-5" />
-          <div>
-            <p>{est.nombre}</p>
-            {subscription && (
-              <div className="flex items-center gap-2">
-                <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'} className="capitalize text-xs">{subscription.plan_type}</Badge>
-                <span className="text-xs text-muted-foreground">
-                  Expira: {subscription.expires_at ? format(parseISO(subscription.expires_at), 'P', { locale: es }) : 'N/A'}
-                </span>
-              </div>
-            )}
-          </div>
-        </Link>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleManageSubscription(est)}><Star className="mr-2 h-4 w-4" /> Gestionar Suscripción</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleEdit(est)}><Edit className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
-            {!est.parent_id && <DropdownMenuItem onClick={() => handleMove(est)}><Move className="mr-2 h-4 w-4" /> Mover a un grupo</DropdownMenuItem>}
-            <DropdownMenuItem onClick={() => handleDelete(est)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  };
-
   return (
     <>
       <Card>
@@ -157,14 +165,32 @@ const EstablishmentsPage = () => {
                             </Button>
                           </div>
                           <div className="space-y-2">
-                            {children.map(sub => renderEstablishmentItem(sub))}
+                            {children.map(sub => (
+                              <EstablishmentItem 
+                                key={sub.id} 
+                                est={sub} 
+                                onManageSubscription={handleManageSubscription}
+                                onEdit={handleEdit}
+                                onMove={null} // Sub-establishments can't be moved directly from here
+                                onDelete={handleDelete}
+                              />
+                            ))}
                           </div>
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
                   );
                 }
-                return renderEstablishmentItem(topLevelEst);
+                return (
+                  <EstablishmentItem 
+                    key={topLevelEst.id} 
+                    est={topLevelEst} 
+                    onManageSubscription={handleManageSubscription}
+                    onEdit={handleEdit}
+                    onMove={handleMove}
+                    onDelete={handleDelete}
+                  />
+                );
               })}
             </div>
           )}
