@@ -58,8 +58,7 @@ const EvaluationDetailPage = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isAnswerKeyDialogOpen, setAnswerKeyDialogOpen] = useState(false);
   const [isAnswerSheetModalOpen, setAnswerSheetModalOpen] = useState(false);
-  const [printMode, setPrintMode] = useState<'regular' | 'pie'>('regular');
-  const [showPieVersion, setShowPieVersion] = useState(false);
+  const [evaluationForAnswerSheet, setEvaluationForAnswerSheet] = useState<string | null>(null);
 
   useEffect(() => {
     if (evaluationId) {
@@ -82,10 +81,6 @@ const EvaluationDetailPage = () => {
         .finally(() => setLoading(false));
     }
   }, [evaluationId]);
-
-  const hasAnyAdaptation = useMemo(() => {
-    return evaluation?.evaluation_content_blocks.some(b => b.evaluacion_items.some(i => i.tiene_adaptacion_pie));
-  }, [evaluation]);
 
   const totalPuntaje = (evaluation?.evaluation_content_blocks || []).reduce((total, block) => {
     const blockTotal = (block.evaluacion_items || []).reduce((subTotal, item) => subTotal + (item.puntaje || 0), 0);
@@ -162,7 +157,7 @@ const EvaluationDetailPage = () => {
             teacherName={formattedTeacherName || 'Docente no especificado'}
             totalScore={totalPuntaje}
             rowLabel={formData.rows > 1 ? rowLabel : undefined}
-            usePieAdaptations={printMode === 'pie'}
+            usePieAdaptations={false}
           />
         );
       }
@@ -202,20 +197,29 @@ const EvaluationDetailPage = () => {
       const allQuestions = evaluation.evaluation_content_blocks.flatMap(b => b.evaluacion_items);
       const answerKey: { [row: string]: { [q: number]: string } } = {};
       const printableComponents: React.ReactElement[] = [];
+      const assignmentsToSave: Omit<StudentEvaluationAssignment, 'id' | 'created_at'>[] = [];
+      const seed = evaluation.id;
 
-      for (let i = 0; i < formData.rows; i++) {
-        const rowLabel = String.fromCharCode(65 + i);
-        answerKey[rowLabel] = {};
+      // Group students by course
+      const studentsByCourse = students.reduce((acc, student) => {
+        const courseName = student.curso_nombre;
+        if (!acc[courseName]) {
+          acc[courseName] = [];
+        }
+        acc[courseName].push(student);
+        return acc;
+      }, {} as Record<string, typeof students>);
 
-        allQuestions.forEach(q => {
-          if (q.tipo_item === 'seleccion_multiple') {
-            const shuffledAlts = seededShuffle(q.item_alternativas, `${formData.seed}-${rowLabel}-${q.id}`);
-            const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
-            answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
-          }
-        });
+      // Distribute rows within each course
+      for (const courseName in studentsByCourse) {
+        const courseStudents = studentsByCourse[courseName];
+        const midIndex = Math.ceil(courseStudents.length / 2);
+        
+        const studentsA = formData.rows === 1 ? courseStudents : courseStudents.slice(0, midIndex);
+        const studentsB = formData.rows === 1 ? [] : courseStudents.slice(midIndex);
 
-        for (const student of students) {
+        studentsA.forEach(student => {
+          const rowLabel = 'A';
           const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
           printableComponents.push(
             <PrintableAnswerSheet
@@ -228,9 +232,54 @@ const EvaluationDetailPage = () => {
               rowLabel={rowLabel}
               qrCodeData={qrCodeData}
               questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+              includeStudentName={formData.includeStudentName}
             />
           );
-        }
+          assignmentsToSave.push({
+            student_id: student.id,
+            evaluation_id: evaluation.id,
+            assigned_row: rowLabel,
+            seed: seed,
+          });
+        });
+
+        studentsB.forEach(student => {
+          const rowLabel = 'B';
+          const qrCodeData = `${evaluation.id}|${student.id}|${rowLabel}`;
+          printableComponents.push(
+            <PrintableAnswerSheet
+              key={`${student.id}-${rowLabel}`}
+              evaluationTitle={evaluation.titulo}
+              establishmentName={activeEstablishment.nombre}
+              logoUrl={activeEstablishment.logo_url}
+              studentName={student.nombre_completo}
+              courseName={student.curso_nombre}
+              rowLabel={rowLabel}
+              qrCodeData={qrCodeData}
+              questions={allQuestions.map(q => ({ orden: q.orden, alternativesCount: q.item_alternativas.length }))}
+              includeStudentName={formData.includeStudentName}
+            />
+          );
+          assignmentsToSave.push({
+            student_id: student.id,
+            evaluation_id: evaluation.id,
+            assigned_row: rowLabel,
+            seed: seed,
+          });
+        });
+      }
+
+      // Now, generate the answer key for all rows
+      for (let i = 0; i < formData.rows; i++) {
+        const rowLabel = String.fromCharCode(65 + i);
+        answerKey[rowLabel] = {};
+        allQuestions.forEach(q => {
+          if (q.tipo_item === 'seleccion_multiple') {
+            const shuffledAlts = seededShuffle(q.item_alternativas, `${seed}-${rowLabel}-${q.id}`);
+            const correctIndex = shuffledAlts.findIndex(alt => alt.es_correcta);
+            answerKey[rowLabel][q.orden] = String.fromCharCode(65 + correctIndex);
+          }
+        });
       }
 
       printableComponents.push(
@@ -240,6 +289,9 @@ const EvaluationDetailPage = () => {
           answerKey={answerKey}
         />
       );
+
+      // Save assignments to the database
+      await saveStudentAssignments(assignmentsToSave);
 
       printComponent(<div>{printableComponents}</div>, `Hojas de Respuesta - ${evaluation.titulo}`, 'portrait');
       dismissToast(toastId);
@@ -306,18 +358,12 @@ const EvaluationDetailPage = () => {
                     <Button variant="outline" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/adaptar/${evaluation.id}`)}>
-                      <BrainCircuit className="mr-2 h-4 w-4" /> Adaptar para PIE
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/ingreso-manual`)}>
                       <Pencil className="mr-2 h-4 w-4" /> Ingreso Manual de Respuestas
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => { setPrintMode('regular'); setPrintModalOpen(true); }}>
+                    <DropdownMenuItem onClick={() => { setPrintModalOpen(true); }}>
                       <Download className="mr-2 h-4 w-4" /> Descargar Evaluación
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setPrintMode('pie'); setPrintModalOpen(true); }}>
-                      <Download className="mr-2 h-4 w-4" /> Descargar Versión PIE
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
                       <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
@@ -358,16 +404,6 @@ const EvaluationDetailPage = () => {
                 <CardTitle>Contenido de la Evaluación</CardTitle>
                 <CardDescription>Puntaje Total: {totalPuntaje} puntos</CardDescription>
               </div>
-              {hasAnyAdaptation && (
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="pie-version-toggle"
-                    checked={showPieVersion}
-                    onCheckedChange={setShowPieVersion}
-                  />
-                  <Label htmlFor="pie-version-toggle">Mostrar Versión Adaptada (PIE)</Label>
-                </div>
-              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
@@ -387,11 +423,8 @@ const EvaluationDetailPage = () => {
                 </div>
                 <div className="mt-6 space-y-6">
                   {block.evaluacion_items.map(item => {
-                    const adaptation = showPieVersion && item.tiene_adaptacion_pie && item.adaptaciones_pie?.[0];
-                    const enunciado = adaptation ? adaptation.enunciado_adaptado : item.enunciado;
-                    const alternativas = adaptation 
-                      ? (adaptation.alternativas_adaptadas || []).sort((a, b) => a.orden - b.orden)
-                      : (item.item_alternativas || []).sort((a, b) => a.orden - b.orden);
+                    const enunciado = item.enunciado;
+                    const alternativas = (item.item_alternativas || []).sort((a, b) => a.orden - b.orden);
 
                     return (
                       <div key={item.id}>

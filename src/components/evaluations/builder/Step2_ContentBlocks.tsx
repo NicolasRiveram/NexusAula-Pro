@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FileText, Trash2, Loader2, Sparkles, Edit, ChevronUp, BrainCircuit, Image as ImageIcon, ChevronsUpDown, BookCopy, CopyPlus, GripVertical, ClipboardList, Copy, ChevronDown } from 'lucide-react';
-import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, generatePIEAdaptation, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails, deleteEvaluationItem, decreaseQuestionDifficulty } from '@/api/evaluationsApi';
+import { fetchContentBlocks, deleteContentBlock, EvaluationContentBlock, createContentBlock, generateQuestionsFromBlock, saveGeneratedQuestions, fetchItemsForBlock, EvaluationItem, savePIEAdaptation, updateEvaluationItem, increaseQuestionDifficulty, getPublicImageUrl, fetchEvaluationContentForImport, updateContentBlock, reorderContentBlocks, updateEvaluationItemDetails, deleteEvaluationItem, decreaseQuestionDifficulty } from '@/api/evaluationsApi';
 import { UnitPlan } from '@/api/planningApi';
 import { showError, showSuccess, showLoading, dismissToast } from '@/utils/toast';
 import AddTextBlockDialog from './AddTextBlockDialog';
@@ -32,18 +32,16 @@ interface Step2ContentBlocksProps {
 
 interface QuestionItemProps {
   item: EvaluationItem;
-  onAdaptPIE: (itemId: string) => void;
   onEdit: (item: EvaluationItem) => void;
   onIncreaseDifficulty: (itemId: string) => void;
   onDecreaseDifficulty: (itemId: string) => void;
   onScoreChange: (itemId: string, newScore: number) => void;
   onDelete: (itemId: string) => void;
-  isAdapting: boolean;
   isIncreasingDifficulty: boolean;
   isDecreasingDifficulty: boolean;
 }
 
-const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onDecreaseDifficulty, onScoreChange, onDelete, isAdapting, isIncreasingDifficulty, isDecreasingDifficulty }: QuestionItemProps) => {
+const QuestionItem = ({ item, onEdit, onIncreaseDifficulty, onDecreaseDifficulty, onScoreChange, onDelete, isIncreasingDifficulty, isDecreasingDifficulty }: QuestionItemProps) => {
     const adaptation = item.adaptaciones_pie && item.adaptaciones_pie[0];
     const [localScore, setLocalScore] = useState(item.puntaje);
 
@@ -135,10 +133,6 @@ const QuestionItem = ({ item, onAdaptPIE, onEdit, onIncreaseDifficulty, onDecrea
                                 {isDecreasingDifficulty ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ChevronDown className="h-3 w-3 mr-1" />}
                                 Bajar Dificultad
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => onAdaptPIE(item.id)} disabled={isAdapting || item.tiene_adaptacion_pie} className={cn(item.tiene_adaptacion_pie && "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-600")}>
-                                {isAdapting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <BrainCircuit className="h-3 w-3 mr-1" />}
-                                {item.tiene_adaptacion_pie ? 'Adaptada' : 'Adaptar PIE'}
-                            </Button>
                         </>
                     )}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(item.id)}>
@@ -166,7 +160,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const [questionsByBlock, setQuestionsByBlock] = useState<Record<string, EvaluationItem[]>>({});
   const [loading, setLoading] = useState(true);
   const [generatingForBlock, setGeneratingForBlock] = useState<string | null>(null);
-  const [adaptingItemId, setAdaptingItemId] = useState<string | null>(null);
   const [increasingDifficultyId, setIncreasingDifficultyId] = useState<string | null>(null);
   const [decreasingDifficultyId, setDecreasingDifficultyId] = useState<string | null>(null);
   const [isAddTextDialogOpen, setAddTextDialogOpen] = useState(false);
@@ -310,20 +303,6 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
   const handleAddManualQuestion = (blockId: string) => {
     setActiveBlockId(blockId);
     setAddQuestionDialogOpen(true);
-  };
-
-  const handleAdaptPIE = async (itemId: string) => {
-    setAdaptingItemId(itemId);
-    try {
-        const adaptationData = await generatePIEAdaptation(itemId);
-        await savePIEAdaptation(itemId, adaptationData);
-        showSuccess("Pregunta adaptada para PIE exitosamente.");
-        loadBlocksAndQuestions();
-    } catch (error: any) {
-        showError(`Error al adaptar la pregunta: ${error.message}`);
-    } finally {
-        setAdaptingItemId(null);
-    }
   };
 
   const handleEditSave = async (item: EvaluationItem, data: any) => {
@@ -549,13 +528,11 @@ const Step2ContentBlocks: React.FC<Step2ContentBlocksProps> = ({ evaluationId, e
                               <QuestionItem 
                                   key={item.id} 
                                   item={item} 
-                                  onAdaptPIE={handleAdaptPIE}
                                   onEdit={setEditingItem}
                                   onIncreaseDifficulty={handleIncreaseDifficulty}
                                   onDecreaseDifficulty={handleDecreaseDifficulty}
                                   onScoreChange={handleScoreChange}
                                   onDelete={handleDeleteItem}
-                                  isAdapting={adaptingItemId === item.id}
                                   isIncreasingDifficulty={increasingDifficultyId === item.id}
                                   isDecreasingDifficulty={decreasingDifficultyId === item.id}
                               />

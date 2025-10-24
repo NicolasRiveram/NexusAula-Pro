@@ -1,14 +1,22 @@
 import ReactDOMServer from 'react-dom/server';
 import React from 'react';
+import jsPDF from 'jspdf';
 
 export const printComponent = (component: React.ReactElement, documentTitle: string, orientation: 'portrait' | 'landscape' = 'portrait') => {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert('Por favor, permite las ventanas emergentes para poder imprimir.');
-    return;
-  }
+  const printContainer = document.createElement('div');
+  printContainer.style.position = 'fixed';
+  printContainer.style.left = '-9999px';
+  printContainer.style.top = '-9999px';
+  document.body.appendChild(printContainer);
 
   const html = ReactDOMServer.renderToStaticMarkup(component);
+  
+  const printWindow = window.open('', '_blank', 'width=1200,height=800,left=-9999,top=-9999');
+  if (!printWindow) {
+    alert('Por favor, permite las ventanas emergentes para poder generar el PDF.');
+    document.body.removeChild(printContainer);
+    return;
+  }
 
   printWindow.document.write(`
     <html>
@@ -229,12 +237,25 @@ export const printComponent = (component: React.ReactElement, documentTitle: str
       </body>
     </html>
   `);
-
   printWindow.document.close();
-  printWindow.focus();
   
   setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 500);
+    const doc = new jsPDF({
+      orientation,
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    doc.html(printWindow.document.body, {
+      callback: function (doc) {
+        printWindow.close();
+        document.body.removeChild(printContainer);
+        doc.output('dataurlnewwindow');
+      },
+      margin: [10, 10, 10, 10],
+      autoPaging: 'text',
+      width: 190, // A4 width (210mm) - 20mm margins
+      windowWidth: printWindow.document.body.scrollWidth,
+    });
+  }, 1000);
 };
