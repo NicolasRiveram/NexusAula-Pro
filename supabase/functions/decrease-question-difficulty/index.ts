@@ -45,6 +45,22 @@ serve(async (req) => {
     
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
+    const numAlternatives = item.alternativas?.length || 4;
+    const alternativeExamples = Array.from({ length: numAlternatives }, (_, i) => 
+      `{"texto": "string", "es_correcta": boolean, "orden": ${i + 1}}`
+    ).join(',\n          ');
+
+    const jsonStructureExample = `
+      \`\`\`json
+      {
+        "enunciado": "string",
+        "alternativas": [
+          ${alternativeExamples}
+        ]
+      }
+      \`\`\`
+    `;
+
     const prompt = `
       Eres un asistente experto en diseño de evaluaciones.
       Tu tarea es disminuir la dificultad de una pregunta de selección múltiple.
@@ -52,18 +68,8 @@ serve(async (req) => {
       1. Simplifica el lenguaje del enunciado para que sea más directo y fácil de comprender.
       2. Haz los distractores (alternativas incorrectas) más claramente incorrectos y menos ambiguos.
       
-      Devuelve un objeto JSON con la siguiente estructura, manteniendo el mismo número de alternativas:
-      \`\`\`json
-      {
-        "enunciado": "string",
-        "alternativas": [
-          {"texto": "string", "es_correcta": boolean, "orden": number},
-          {"texto": "string", "es_correcta": boolean, "orden": number},
-          {"texto": "string", "es_correcta": boolean, "orden": number},
-          {"texto": "string", "es_correcta": boolean, "orden": number}
-        ]
-      }
-      \`\`\`
+      Devuelve un objeto JSON con la siguiente estructura, manteniendo el mismo número de alternativas que la pregunta original (${numAlternatives} en este caso):
+      ${jsonStructureExample}
       - La alternativa correcta debe seguir siendo la misma.
       - Mantén el campo 'orden' para cada alternativa.
       - Tu respuesta DEBE ser únicamente el objeto JSON dentro de un bloque de código.
