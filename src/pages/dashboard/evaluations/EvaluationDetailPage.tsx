@@ -358,6 +358,9 @@ const EvaluationDetailPage = () => {
                     <Button variant="outline" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/adaptar-pie`)}>
+                      <BrainCircuit className="mr-2 h-4 w-4" /> Adaptar para PIE
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/ingreso-manual`)}>
                       <Pencil className="mr-2 h-4 w-4" /> Ingreso Manual de Respuestas
                     </DropdownMenuItem>
