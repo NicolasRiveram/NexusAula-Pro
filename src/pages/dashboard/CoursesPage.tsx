@@ -155,31 +155,34 @@ const CoursesPage = () => {
 
   const renderTeacherView = () => (
     <>
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold">Mis Cursos</h1>
           <p className="text-muted-foreground">Gestiona tus cursos, asignaturas y estudiantes del establecimiento activo.</p>
         </div>
-        <div className="flex gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="inline-block">
-                  <Button onClick={() => setCreateDialogOpen(true)} disabled={!activeEstablishment || !canCreateCourse}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Crear Curso
-                  </Button>
-                </div>
-              </TooltipTrigger>
-              {!canCreateCourse && (
-                <TooltipContent>
-                  <p>Has alcanzado el límite de 2 cursos del plan de prueba.</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-          <Button onClick={() => setAssignDialogOpen(true)} variant="outline" disabled={!activeEstablishment}>
-            <BookUp className="mr-2 h-4 w-4" /> Asignar Asignatura
+        <div className="flex flex-col items-end gap-2">
+          <Button onClick={() => setAssignDialogOpen(true)} disabled={!activeEstablishment} size="lg">
+            <BookUp className="mr-2 h-4 w-4" /> Asignar Asignatura a Curso
           </Button>
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground">¿No encuentras el curso que buscas?</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-block">
+                    <Button onClick={() => setCreateDialogOpen(true)} variant="link" className="p-0 h-auto" disabled={!activeEstablishment || !canCreateCourse}>
+                      Crea uno nuevo aquí
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!canCreateCourse && (
+                  <TooltipContent>
+                    <p>Has alcanzado el límite de 2 cursos del plan de prueba.</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </div>
       {Object.keys(teacherCourses).length > 0 ? (
