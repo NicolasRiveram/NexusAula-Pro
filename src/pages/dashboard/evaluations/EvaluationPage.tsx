@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEstablishment } from '@/contexts/EstablishmentContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2, Pencil } from 'lucide-react';
+import { PlusCircle, CheckCircle, Send, MoreVertical, Eye, Printer, FileText, ClipboardList, BarChart, Camera, Trash2, Pencil, BrainCircuit } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -459,34 +459,37 @@ const EvaluationPage = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}`)}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); navigate(`/dashboard/evaluacion/${evaluation.id}`); }}>
                                 <Eye className="mr-2 h-4 w-4" /> Ver Detalles
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/editar/${evaluation.id}`)}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); navigate(`/dashboard/evaluacion/editar/${evaluation.id}`); }}>
                                 <Pencil className="mr-2 h-4 w-4" /> Editar Contenido
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`)}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); navigate(`/dashboard/evaluacion/${evaluation.id}/adaptar-pie`); }}>
+                                <BrainCircuit className="mr-2 h-4 w-4" /> Adaptar para PIE
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); navigate(`/dashboard/evaluacion/${evaluation.id}/resultados`); }}>
                                 <BarChart className="mr-2 h-4 w-4" /> Ver Resultados
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setEvaluationForAnswerKey(evaluation.id); setAnswerKeyDialogOpen(true); }}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setEvaluationForAnswerKey(evaluation.id); setAnswerKeyDialogOpen(true); }}>
                                 <ClipboardList className="mr-2 h-4 w-4" /> Ver Pauta
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handlePrintClick(evaluation.id)}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handlePrintClick(evaluation.id); }}>
                                 <Printer className="mr-2 h-4 w-4" /> Imprimir Evaluación
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleAnswerSheetClick(evaluation.id)}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleAnswerSheetClick(evaluation.id); }}>
                                 <FileText className="mr-2 h-4 w-4" /> Imprimir Hoja de Respuestas
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/ingreso-manual`)}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); navigate(`/dashboard/evaluacion/${evaluation.id}/ingreso-manual`); }}>
                                 <Pencil className="mr-2 h-4 w-4" /> Ingreso Manual
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`)}>
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); navigate(`/dashboard/evaluacion/${evaluation.id}/corregir`); }}>
                                 <Camera className="mr-2 h-4 w-4" /> Corregir con Cámara
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleDeleteClick(evaluation)} className="text-destructive">
+                              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(evaluation); }} className="text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                               </DropdownMenuItem>
                             </DropdownMenuContent>
