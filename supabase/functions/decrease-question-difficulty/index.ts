@@ -61,9 +61,17 @@ serve(async (req) => {
       \`\`\`
     `;
 
+    let specialInstruction = '';
+    if (numAlternatives === 3) {
+      specialInstruction = `
+      ATENCIÓN: Esta pregunta ya parece ser una versión adaptada (tiene solo 3 alternativas). Tu tarea es hacerla **aún más simple y directa**. Utiliza un vocabulario más básico, reduce la longitud de las frases y asegúrate de que los distractores sean muy evidentemente incorrectos. El objetivo es la máxima accesibilidad para estudiantes con mayores necesidades de apoyo.
+      `;
+    }
+
     const prompt = `
       Eres un asistente experto en diseño de evaluaciones.
       Tu tarea es disminuir la dificultad de una pregunta de selección múltiple.
+      ${specialInstruction}
       Aplica las siguientes técnicas:
       1. Simplifica el lenguaje del enunciado para que sea más directo y fácil de comprender.
       2. Haz los distractores (alternativas incorrectas) más claramente incorrectos y menos ambiguos.
