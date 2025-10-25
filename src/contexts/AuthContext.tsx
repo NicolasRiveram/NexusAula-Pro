@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
@@ -23,6 +23,7 @@ interface AuthContextType {
   isStudent: boolean;
   isSuperAdmin: boolean;
   isTeacher: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,45 +38,50 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSessionAndProfile = async (session: Session | null) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Error fetching profile:', profileError);
-          setProfile(null);
-        } else {
-          let finalProfile = { ...profileData };
+  const fetchProfile = useCallback(async (userToFetch: User) => {
+    const { data: profileData, error: profileError } = await supabase
+      .from('perfiles')
+      .select('*')
+      .eq('id', userToFetch.id)
+      .single();
+    
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('Error fetching profile:', profileError);
+      setProfile(null);
+    } else {
+      let finalProfile = { ...profileData };
 
-          // Check for establishment subscription override
-          const { data: establishmentLinks, error: estError } = await supabase
-            .from('perfil_establecimientos')
-            .select('establecimientos!inner(id, suscripciones_establecimiento(*))')
-            .eq('perfil_id', session.user.id)
-            .eq('estado', 'aprobado');
+      // Check for establishment subscription override
+      const { data: establishmentLinks, error: estError } = await supabase
+        .from('perfil_establecimientos')
+        .select('establecimientos!inner(id, suscripciones_establecimiento(*))')
+        .eq('perfil_id', userToFetch.id)
+        .eq('estado', 'aprobado');
 
-          if (!estError && establishmentLinks) {
-            const hasActiveEstablishmentPlan = establishmentLinks.some((link: any) => {
-              const sub = link.establecimientos?.suscripciones_establecimiento?.[0];
-              return sub && (sub.plan_type === 'establecimiento' || sub.plan_type === 'pro') && sub.expires_at && new Date(sub.expires_at) > new Date();
-            });
+      if (!estError && establishmentLinks) {
+        const hasActiveEstablishmentPlan = establishmentLinks.some((link: any) => {
+          const sub = link.establecimientos?.suscripciones_establecimiento?.[0];
+          return sub && (sub.plan_type === 'establecimiento' || sub.plan_type === 'pro') && sub.expires_at && new Date(sub.expires_at) > new Date();
+        });
 
-            if (hasActiveEstablishmentPlan) {
-              finalProfile.subscription_plan = 'establecimiento';
-              finalProfile.subscription_status = 'active';
-              finalProfile.trial_ends_at = null;
-            }
-          }
-          
-          setProfile(finalProfile as Profile);
+        if (hasActiveEstablishmentPlan) {
+          finalProfile.subscription_plan = 'establecimiento';
+          finalProfile.subscription_status = 'active';
+          finalProfile.trial_ends_at = null;
         }
+      }
+      
+      setProfile(finalProfile as Profile);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchSessionAndProfile = async (currentSession: Session | null) => {
+      setSession(currentSession);
+      const currentUser = currentSession?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        await fetchProfile(currentUser);
       } else {
         setProfile(null);
       }
@@ -91,7 +97,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchProfile]);
+
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      await fetchProfile(user);
+    }
+  }, [user, fetchProfile]);
 
   const isAdmin = profile?.rol === 'administrador_establecimiento' || profile?.rol === 'coordinador';
   const isStudent = profile?.rol === 'estudiante';
@@ -107,6 +119,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isStudent,
     isSuperAdmin,
     isTeacher,
+    refreshProfile,
   };
 
   return (

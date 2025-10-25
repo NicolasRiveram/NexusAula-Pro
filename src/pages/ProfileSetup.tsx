@@ -10,6 +10,7 @@ import { completeDocenteProfile, completeCoordinatorProfile } from './profile-se
 import { useProfileSetupForm } from './profile-setup/use-profile-setup-form';
 import { useProfileData } from './profile-setup/use-profile-data';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Importar los componentes de los pasos
 import Step1UserProfile from './profile-setup/steps/Step1UserProfile';
@@ -44,6 +45,7 @@ const ProfileSetupSkeleton = () => (
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
+  const { refreshProfile } = useAuth();
   const {
     currentStep,
     setCurrentStep,
@@ -86,6 +88,9 @@ const ProfileSetup = () => {
           p_nombre_completo: nombre_completo,
         });
       }
+      
+      await refreshProfile();
+
       showSuccess("¡Configuración de perfil completada exitosamente!");
       navigate('/dashboard');
     } catch (error: any) {
